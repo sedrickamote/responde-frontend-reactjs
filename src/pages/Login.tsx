@@ -47,7 +47,7 @@ export default function Login() {
             </div>
 
             {errorMessage && (
-              <div className="mb-6 p-3 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-2 text-blue-600 text-sm">
+              <div className="mb-6 p-3 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-2 text-red-600 text-sm">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{errorMessage}</span>
               </div>
@@ -56,7 +56,7 @@ export default function Login() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">
-                  Username / Operator ID
+                  Email
                 </label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
@@ -64,7 +64,7 @@ export default function Login() {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="e.g. mdrrmo_admin"
+                    placeholder="e.g. mddrmo@gmail.com"
                     className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
                   />
                 </div>
