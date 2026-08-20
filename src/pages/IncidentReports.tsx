@@ -45,7 +45,6 @@ export default function IncidentReports() {
 
  return(
 <div className="space-y-6">
-  {/* Page Header */}
 
    {/* Filter Bar */}
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
