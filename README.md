@@ -121,8 +121,6 @@ npm install
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`.
-
 ### Build for Production
 
 ```bash
@@ -130,18 +128,6 @@ npm run build
 ```
 
 Output will be generated in the `dist/` directory.
-
----
-
-## Environment Variables
-
-Create a `.env` file in the project root if you need to configure API endpoints:
-
-```env
-VITE_API_BASE_URL=http://localhost:8000
-```
-
-> **Note:** Never commit `.env` files containing secrets to version control.
 
 ---
 
@@ -153,31 +139,6 @@ VITE_API_BASE_URL=http://localhost:8000
 
 ---
 
-## Team
-
-| Role | Name |
-|------|------|
-| **Frontend Developer** | Rochelle |
-| **Backend Developer** | Jefferson Samson |
-| **Adviser** | *[Your Capstone Adviser]* |
-
-**Institution:** Batangas State University (BSU)  
-**Program:** Bachelor of Science in Information Technology
-
----
-
-## Acknowledgments
-
-- Talisay MDRRMO for the opportunity to build a system that serves the community
-- Batangas State University — College of Informatics and Computing Sciences
-
----
-
-## License
-
-This project is developed for academic purposes as part of the BSU Capstone requirements.
-
----
 
 <p align="center">
   <strong>RESPONDE</strong> — Real-Time Disaster Intelligence for Talisay, Batangas
