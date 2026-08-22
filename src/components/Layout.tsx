@@ -54,14 +54,14 @@ export default function Layout() {
           w-60
           bg-white dark:bg-[#111827]
           flex flex-col
-          border-r border-slate-200 dark:border-slate-800
+          border-r border-slate-300 dark:border-slate-800
           transition-all duration-300 ease-in-out
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
         {/* Logo */}
         <div className={`
-          h-[70px] flex items-center border-b border-slate-100 dark:border-slate-800
+          h-[70px] flex items-center border-b border-slate-300 dark:border-slate-800
           ${collapsed && !mobileOpen ? 'lg:justify-center lg:px-0' : 'px-5 gap-3'}
         `}>
           <img
@@ -134,7 +134,7 @@ export default function Layout() {
         </nav>
 
         {/* Sign Out */}
-        <div className="p-3 border-t border-slate-100 dark:border-slate-800">
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800">
           <button
             onClick={() => navigate('/login')}
             className={`
