@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Filter, Globe, MessageCircle, AlertTriangle, MapPin, Clock, CheckCircle, XCircle, Brain, Users, ExternalLink } from 'lucide-react';
+import DatePicker from '../components/DatePicker';
 
 interface ScrapedPost {
   id: string;
@@ -132,6 +133,8 @@ const samplePosts: ScrapedPost[] = [
 export default function ScraperFeed() {
   const [posts] = useState<ScrapedPost[]>(samplePosts);
   const [selectedId, setSelectedId] = useState<string>('SC-001');
+   const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   const selectedPost = posts.find((p) => p.id === selectedId);
 
@@ -207,11 +210,15 @@ export default function ScraperFeed() {
             <option>Resolved</option>
           </select>
 
-          <div className="flex items-center gap-2 ml-auto">
-            <span className="text-sm text-slate-500 dark:text-slate-400">From:</span>
-            <input type="date" className="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <span className="text-sm text-slate-500 dark:text-slate-400">To:</span>
-            <input type="date" className="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 lg:ml-auto w-full lg:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">From:</span>
+              <DatePicker value={fromDate} onChange={setFromDate} placeholder="Select Date" />
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+               <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">To:</span>
+              <DatePicker value={toDate} onChange={setToDate} placeholder="Select Date" />
+            </div>
           </div>
         </div>
       </div>
