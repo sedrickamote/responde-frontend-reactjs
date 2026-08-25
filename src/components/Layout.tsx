@@ -205,7 +205,7 @@ export default function Layout() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-5 lg:p-6 bg-[linear-gradient(113deg,#ffffff_0%,#f1f5ff_26%,#e5ebff_52%,#e3eaff_100%)] dark:bg-none dark:bg-[#0B0F19]">
+        <div className="flex-1 flex flex-col overflow-y-auto p-5 lg:p-6 bg-[linear-gradient(113deg,#ffffff_0%,#f1f5ff_26%,#e5ebff_52%,#e3eaff_100%)] dark:bg-none dark:bg-[#0B0F19]">
           <Outlet />
         </div>
       </main>
