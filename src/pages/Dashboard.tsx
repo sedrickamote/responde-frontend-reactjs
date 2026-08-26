@@ -1,4 +1,119 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { X, ArrowRight } from 'lucide-react';
+
+// ── Types ──
+interface BotMessage {
+  sender: 'bot' | 'user';
+  text: string;
+}
+
+interface BotConversation {
+  id: string;
+  name: string;
+  barangay: string;
+  type: string;
+  status: 'Unread' | 'Complete';
+  time: string;
+  messages: BotMessage[];
+}
+
+// ── Sample Data ──
+const botConversations: BotConversation[] = [
+  {
+    id: 'A',
+    name: 'Conversation A',
+    barangay: 'Leynes',
+    type: 'Medical',
+    status: 'Unread',
+    time: '10/24 10:30',
+    messages: [
+      { sender: 'bot', text: 'Magandang araw! Ako ang RESPONDE bot. Para ma-report ang inyong sitwasyon, pakisabi ang inyong barangay.' },
+      { sender: 'user', text: 'Leynes po kami' },
+      { sender: 'bot', text: 'Salamat. Ano po ang emergency? (Medical, Search & Rescue, Food/Water, Infrastructure)' },
+      { sender: 'user', text: 'May matanda po dito hindi makahinga' },
+      { sender: 'bot', text: 'Nakuha. Ilan po ang apektado at ano ang kasalukuyang sitwasyon?' },
+    ],
+  },
+  {
+    id: 'B',
+    name: 'Conversation B',
+    barangay: 'Poblacion',
+    type: 'Medical',
+    status: 'Complete',
+    time: '10/24 09:15',
+    messages: [
+      { sender: 'bot', text: 'Magandang araw! Ako ang RESPONDE bot. Para ma-report ang inyong sitwasyon, pakisabi ang inyong barangay.' },
+      { sender: 'user', text: 'Poblacion po' },
+      { sender: 'bot', text: 'Salamat. Ano po ang emergency? (Medical, Search & Rescue, Food/Water, Infrastructure)' },
+      { sender: 'user', text: 'May bata po na naaksidente sa kalsada' },
+      { sender: 'bot', text: 'Nakuha. Ilan po ang apektado at ano ang kasalukuyang sitwasyon?' },
+      { sender: 'user', text: 'Isa lang po, sugatan yung paa niya' },
+    ],
+  },
+  {
+    id: 'C',
+    name: 'Conversation C',
+    barangay: 'Cawit',
+    type: 'Medical',
+    status: 'Unread',
+    time: '10/24 08:45',
+    messages: [
+      { sender: 'bot', text: 'Magandang araw! Ako ang RESPONDE bot. Para ma-report ang inyong sitwasyon, pakisabi ang inyong barangay.' },
+      { sender: 'user', text: 'Cawit po kami' },
+    ],
+  },
+  {
+    id: 'D',
+    name: 'Conversation D',
+    barangay: 'San Isidro',
+    type: 'Medical',
+    status: 'Complete',
+    time: '10/24 08:20',
+    messages: [
+      { sender: 'bot', text: 'Magandang araw! Ako ang RESPONDE bot. Para ma-report ang inyong sitwasyon, pakisabi ang inyong barangay.' },
+      { sender: 'user', text: 'San Isidro po' },
+      { sender: 'bot', text: 'Salamat. Ano po ang emergency?' },
+      { sender: 'user', text: 'May bata po na nilalagnat' },
+    ],
+  },
+  {
+    id: 'E',
+    name: 'Conversation E',
+    barangay: 'Sampaloc',
+    type: 'Medical',
+    status: 'Complete',
+    time: '10/24 07:55',
+    messages: [
+      { sender: 'bot', text: 'Magandang araw! Ako ang RESPONDE bot. Para ma-report ang inyong sitwasyon, pakisabi ang inyong barangay.' },
+      { sender: 'user', text: 'Sampaloc po' },
+      { sender: 'bot', text: 'Salamat. Ano po ang emergency?' },
+      { sender: 'user', text: 'May matandang hinihingal po dito' },
+    ],
+  },
+];
+
+const scraperItems = [
+  'Tulungan nyo po ako, hindi ko alam kung pano ko uubusin yung pera ko',
+  'Pa wash out po kay Juan Dela Cruz',
+  'Pa wash out po kay Juan Dela Cruz',
+  'Pa wash out po kay Juan Dela Cruz',
+  'Pa wash out po kay Juan Dela Cruz',
+  'Pa wash out po kay Juan Dela Cruz',
+];
+
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const [activeConv, setActiveConv] = useState<BotConversation | null>(null);
+  const [selectedConvId, setSelectedConvId] = useState<string>('A');
+
+  const openConversation = (conv: BotConversation) => {
+    setSelectedConvId(conv.id);
+    setActiveConv(conv);
+  };
+
+  const selectedConversation = botConversations.find(c => c.id === selectedConvId) || activeConv;
+
   return (
     <div className="grid grid-cols-12 gap-6 h-full lg:grid-rows-[auto_1fr]">
       {/* Stats Row */}
@@ -41,14 +156,28 @@ export default function Dashboard() {
             <h3 className="font-semibold text-slate-800 dark:text-slate-100">Messenger Bot Activities</h3>
           </div>
           <div className="p-2 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-            {['B','C','D','E','E','E'].map((letter, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-lg transition-colors">
-                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300">{letter}</div>
-                <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">Medical</span>
-                <span className={`text-xs px-2 py-0.5 rounded ${i === 1 ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
-                  {i === 1 ? 'Incomplete' : 'Complete'}
+            {botConversations.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => openConversation(conv)}
+                className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-lg transition-colors text-left"
+              >
+                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 shrink-0">
+                  {conv.id}
+                </div>
+                <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                  {conv.type}
                 </span>
-              </div>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded ${
+                    conv.status === 'Unread'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                      : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                  }`}
+                >
+                  {conv.status}
+                </span>
+              </button>
             ))}
           </div>
         </div>
@@ -59,14 +188,7 @@ export default function Dashboard() {
             <h3 className="font-semibold text-slate-800 dark:text-slate-100">Scraper Activities</h3>
           </div>
           <div className="p-4 space-y-3 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-            {[
-              'Tulungan nyo po ako, hindi ko alam kung pano ko uubusin yung pera ko',
-              'Pa wash out po kay Juan Dela Cruz',
-              'Pa wash out po kay Juan Dela Cruz',
-              'Pa wash out po kay Juan Dela Cruz',
-              'Pa wash out po kay Juan Dela Cruz',
-              'Pa wash out po kay Juan Dela Cruz',
-            ].map((text, i) => (
+            {scraperItems.map((text, i) => (
               <div key={i} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-100 dark:border-slate-700">
                 <p className="text-xs text-slate-600 dark:text-slate-300">{text}</p>
               </div>
@@ -113,6 +235,133 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── Conversation Modal ── */}
+      {activeConv && selectedConversation && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setActiveConv(null)}
+        >
+          <div
+            className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-4xl h-[80vh] flex overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Left: Conversation List */}
+            <div className="w-80 border-r border-slate-100 dark:border-slate-700 flex flex-col shrink-0">
+              <div className="p-4 border-b border-slate-100 dark:border-slate-700">
+                <h3 className="font-semibold text-slate-800 dark:text-slate-100">Recent Conversations</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {botConversations.map((conv) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => setSelectedConvId(conv.id)}
+                    className={`w-full flex items-center gap-3 p-4 text-left transition-colors border-l-4 ${
+                      selectedConvId === conv.id
+                        ? 'bg-slate-50 dark:bg-slate-700/40 border-l-blue-500'
+                        : 'border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-700/30'
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 shrink-0 text-sm">
+                      {conv.id}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{conv.name}</p>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0 ml-2">{conv.time}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">{conv.type}</span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded ${
+                            conv.status === 'Unread'
+                              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                              : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                          }`}
+                        >
+                          {conv.status}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Chat View */}
+            <div className="flex-1 flex flex-col min-w-0">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-700">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 text-sm">
+                    {selectedConversation.id}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{selectedConversation.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {selectedConversation.barangay} • {selectedConversation.type}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {selectedConversation.status === 'Unread' && (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium border border-blue-100 dark:border-blue-800">
+                      Unread
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setActiveConv(null)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50 dark:bg-slate-900/30">
+                {selectedConversation.messages.map((msg, i) =>
+                  msg.sender === 'bot' ? (
+                    /* Bot = our side = RIGHT, colored blue */
+                    <div key={i} className="flex items-start gap-2.5 justify-end">
+                      <div className="bg-blue-600 rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[75%]">
+                        <p className="text-sm text-white leading-relaxed">{msg.text}</p>
+                      </div>
+                      <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-[10px] font-bold text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
+                        B
+                      </div>
+                    </div>
+                  ) : (
+                    /* User = their side = LEFT, white/gray */
+                    <div key={i} className="flex items-start gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-300 shrink-0 mt-0.5">
+                        U
+                      </div>
+                      <div className="bg-white dark:bg-slate-700 border border-slate-100 dark:border-slate-600 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[75%]">
+                        <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{msg.text}</p>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* Footer: Go to MessengerBot */}
+              <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex justify-end">
+                <button
+                  onClick={() => {
+                    setActiveConv(null);
+                    navigate('/MessengerBotLogs');
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
+                >
+                  Go to MessengerBot
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
