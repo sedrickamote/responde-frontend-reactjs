@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Filter, Globe, MessageCircle, AlertTriangle, MapPin, Clock, CheckCircle, XCircle, Brain, Users, ExternalLink } from 'lucide-react';
 import DatePicker from '../components/DatePicker';
+import FilterDropdown from '../components/DropDown';
 
 interface ScrapedPost {
   id: string;
@@ -133,10 +134,25 @@ const samplePosts: ScrapedPost[] = [
 export default function ScraperFeed() {
   const [posts] = useState<ScrapedPost[]>(samplePosts);
   const [selectedId, setSelectedId] = useState<string>('SC-001');
-   const [fromDate, setFromDate] = useState('');
+  const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
-  const selectedPost = posts.find((p) => p.id === selectedId);
+  // ── NEW: Filter states ──
+  const [filterBarangay, setFilterBarangay] = useState('All Barangays');
+  const [filterType, setFilterType] = useState('All Types');
+  const [filterUrgency, setFilterUrgency] = useState('All Urgency');
+  const [filterStatus, setFilterStatus] = useState('All Status');
+
+  // ── NEW: Filtered posts ──
+  const filteredPosts = posts.filter(p => {
+    if (filterBarangay !== 'All Barangays' && p.barangay !== filterBarangay) return false;
+    if (filterType !== 'All Types' && p.type !== filterType) return false;
+    if (filterUrgency !== 'All Urgency' && p.urgency !== filterUrgency) return false;
+    if (filterStatus !== 'All Status' && p.status !== filterStatus) return false;
+    return true;
+  });
+
+  const selectedPost = filteredPosts.find((p) => p.id === selectedId) || filteredPosts[0];
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
@@ -169,130 +185,126 @@ export default function ScraperFeed() {
   return (
     <div className="space-y-5 h-full flex flex-col">
 
-      {/* Filters Bar */}
+      {/* Filters Bar - Responsive */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm">
-            <Filter className="w-4 h-4" />
-            <span className="font-medium">Filters:</span>
+        <div className="flex flex-col xl:flex-row xl:items-center gap-3">
+          
+          {/* Filter label + dropdowns */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm shrink-0">
+              <Filter className="w-4 h-4" />
+              <span className="font-medium">Filters:</span>
+            </div>
+
+            <FilterDropdown
+              value={filterBarangay}
+              options={['All Barangays', 'Leynes', 'Poblacion', 'Sampaloc', 'Cawit', 'Banga', 'San Isidro']}
+              onChange={(val) => { setFilterBarangay(val); setSelectedId('SC-001'); }}
+            />
+
+            <FilterDropdown
+              value={filterType}
+              options={['All Types', 'Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure']}
+              onChange={(val) => { setFilterType(val); setSelectedId('SC-001'); }}
+            />
+
+            <FilterDropdown
+              value={filterUrgency}
+              options={['All Urgency', 'High', 'Moderate', 'Low']}
+              onChange={(val) => { setFilterUrgency(val); setSelectedId('SC-001'); }}
+            />
+
+            <FilterDropdown
+              value={filterStatus}
+              options={['All Status', 'New', 'Verified', 'Flagged', 'Resolved']}
+              onChange={(val) => { setFilterStatus(val); setSelectedId('SC-001'); }}
+            />
           </div>
 
-          <select className="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Barangays</option>
-            <option>Leynes</option>
-            <option>Poblacion</option>
-            <option>Sampaloc</option>
-            <option>Cawit</option>
-            <option>Banga</option>
-            <option>San Isidro</option>
-          </select>
-
-          <select className="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Types</option>
-            <option>Search & Rescue</option>
-            <option>Medical</option>
-            <option>Food & Water</option>
-            <option>Infrastructure</option>
-          </select>
-
-          <select className="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Urgency</option>
-            <option>High</option>
-            <option>Moderate</option>
-            <option>Low</option>
-          </select>
-
-          <select className="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Status</option>
-            <option>New</option>
-            <option>Verified</option>
-            <option>Flagged</option>
-            <option>Resolved</option>
-          </select>
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 lg:ml-auto w-full lg:w-auto">
+          {/* Date pickers - push right on xl, full width on mobile */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 xl:ml-auto w-full xl:w-auto">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">From:</span>
               <DatePicker value={fromDate} onChange={setFromDate} placeholder="Select Date" />
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-               <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">To:</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">To:</span>
               <DatePicker value={toDate} onChange={setToDate} placeholder="Select Date" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Two Column Layout */}
-      <div className="flex-1 grid grid-cols-12 gap-5 min-h-0">
+      {/* Two Column Layout - stacks on mobile */}
+      <div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-5 min-h-0">
 
         {/* LEFT: Post List */}
-        <div className="col-span-12 lg:col-span-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden">
+        <div className="lg:col-span-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden min-h-[300px] lg:min-h-0">
           <div className="p-4 border-b border-slate-100 dark:border-slate-700">
             <h3 className="font-semibold text-slate-800 dark:text-slate-100">Scraped Posts</h3>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {posts.map((post) => (
-              <button
-                key={post.id}
-                onClick={() => setSelectedId(post.id)}
-                className={`w-full text-left p-4 border-b border-slate-50 dark:border-slate-700/50 transition-all ${
-                  selectedId === post.id
-                    ? 'bg-blue-50/50 dark:bg-blue-900/20 border-l-4 border-l-blue-500'
-                    : 'border-l-4 border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  {/* Avatar */}
-                  <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-sm text-slate-600 dark:text-slate-300 shrink-0">
-                    {post.avatar}
+            {filteredPosts.length === 0 ? (
+              <div className="flex items-center justify-center py-20 text-slate-400 dark:text-slate-500 text-sm">
+                No scraped posts found.
+              </div>
+            ) : (
+              filteredPosts.map((post) => (
+                <button
+                  key={post.id}
+                  onClick={() => setSelectedId(post.id)}
+                  className={`w-full text-left p-4 border-b border-slate-50 dark:border-slate-700/50 transition-all ${
+                    selectedId === post.id
+                      ? 'bg-blue-50/50 dark:bg-blue-900/20 border-l-4 border-l-blue-500'
+                      : 'border-l-4 border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-700/30'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-sm text-slate-600 dark:text-slate-300 shrink-0">
+                      {post.avatar}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
+                          {post.author}
+                        </span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                          {post.timestamp}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                          {getSourceIcon(post.source)}
+                          {post.source}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-2">
+                        {post.rawText}
+                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium border ${getUrgencyColor(post.urgency)}`}>
+                          {post.urgency}
+                        </span>
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(post.status)}`}>
+                          {post.status}
+                        </span>
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                          <Brain className="w-3 h-3" />
+                          {post.confidence}%
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    {/* Top row */}
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
-                        {post.author}
-                      </span>
-                      <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                        {post.timestamp}
-                      </span>
-                    </div>
-                    {/* Source badge */}
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
-                        {getSourceIcon(post.source)}
-                        {post.source}
-                      </span>
-                    </div>
-                    {/* Text snippet */}
-                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-2">
-                      {post.rawText}
-                    </p>
-                    {/* Badges row */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium border ${getUrgencyColor(post.urgency)}`}>
-                        {post.urgency}
-                      </span>
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(post.status)}`}>
-                        {post.status}
-                      </span>
-                      <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500">
-                        <Brain className="w-3 h-3" />
-                        {post.confidence}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))
+            )}
           </div>
         </div>
 
         {/* RIGHT: Post Detail */}
-        <div className="col-span-12 lg:col-span-7 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden">
+        <div className="lg:col-span-7 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden min-h-[400px] lg:min-h-0">
           {selectedPost ? (
             <>
-              {/* Detail Header */}
               <div className="p-5 border-b border-slate-100 dark:border-slate-700">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -314,7 +326,7 @@ export default function ScraperFeed() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
                     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(selectedPost.urgency)}`}>
                       {selectedPost.urgency}
                     </span>
@@ -325,7 +337,6 @@ export default function ScraperFeed() {
                 </div>
               </div>
 
-              {/* Raw Text */}
               <div className="p-5 border-b border-slate-100 dark:border-slate-700">
                 <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                   Original Post
@@ -335,7 +346,6 @@ export default function ScraperFeed() {
                 </p>
               </div>
 
-              {/* NLP Extraction */}
               <div className="p-5 border-b border-slate-100 dark:border-slate-700">
                 <div className="flex items-center gap-2 mb-3">
                   <Brain className="w-4 h-4 text-blue-500" />
@@ -392,9 +402,8 @@ export default function ScraperFeed() {
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="p-5 mt-auto">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
                     <CheckCircle className="w-4 h-4" />
                     Verify

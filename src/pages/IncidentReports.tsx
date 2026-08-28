@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Filter, X, Eye, EyeOff, Archive, ArchiveRestore, MapPin, Clock, User, Phone, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import DatePicker from '../components/DatePicker';
+import FilterDropdown from '../components/DropDown';
 
 // ── Type Definition ──
 interface Report {
@@ -114,11 +115,16 @@ export default function IncidentReports() {
   const [toDate, setToDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
+  // ── NEW: Filter states ──
+  const [filterBarangay, setFilterBarangay] = useState('All Barangays');
+  const [filterType, setFilterType] = useState('All Types');
+  const [filterUrgency, setFilterUrgency] = useState('All Urgency');
+
   const itemsPerPage = 10;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab]);
+  }, [activeTab, filterBarangay, filterType, filterUrgency]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>
@@ -175,10 +181,16 @@ export default function IncidentReports() {
     setReports(prev => prev.map(r => selectedIds.includes(r.id) ? { ...r, read: false } : r));
   };
 
+  // ── UPDATED: Filter logic ──
   const filteredReports = reports.filter(r => {
     if (activeTab === 'unread') return !r.read && !r.archived;
     if (activeTab === 'archived') return r.archived;
     return !r.archived;
+  }).filter(r => {
+    if (filterBarangay !== 'All Barangays' && r.barangay !== filterBarangay) return false;
+    if (filterType !== 'All Types' && r.type !== filterType) return false;
+    if (filterUrgency !== 'All Urgency' && r.urgency !== filterUrgency) return false;
+    return true;
   });
 
   const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
@@ -237,36 +249,28 @@ export default function IncidentReports() {
       {/* Filter Bar */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4 shrink-0">
         <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm">
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm shrink-0">
             <Filter className="w-4 h-4" />
             <span className="font-medium">Filter</span>
           </div>
 
-          <select className="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Barangays</option>
-            <option>Leynes</option>
-            <option>Poblacion</option>
-            <option>Cawit</option>
-            <option>San Isidro</option>
-            <option>Sampaloc</option>
-            <option>Banga</option>
-            <option>Banadero</option>
-          </select>
+          <FilterDropdown
+            value={filterBarangay}
+            options={['All Barangays', 'Leynes', 'Poblacion', 'Cawit', 'San Isidro', 'Sampaloc', 'Banga', 'Banadero']}
+            onChange={setFilterBarangay}
+          />
 
-          <select className="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Types</option>
-            <option>Search & Rescue</option>
-            <option>Medical</option>
-            <option>Food & Water</option>
-            <option>Infrastructure</option>
-          </select>
+          <FilterDropdown
+            value={filterType}
+            options={['All Types', 'Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure']}
+            onChange={setFilterType}
+          />
 
-          <select className="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>All Urgency</option>
-            <option>High</option>
-            <option>Moderate</option>
-            <option>Low</option>
-          </select>
+          <FilterDropdown
+            value={filterUrgency}
+            options={['All Urgency', 'High', 'Moderate', 'Low']}
+            onChange={setFilterUrgency}
+          />
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 lg:ml-auto w-full lg:w-auto">
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -437,7 +441,7 @@ export default function IncidentReports() {
         </div>
       </div>
 
-      {/* Pagination — OUTSIDE the table card */}
+      {/* Pagination */}
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
@@ -451,7 +455,6 @@ export default function IncidentReports() {
             className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700">
               <div className="flex items-center gap-3">
                 <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{viewingReport.id}</span>
@@ -467,7 +470,6 @@ export default function IncidentReports() {
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="px-6 py-5 space-y-5">
               <div>
                 <h3 className={`text-lg font-bold ${getTypeColor(viewingReport.type)}`}>
@@ -519,7 +521,6 @@ export default function IncidentReports() {
               </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
               <button
                 onClick={() => setViewingReport(null)}
