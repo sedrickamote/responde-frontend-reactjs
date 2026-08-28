@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, ArrowRight } from 'lucide-react';
+import { X, ArrowRight, ExternalLink, MapPin, Clock, User, AlertCircle, CheckCircle, HelpCircle } from 'lucide-react';
 
 // ── Types ──
 interface BotMessage {
@@ -16,6 +16,19 @@ interface BotConversation {
   status: 'Unread' | 'Complete';
   time: string;
   messages: BotMessage[];
+}
+
+interface ScraperItem {
+  id: string;
+  text: string;
+  barangay: string;
+  type: string;
+  urgency: 'High' | 'Moderate' | 'Low';
+  source: string;      // e.g. "Facebook - Talisay Community Group"
+  time: string;
+  status: 'Pending Review' | 'Verified' | 'False Alarm';
+  reporter: string;
+  confidence: number;  // NLP confidence score
 }
 
 // ── Sample Data ──
@@ -93,19 +106,86 @@ const botConversations: BotConversation[] = [
   },
 ];
 
-const scraperItems = [
-  'Tulungan nyo po ako, hindi ko alam kung pano ko uubusin yung pera ko',
-  'Pa wash out po kay Juan Dela Cruz',
-  'Pa wash out po kay Juan Dela Cruz',
-  'Pa wash out po kay Juan Dela Cruz',
-  'Pa wash out po kay Juan Dela Cruz',
-  'Pa wash out po kay Juan Dela Cruz',
+const scraperItems: ScraperItem[] = [
+  {
+    id: 'S001',
+    text: 'Tulungan nyo po ako, hindi ko alam kung pano ko uubusin yung pera ko',
+    barangay: 'Leynes',
+    type: 'Food & Water',
+    urgency: 'Low',
+    source: 'Facebook - Talisay Community Group',
+    time: '10/24 14:32',
+    status: 'False Alarm',
+    reporter: 'Juan Dela Cruz',
+    confidence: 0.32,
+  },
+  {
+    id: 'S002',
+    text: 'Pa wash out po kay Juan Dela Cruz',
+    barangay: 'Poblacion',
+    type: 'Medical',
+    urgency: 'Moderate',
+    source: 'Facebook - Talisay Public Page',
+    time: '10/24 13:45',
+    status: 'Pending Review',
+    reporter: 'Maria Santos',
+    confidence: 0.67,
+  },
+  {
+    id: 'S003',
+    text: 'Baha na po dito sa amin sa Cawit, hanggang tuhod na po yung tubig. May matanda po kami na hindi makalabas.',
+    barangay: 'Cawit',
+    type: 'Search & Rescue',
+    urgency: 'High',
+    source: 'Facebook - Batangas Emergency Updates',
+    time: '10/24 12:20',
+    status: 'Verified',
+    reporter: 'Pedro Reyes',
+    confidence: 0.91,
+  },
+  {
+    id: 'S004',
+    text: 'Nawalan po kami ng kuryente sa San Isidro simula kaninang umaga. May bata po na nilalagnat, need po namin ng tulong.',
+    barangay: 'San Isidro',
+    type: 'Medical',
+    urgency: 'High',
+    source: 'Facebook - Talisay Community Group',
+    time: '10/24 11:15',
+    status: 'Verified',
+    reporter: 'Ana Lim',
+    confidence: 0.88,
+  },
+  {
+    id: 'S005',
+    text: 'May gumuho po na lupa dito sa may bangka sa Sampaloc, dalawang bahay po ang naapektuhan.',
+    barangay: 'Sampaloc',
+    type: 'Infrastructure',
+    urgency: 'High',
+    source: 'Facebook - Batangas Emergency Updates',
+    time: '10/24 10:50',
+    status: 'Verified',
+    reporter: 'Carlos Tan',
+    confidence: 0.94,
+  },
+  {
+    id: 'S006',
+    text: 'Pa wash out po kay Juan Dela Cruz',
+    barangay: 'Poblacion',
+    type: 'Medical',
+    urgency: 'Low',
+    source: 'Facebook - Talisay Public Page',
+    time: '10/24 09:30',
+    status: 'Pending Review',
+    reporter: 'Elena Cruz',
+    confidence: 0.45,
+  },
 ];
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [activeConv, setActiveConv] = useState<BotConversation | null>(null);
   const [selectedConvId, setSelectedConvId] = useState<string>('A');
+  const [activeScraper, setActiveScraper] = useState<ScraperItem | null>(null);
 
   const openConversation = (conv: BotConversation) => {
     setSelectedConvId(conv.id);
@@ -113,6 +193,41 @@ export default function Dashboard() {
   };
 
   const selectedConversation = botConversations.find(c => c.id === selectedConvId) || activeConv;
+
+  const getUrgencyColor = (urgency: string) => {
+    switch (urgency) {
+      case 'High': return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
+      case 'Moderate': return 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800';
+      case 'Low': return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600';
+      default: return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600';
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'Search & Rescue': return 'text-orange-600 dark:text-orange-400';
+      case 'Medical': return 'text-emerald-600 dark:text-emerald-400';
+      case 'Food & Water': return 'text-blue-600 dark:text-blue-400';
+      case 'Infrastructure': return 'text-purple-600 dark:text-purple-400';
+      default: return 'text-slate-600 dark:text-slate-400';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Verified': return <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />;
+      case 'False Alarm': return <AlertCircle className="w-3.5 h-3.5 text-amber-500" />;
+      default: return <HelpCircle className="w-3.5 h-3.5 text-blue-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Verified': return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800';
+      case 'False Alarm': return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800';
+      default: return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
+    }
+  };
 
   return (
     <div className="grid grid-cols-12 gap-6 h-full lg:grid-rows-[auto_1fr]">
@@ -188,10 +303,25 @@ export default function Dashboard() {
             <h3 className="font-semibold text-slate-800 dark:text-slate-100">Scraper Activities</h3>
           </div>
           <div className="p-4 space-y-3 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-            {scraperItems.map((text, i) => (
-              <div key={i} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-100 dark:border-slate-700">
-                <p className="text-xs text-slate-600 dark:text-slate-300">{text}</p>
-              </div>
+            {scraperItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveScraper(item)}
+                className="w-full text-left p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 flex-1">{item.text}</p>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getStatusColor(item.status)} flex items-center gap-1`}>
+                    {getStatusIcon(item.status)}
+                    {item.status}
+                  </span>
+                  <span className={`text-[10px] font-medium ${getTypeColor(item.type)}`}>{item.type}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto">{item.time}</span>
+                </div>
+              </button>
             ))}
           </div>
         </div>
@@ -322,7 +452,6 @@ export default function Dashboard() {
               <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50 dark:bg-slate-900/30">
                 {selectedConversation.messages.map((msg, i) =>
                   msg.sender === 'bot' ? (
-                    /* Bot = our side = RIGHT, colored blue */
                     <div key={i} className="flex items-start gap-2.5 justify-end">
                       <div className="bg-blue-600 rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[75%]">
                         <p className="text-sm text-white leading-relaxed">{msg.text}</p>
@@ -332,7 +461,6 @@ export default function Dashboard() {
                       </div>
                     </div>
                   ) : (
-                    /* User = their side = LEFT, white/gray */
                     <div key={i} className="flex items-start gap-2.5">
                       <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-300 shrink-0 mt-0.5">
                         U
@@ -358,6 +486,110 @@ export default function Dashboard() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Scraper Detail Modal ── */}
+      {activeScraper && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setActiveScraper(null)}
+        >
+          <div
+            className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{activeScraper.id}</span>
+                <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(activeScraper.urgency)}`}>
+                  {activeScraper.urgency}
+                </span>
+              </div>
+              <button
+                onClick={() => setActiveScraper(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-5">
+              <div>
+                <h3 className={`text-lg font-bold ${getTypeColor(activeScraper.type)}`}>
+                  {activeScraper.type}
+                </h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{activeScraper.barangay}, Talisay</p>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
+                <p className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed">
+                  "{activeScraper.text}"
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-start gap-2.5">
+                  <User className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Original Poster</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{activeScraper.reporter}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <Clock className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Scraped At</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-200">{activeScraper.time}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Source</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-200">{activeScraper.source}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">NLP Confidence</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-200 font-mono">{(activeScraper.confidence * 100).toFixed(0)}%</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 dark:text-slate-400">Status:</span>
+                <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border ${getStatusColor(activeScraper.status)}`}>
+                  {getStatusIcon(activeScraper.status)}
+                  {activeScraper.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+              <button
+                onClick={() => setActiveScraper(null)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setActiveScraper(null);
+                  navigate('/scraper-feed');
+                }}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+              >
+                Go to Scraper Feed
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>

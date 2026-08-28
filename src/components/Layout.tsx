@@ -4,6 +4,7 @@ import {
   LayoutDashboard, FileText, MessageSquare, Globe, Map,
   BarChart3, Settings, Search, Bell, UserCircle, LogOut, Menu, X
 } from 'lucide-react';
+import PageTransition from './Transition';
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -65,9 +66,9 @@ export default function Layout() {
           ${collapsed && !mobileOpen ? 'lg:justify-center lg:px-0' : 'px-5 gap-3'}
         `}>
           <img
-          src="/Responde_Logo.png"
-          alt="Responde"
-          className="w-9 h-9 rounded-lg object-cover shrink-0"
+            src="/Responde_Logo.png"
+            alt="Responde"
+            className="w-9 h-9 rounded-lg object-cover shrink-0"
           />
           <span className={`
             font-bold text-slate-800 dark:text-white text-lg tracking-tight
@@ -102,7 +103,6 @@ export default function Layout() {
                 `}
                 title={isCollapsed ? item.label : undefined}
               >
-                {/* Icon pill */}
                 <div className={`
                   shrink-0 flex items-center justify-center transition-all duration-200
                   ${isCollapsed
@@ -116,8 +116,6 @@ export default function Layout() {
                 `}>
                   <item.icon className="w-[18px] h-[18px]" strokeWidth={active && isCollapsed ? 2.5 : 2} />
                 </div>
-
-                {/* Label */}
                 <span className={`
                   text-sm font-medium transition-all duration-300 overflow-hidden whitespace-nowrap
                   ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'}
@@ -206,7 +204,10 @@ export default function Layout() {
         </header>
 
         <div className="flex-1 flex flex-col overflow-y-auto p-5 lg:p-6 bg-[linear-gradient(113deg,#ffffff_0%,#f1f5ff_26%,#e5ebff_52%,#e3eaff_100%)] dark:bg-none dark:bg-[#0B0F19]">
-          <Outlet />
+          {/* key forces remount on route change → triggers initial animation */}
+          <PageTransition key={location.pathname}>
+            <Outlet />
+          </PageTransition>
         </div>
       </main>
     </div>
