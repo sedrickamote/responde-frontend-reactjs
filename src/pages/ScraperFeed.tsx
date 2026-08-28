@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { Filter, Globe, MessageCircle, AlertTriangle, MapPin, Clock, CheckCircle, XCircle, Brain, Users, ExternalLink } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Filter, Globe, MessageCircle, AlertTriangle, MapPin, Clock,
+  CheckCircle, XCircle, Brain, Users, ExternalLink,
+} from 'lucide-react';
 import DatePicker from '../components/DatePicker';
 import FilterDropdown from '../components/DropDown';
 
@@ -130,6 +134,13 @@ const samplePosts: ScrapedPost[] = [
     },
   },
 ];
+
+// ── Animation presets ──
+const contentVariants = {
+  hidden: { opacity: 0, x: 20 },
+  visible: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -20 },
+};
 
 export default function ScraperFeed() {
   const [posts] = useState<ScrapedPost[]>(samplePosts);
@@ -301,129 +312,149 @@ export default function ScraperFeed() {
           </div>
         </div>
 
-        {/* RIGHT: Post Detail */}
+        {/* RIGHT: Post Detail — Animated */}
         <div className="lg:col-span-7 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden min-h-[400px] lg:min-h-0">
-          {selectedPost ? (
-            <>
-              <div className="p-5 border-b border-slate-100 dark:border-slate-700">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300">
-                      {selectedPost.avatar}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-800 dark:text-slate-100">{selectedPost.author}</h3>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                          {getSourceIcon(selectedPost.source)}
-                          {selectedPost.source}
-                        </span>
-                        <span className="text-slate-300 dark:text-slate-600">•</span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {selectedPost.timestamp}
-                        </span>
+          <AnimatePresence mode="wait">
+            {selectedPost ? (
+              <motion.div
+                key={selectedPost.id}
+                variants={contentVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                className="flex flex-col h-full"
+              >
+                <div className="p-5 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300">
+                        {selectedPost.avatar}
                       </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap justify-end">
-                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(selectedPost.urgency)}`}>
-                      {selectedPost.urgency}
-                    </span>
-                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedPost.status)}`}>
-                      {selectedPost.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-5 border-b border-slate-100 dark:border-slate-700">
-                <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                  Original Post
-                </h4>
-                <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
-                  &ldquo;{selectedPost.rawText}&rdquo;
-                </p>
-              </div>
-
-              <div className="p-5 border-b border-slate-100 dark:border-slate-700">
-                <div className="flex items-center gap-2 mb-3">
-                  <Brain className="w-4 h-4 text-blue-500" />
-                  <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    NLP Extraction
-                  </h4>
-                  <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">
-                    Confidence: {selectedPost.confidence}%
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
-                      <MapPin className="w-3.5 h-3.5" />
-                      Location
-                    </div>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                      {selectedPost.extractedEntities.location}
-                    </p>
-                  </div>
-                  <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      Incident Type
-                    </div>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                      {selectedPost.type}
-                    </p>
-                  </div>
-                  {selectedPost.extractedEntities.peopleAffected && (
-                    <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
-                        People Affected
-                      </div>
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                        {selectedPost.extractedEntities.peopleAffected}
-                      </p>
-                    </div>
-                  )}
-                  {selectedPost.extractedEntities.needs && (
-                    <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
-                        Identified Needs
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedPost.extractedEntities.needs.map((need, i) => (
-                          <span key={i} className="text-xs px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium">
-                            {need}
+                      <div>
+                        <h3 className="font-semibold text-slate-800 dark:text-slate-100">{selectedPost.author}</h3>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                            {getSourceIcon(selectedPost.source)}
+                            {selectedPost.source}
                           </span>
-                        ))}
+                          <span className="text-slate-300 dark:text-slate-600">•</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {selectedPost.timestamp}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  )}
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(selectedPost.urgency)}`}>
+                        {selectedPost.urgency}
+                      </span>
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedPost.status)}`}>
+                        {selectedPost.status}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="p-5 mt-auto">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4" />
-                    Verify
-                  </button>
-                  <button className="px-4 py-2 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4" />
-                    Flag
-                  </button>
-                  <button className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ml-auto">
-                    <XCircle className="w-4 h-4" />
-                    Dismiss
-                  </button>
+                <div className="flex-1 overflow-y-auto">
+                  <div className="p-5 border-b border-slate-100 dark:border-slate-700">
+                    <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                      Original Post
+                    </h4>
+                    <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
+                      &ldquo;{selectedPost.rawText}&rdquo;
+                    </p>
+                  </div>
+
+                  <div className="p-5 border-b border-slate-100 dark:border-slate-700">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Brain className="w-4 h-4 text-blue-500" />
+                      <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        NLP Extraction
+                      </h4>
+                      <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">
+                        Confidence: {selectedPost.confidence}%
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
+                          <MapPin className="w-3.5 h-3.5" />
+                          Location
+                        </div>
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                          {selectedPost.extractedEntities.location}
+                        </p>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          Incident Type
+                        </div>
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                          {selectedPost.type}
+                        </p>
+                      </div>
+                      {selectedPost.extractedEntities.peopleAffected && (
+                        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
+                            People Affected
+                          </div>
+                          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                            {selectedPost.extractedEntities.peopleAffected}
+                          </p>
+                        </div>
+                      )}
+                      {selectedPost.extractedEntities.needs && (
+                        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
+                            Identified Needs
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedPost.extractedEntities.needs.map((need, i) => (
+                              <span key={i} className="text-xs px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium">
+                                {need}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500">
-              Select a post to view details
-            </div>
-          )}
+
+                <div className="p-5 shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      Verify
+                    </button>
+                    <button className="px-4 py-2 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      Flag
+                    </button>
+                    <button className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ml-auto">
+                      <XCircle className="w-4 h-4" />
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="empty"
+                variants={contentVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500"
+              >
+                Select a post to view details
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
       </div>

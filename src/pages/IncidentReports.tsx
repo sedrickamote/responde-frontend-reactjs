@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Filter, X, Eye, EyeOff, Archive, ArchiveRestore, MapPin, Clock, User, Phone, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Filter, X, Eye, EyeOff, Archive, ArchiveRestore,
+  MapPin, Clock, User, Phone, MessageSquare,
+  ChevronLeft, ChevronRight,
+} from 'lucide-react';
 import DatePicker from '../components/DatePicker';
 import FilterDropdown from '../components/DropDown';
 
@@ -46,6 +51,19 @@ const sampleReports: Report[] = [
   { id: '034', barangay: 'Cawit', type: 'Search & Rescue', urgency: 'High', source: 'Bot', time: '10/24 15:00', read: false, archived: false, description: 'Landslide reported near hillside residences. Three houses affected, families evacuated to barangay hall.', reporter: 'Patricia Lim', contact: '0935-222-3335', coordinates: '14.0975, 121.0165' },
   { id: '035', barangay: 'San Isidro', type: 'Food & Water', urgency: 'Low', source: 'Scraper', time: '10/24 15:15', read: true, archived: false, description: 'Request for hygiene kits and potable water for 30 families staying in makeshift tents.', reporter: 'Roberto Garcia', contact: '0936-444-5557', coordinates: '14.0925, 121.0245' },
 ];
+
+// ── Animation presets ──
+const backdropVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+  exit: { opacity: 0 },
+};
+
+const modalVariants = {
+  hidden: { opacity: 0, scale: 0.95, y: 20 },
+  visible: { opacity: 1, scale: 1, y: 0 },
+  exit: { opacity: 0, scale: 0.95, y: 20 },
+};
 
 // ── Pagination Component ──
 function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void }) {
@@ -448,101 +466,122 @@ export default function IncidentReports() {
         onPageChange={setCurrentPage}
       />
 
-      {/* View Modal */}
-      {viewingReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setViewingReport(null)}>
-          <div
-            className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
+      {/* ════════════════════════════════════════
+          VIEW MODAL — Animated
+         ════════════════════════════════════════ */}
+      <AnimatePresence>
+        {viewingReport && (
+          <motion.div
+            key="view-modal-backdrop"
+            variants={backdropVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setViewingReport(null)}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700">
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{viewingReport.id}</span>
-                <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(viewingReport.urgency)}`}>
-                  {viewingReport.urgency}
-                </span>
-              </div>
-              <button
-                onClick={() => setViewingReport(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="px-6 py-5 space-y-5">
-              <div>
-                <h3 className={`text-lg font-bold ${getTypeColor(viewingReport.type)}`}>
-                  {viewingReport.type}
-                </h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{viewingReport.barangay}, Talisay</p>
-              </div>
-
-              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
-                <p className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed">
-                  {viewingReport.description}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-start gap-2.5">
-                  <User className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Reporter</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{viewingReport.reporter}</p>
-                  </div>
+            <motion.div
+              variants={modalVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{viewingReport.id}</span>
+                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(viewingReport.urgency)}`}>
+                    {viewingReport.urgency}
+                  </span>
                 </div>
-                <div className="flex items-start gap-2.5">
-                  <Phone className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Contact</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{viewingReport.contact}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Coordinates</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-200 font-mono">{viewingReport.coordinates}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <Clock className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Reported</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-200">{viewingReport.time}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <MessageSquare className="w-4 h-4 text-slate-400" />
-                <span className="text-xs text-slate-500 dark:text-slate-400">Source: <span className="font-medium text-slate-700 dark:text-slate-300">{viewingReport.source}</span></span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
-              <button
-                onClick={() => setViewingReport(null)}
-                className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-              >
-                Close
-              </button>
-              {!viewingReport.archived && (
                 <button
-                  onClick={() => {
-                    handleArchive(viewingReport.id);
-                    setViewingReport(null);
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-lg transition-colors flex items-center gap-1.5"
+                  onClick={() => setViewingReport(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 >
-                  <Archive className="w-4 h-4" /> Archive
+                  <X className="w-5 h-5" />
                 </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+
+              {/* Body */}
+              <div className="px-6 py-5 space-y-5">
+                <div>
+                  <h3 className={`text-lg font-bold ${getTypeColor(viewingReport.type)}`}>
+                    {viewingReport.type}
+                  </h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{viewingReport.barangay}, Talisay</p>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
+                  <p className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed">
+                    {viewingReport.description}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-start gap-2.5">
+                    <User className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Reporter</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{viewingReport.reporter}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <Phone className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Contact</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{viewingReport.contact}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Coordinates</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-200 font-mono">{viewingReport.coordinates}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <Clock className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Reported</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-200">{viewingReport.time}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <MessageSquare className="w-4 h-4 text-slate-400" />
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Source: <span className="font-medium text-slate-700 dark:text-slate-300">{viewingReport.source}</span></span>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+                <button
+                  onClick={() => setViewingReport(null)}
+                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+                {!viewingReport.archived && (
+                  <button
+                    onClick={() => {
+                      handleArchive(viewingReport.id);
+                      setViewingReport(null);
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-lg transition-colors flex items-center gap-1.5"
+                  >
+                    <Archive className="w-4 h-4" /> Archive
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
