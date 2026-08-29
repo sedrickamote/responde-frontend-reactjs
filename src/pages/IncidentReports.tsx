@@ -65,6 +65,12 @@ const modalVariants = {
   exit: { opacity: 0, scale: 0.95, y: 20 },
 };
 
+const pageVariants = {
+  hidden: { opacity: 0, x: 30 },
+  visible: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -30 },
+};
+
 // ── Pagination Component ──
 function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void }) {
   const getPages = () => {
@@ -303,46 +309,55 @@ export default function IncidentReports() {
         </div>
       </div>
 
-      {/* Bulk Actions */}
-      {selectedIds.length > 0 && (
-        <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 shrink-0">
-          <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
-            {selectedIds.length} selected
-          </span>
-          <div className="ml-auto flex items-center gap-2">
-            {activeTab !== 'archived' && (
-              <>
+      {/* Bulk Actions — Animated */}
+      <AnimatePresence mode="wait">
+        {selectedIds.length > 0 && (
+          <motion.div
+            key="bulk-actions"
+            initial={{ opacity: 0, y: -16, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -16, scale: 0.97 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 shrink-0 origin-top"
+          >
+            <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+              {selectedIds.length} selected
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              {activeTab !== 'archived' && (
+                <>
+                  <button
+                    onClick={handleBulkRead}
+                    className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
+                  >
+                    <Eye className="w-3.5 h-3.5" /> Mark Read
+                  </button>
+                  <button
+                    onClick={handleBulkUnread}
+                    className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
+                  >
+                    <EyeOff className="w-3.5 h-3.5" /> Mark Unread
+                  </button>
+                  <button
+                    onClick={handleBulkArchive}
+                    className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
+                  >
+                    <Archive className="w-3.5 h-3.5" /> Archive
+                  </button>
+                </>
+              )}
+              {activeTab === 'archived' && (
                 <button
-                  onClick={handleBulkRead}
-                  className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
+                  onClick={handleBulkUnarchive}
+                  className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
                 >
-                  <Eye className="w-3.5 h-3.5" /> Mark Read
+                  <ArchiveRestore className="w-3.5 h-3.5" /> Restore
                 </button>
-                <button
-                  onClick={handleBulkUnread}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
-                >
-                  <EyeOff className="w-3.5 h-3.5" /> Mark Unread
-                </button>
-                <button
-                  onClick={handleBulkArchive}
-                  className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
-                >
-                  <Archive className="w-3.5 h-3.5" /> Archive
-                </button>
-              </>
-            )}
-            {activeTab === 'archived' && (
-              <button
-                onClick={handleBulkUnarchive}
-                className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
-              >
-                <ArchiveRestore className="w-3.5 h-3.5" /> Restore
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Table */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
@@ -367,94 +382,104 @@ export default function IncidentReports() {
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {paginatedReports.length === 0 ? (
-                <tr className="h-full">
-                  <td colSpan={8} className="h-full px-4 text-center text-slate-400 dark:text-slate-500 align-middle">
-                    <div className="flex flex-col items-center justify-center py-20">
-                      <span className="text-sm">{activeTab === 'archived' ? 'No archived reports.' : activeTab === 'unread' ? 'No unread reports.' : 'No reports found.'}</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                paginatedReports.map((report) => (
-                  <tr
-                    key={report.id}
-                    className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors ${
-                      !report.read && !report.archived ? 'bg-blue-50/40 dark:bg-blue-900/15' : ''
-                    }`}
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(report.id)}
-                        onChange={() => toggleSelect(report.id)}
-                        className="rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {!report.read && !report.archived && (
-                          <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Unread" />
-                        )}
-                        <span className="font-mono text-slate-600 dark:text-slate-400">#{report.id}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200 whitespace-nowrap">{report.barangay}</td>
-                    <td className={`px-4 py-3 whitespace-nowrap font-medium ${getTypeColor(report.type)}`}>
-                      {report.type}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(report.urgency)}`}>
-                        {report.urgency}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{report.source}</td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">{report.time}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handleView(report)}
-                          className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center gap-1"
-                        >
-                          <Eye className="w-3.5 h-3.5" /> View
-                        </button>
-
-                        {!report.archived && (
-                          <button
-                            onClick={() => handleToggleRead(report.id)}
-                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 ${
-                              report.read
-                                ? 'text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
-                                : 'text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30'
-                            }`}
-                          >
-                            {report.read ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                            {report.read ? 'Unread' : 'Read'}
-                          </button>
-                        )}
-
-                        {report.archived ? (
-                          <button
-                            onClick={() => handleUnarchive(report.id)}
-                            className="px-3 py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/30 rounded-lg transition-colors flex items-center gap-1"
-                          >
-                            <ArchiveRestore className="w-3.5 h-3.5" /> Restore
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleArchive(report.id)}
-                            className="px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-lg transition-colors flex items-center gap-1"
-                          >
-                            <Archive className="w-3.5 h-3.5" /> Archive
-                          </button>
-                        )}
+            <AnimatePresence mode="wait">
+              <motion.tbody
+                key={currentPage}
+                variants={pageVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="divide-y divide-slate-100 dark:divide-slate-700"
+              >
+                {paginatedReports.length === 0 ? (
+                  <tr className="h-full">
+                    <td colSpan={8} className="h-full px-4 text-center text-slate-400 dark:text-slate-500 align-middle">
+                      <div className="flex flex-col items-center justify-center py-20">
+                        <span className="text-sm">{activeTab === 'archived' ? 'No archived reports.' : activeTab === 'unread' ? 'No unread reports.' : 'No reports found.'}</span>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
+                ) : (
+                  paginatedReports.map((report) => (
+                    <tr
+                      key={report.id}
+                      className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors ${
+                        !report.read && !report.archived ? 'bg-blue-50/40 dark:bg-blue-900/15' : ''
+                      }`}
+                    >
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(report.id)}
+                          onChange={() => toggleSelect(report.id)}
+                          className="rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {!report.read && !report.archived && (
+                            <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Unread" />
+                          )}
+                          <span className="font-mono text-slate-600 dark:text-slate-400">#{report.id}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-200 whitespace-nowrap">{report.barangay}</td>
+                      <td className={`px-4 py-3 whitespace-nowrap font-medium ${getTypeColor(report.type)}`}>
+                        {report.type}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(report.urgency)}`}>
+                          {report.urgency}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{report.source}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">{report.time}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleView(report)}
+                            className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center gap-1"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> View
+                          </button>
+
+                          {!report.archived && (
+                            <button
+                              onClick={() => handleToggleRead(report.id)}
+                              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 ${
+                                report.read
+                                  ? 'text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
+                                  : 'text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30'
+                              }`}
+                            >
+                              {report.read ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              {report.read ? 'Unread' : 'Read'}
+                            </button>
+                          )}
+
+                          {report.archived ? (
+                            <button
+                              onClick={() => handleUnarchive(report.id)}
+                              className="px-3 py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/30 rounded-lg transition-colors flex items-center gap-1"
+                            >
+                              <ArchiveRestore className="w-3.5 h-3.5" /> Restore
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleArchive(report.id)}
+                              className="px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-lg transition-colors flex items-center gap-1"
+                            >
+                              <Archive className="w-3.5 h-3.5" /> Archive
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </motion.tbody>
+            </AnimatePresence>
           </table>
         </div>
       </div>
