@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, ExternalLink, MapPin, Clock, User, AlertCircle, CheckCircle, HelpCircle } from 'lucide-react';
 import { StaggerContainer, StaggerItem } from '../components/Stagger';
+import { supabase } from '../lib/supabaseClient';
 
 // ── Types ──
 interface BotMessage { sender: 'bot' | 'user'; text: string; }
 interface BotConversation {
-  id: string; name: string; barangay: string; type: string;
+  id: string; psid: string; name: string; barangay: string; type: string;
   status: 'Unread' | 'Complete'; time: string; messages: BotMessage[];
 }
 interface ScraperItem {
@@ -17,94 +18,35 @@ interface ScraperItem {
   reporter: string; confidence: number;
 }
 
-// ── Sample Data ──
-const botConversations: BotConversation[] = [
-  {
-    id: 'A', name: 'Conversation A', barangay: 'Leynes', type: 'Medical', status: 'Unread', time: '10/24 10:30',
-    messages: [
-      { sender: 'bot', text: 'Magandang araw! Ako ang RESPONDE bot. Para ma-report ang inyong sitwasyon, pakisabi ang inyong barangay.' },
-      { sender: 'user', text: 'Leynes po kami' },
-      { sender: 'bot', text: 'Salamat. Ano po ang emergency? (Medical, Search & Rescue, Food/Water, Infrastructure)' },
-      { sender: 'user', text: 'May matanda po dito hindi makahinga' },
-      { sender: 'bot', text: 'Nakuha. Ilan po ang apektado at ano ang kasalukuyang sitwasyon?' },
-    ],
-  },
-  {
-    id: 'B', name: 'Conversation B', barangay: 'Poblacion', type: 'Medical', status: 'Complete', time: '10/24 09:15',
-    messages: [
-      { sender: 'bot', text: 'Magandang araw! Ako ang RESPONDE bot. Para ma-report ang inyong sitwasyon, pakisabi ang inyong barangay.' },
-      { sender: 'user', text: 'Poblacion po' },
-      { sender: 'bot', text: 'Salamat. Ano po ang emergency? (Medical, Search & Rescue, Food/Water, Infrastructure)' },
-      { sender: 'user', text: 'May bata po na naaksidente sa kalsada' },
-      { sender: 'bot', text: 'Nakuha. Ilan po ang apektado at ano ang kasalukuyang sitwasyon?' },
-      { sender: 'user', text: 'Isa lang po, sugatan yung paa niya' },
-    ],
-  },
-  {
-    id: 'C', name: 'Conversation C', barangay: 'Cawit', type: 'Medical', status: 'Unread', time: '10/24 08:45',
-    messages: [
-      { sender: 'bot', text: 'Magandang araw! Ako ang RESPONDE bot. Para ma-report ang inyong sitwasyon, pakisabi ang inyong barangay.' },
-      { sender: 'user', text: 'Cawit po kami' },
-    ],
-  },
-  {
-    id: 'D', name: 'Conversation D', barangay: 'San Isidro', type: 'Medical', status: 'Complete', time: '10/24 08:20',
-    messages: [
-      { sender: 'bot', text: 'Magandang araw! Ako ang RESPONDE bot. Para ma-report ang inyong sitwasyon, pakisabi ang inyong barangay.' },
-      { sender: 'user', text: 'San Isidro po' },
-      { sender: 'bot', text: 'Salamat. Ano po ang emergency?' },
-      { sender: 'user', text: 'May bata po na nilalagnat' },
-    ],
-  },
-  {
-    id: 'E', name: 'Conversation E', barangay: 'Sampaloc', type: 'Medical', status: 'Complete', time: '10/24 07:55',
-    messages: [
-      { sender: 'bot', text: 'Magandang araw! Ako ang RESPONDE bot. Para ma-report ang inyong sitwasyon, pakisabi ang inyong barangay.' },
-      { sender: 'user', text: 'Sampaloc po' },
-      { sender: 'bot', text: 'Salamat. Ano po ang emergency?' },
-      { sender: 'user', text: 'May matandang hinihingal po dito' },
-    ],
-  },
-];
+// ── Helpers ──
+const INACTIVITY_GAP_MS = 60 * 60 * 1000;
 
-const scraperItems: ScraperItem[] = [
-  {
-    id: 'S001', text: 'Tulungan nyo po ako, hindi ko alam kung pano ko uubusin yung pera ko',
-    barangay: 'Leynes', type: 'Food & Water', urgency: 'Low',
-    source: 'Facebook - Talisay Community Group', time: '10/24 14:32',
-    status: 'False Alarm', reporter: 'Juan Dela Cruz', confidence: 0.32,
-  },
-  {
-    id: 'S002', text: 'Pa wash out po kay Juan Dela Cruz',
-    barangay: 'Poblacion', type: 'Medical', urgency: 'Moderate',
-    source: 'Facebook - Talisay Public Page', time: '10/24 13:45',
-    status: 'Pending Review', reporter: 'Maria Santos', confidence: 0.67,
-  },
-  {
-    id: 'S003', text: 'Baha na po dito sa amin sa Cawit, hanggang tuhod na po yung tubig. May matanda po kami na hindi makalabas.',
-    barangay: 'Cawit', type: 'Search & Rescue', urgency: 'High',
-    source: 'Facebook - Batangas Emergency Updates', time: '10/24 12:20',
-    status: 'Verified', reporter: 'Pedro Reyes', confidence: 0.91,
-  },
-  {
-    id: 'S004', text: 'Nawalan po kami ng kuryente sa San Isidro simula kaninang umaga. May bata po na nilalagnat, need po namin ng tulong.',
-    barangay: 'San Isidro', type: 'Medical', urgency: 'High',
-    source: 'Facebook - Talisay Community Group', time: '10/24 11:15',
-    status: 'Verified', reporter: 'Ana Lim', confidence: 0.88,
-  },
-  {
-    id: 'S005', text: 'May gumuho po na lupa dito sa may bangka sa Sampaloc, dalawang bahay po ang naapektuhan.',
-    barangay: 'Sampaloc', type: 'Infrastructure', urgency: 'High',
-    source: 'Facebook - Batangas Emergency Updates', time: '10/24 10:50',
-    status: 'Verified', reporter: 'Carlos Tan', confidence: 0.94,
-  },
-  {
-    id: 'S006', text: 'Pa wash out po kay Juan Dela Cruz',
-    barangay: 'Poblacion', type: 'Medical', urgency: 'Low',
-    source: 'Facebook - Talisay Public Page', time: '10/24 09:30',
-    status: 'Pending Review', reporter: 'Elena Cruz', confidence: 0.45,
-  },
-];
+function formatTimestamp(ts: string | null): string {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return String(ts);
+  return `${d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })} ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+}
+
+function inferType(incidentType: string, text: string): string {
+  const t = (incidentType || '').toLowerCase();
+  const txt = (text || '').toLowerCase();
+  if (t === 'casualty' || t === 'medical' || txt.includes('sugat') || txt.includes('ospital') || txt.includes('ambulansya') || txt.includes('medic')) return 'Medical';
+  if (t === 'evacuation' || txt.includes('evacuate') || txt.includes('stranded') || txt.includes('nakaipit') || txt.includes('rescue')) return 'Search & Rescue';
+  if (t === 'flood' || t === 'landslide' || t === 'earthquake' || t === 'fire' || txt.includes('gumuhong') || txt.includes('bumagsak') || txt.includes('putol') || txt.includes('poste') || txt.includes('kuryente')) return 'Infrastructure';
+  if (txt.includes('food') || txt.includes('tubig') || txt.includes('relief') || txt.includes('gatas') || txt.includes('gamot') || txt.includes('supply')) return 'Food & Water';
+  return 'Medical';
+}
+
+function inferUrgency(incidentType: string, text: string): ScraperItem['urgency'] {
+  const t = (incidentType || '').toLowerCase();
+  const txt = (text || '').toLowerCase();
+  const high = ['emergency', 'casualty', 'fire', 'now', 'asap', 'naipit', 'natabunan', 'patay', 'matanda', 'bata', 'nawawala'];
+  const mod = ['flood', 'evacuation', 'landslide', 'earthquake', 'baha', 'gumuhong', 'tumumba', 'putol'];
+  if (high.some(k => t.includes(k) || txt.includes(k))) return 'High';
+  if (mod.some(k => t.includes(k) || txt.includes(k))) return 'Moderate';
+  return 'Low';
+}
 
 // ── Animation presets ──
 const backdropVariants = {
@@ -127,9 +69,106 @@ const contentVariants = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+
+  // Data states
+  const [botConversations, setBotConversations] = useState<BotConversation[]>([]);
+  const [scraperItems, setScraperItems] = useState<ScraperItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Modal states
   const [activeConv, setActiveConv] = useState<BotConversation | null>(null);
-  const [selectedConvId, setSelectedConvId] = useState<string>('A');
+  const [selectedConvId, setSelectedConvId] = useState<string>('');
   const [activeScraper, setActiveScraper] = useState<ScraperItem | null>(null);
+
+  // ── Fetch from Supabase ──
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+
+      const [convRes, scraperRes] = await Promise.all([
+        supabase.from('conversations').select('*').order('timestamp', { ascending: true }),
+        supabase.from('fb_comments').select('*').order('created_at', { ascending: false }),
+      ]);
+
+      // ── Process Conversations (group by PSID session) ──
+      type Session = { id: string; psid: string; senderName: string; lastTime: number; messages: BotMessage[] };
+      const sessions: Session[] = [];
+      const psidToLastIdx = new Map<string, number>();
+
+      if (!convRes.error && convRes.data) {
+        for (const row of convRes.data) {
+          const psid = String(row.sender_psid || row.id || 'unknown');
+          const rowTime = new Date(row.timestamp).getTime();
+          const lastIdx = psidToLastIdx.get(psid);
+
+          let session: Session;
+          if (lastIdx === undefined || rowTime - sessions[lastIdx].lastTime > INACTIVITY_GAP_MS) {
+            session = {
+              id: `${psid}_${rowTime}`,
+              psid,
+              senderName: row.sender_name || 'Unknown User',
+              lastTime: rowTime,
+              messages: [],
+            };
+            sessions.push(session);
+            psidToLastIdx.set(psid, sessions.length - 1);
+          } else {
+            session = sessions[lastIdx];
+            session.lastTime = rowTime;
+            if (session.senderName === 'Unknown User' && row.sender_name && row.sender_name !== 'Unknown User') {
+              session.senderName = row.sender_name;
+            }
+          }
+
+          if (row.user_message) session.messages.push({ sender: 'user', text: row.user_message });
+          if (row.ai_reply) session.messages.push({ sender: 'bot', text: row.ai_reply });
+        }
+      }
+
+      const mappedConvs: BotConversation[] = sessions
+        .sort((a, b) => b.lastTime - a.lastTime)
+        .map(session => ({
+          id: session.id,
+          psid: session.psid,
+          name: session.senderName !== 'Unknown User' ? session.senderName : `PSID: ${session.psid.slice(-6)}`,
+          barangay: 'General',
+          type: 'Emergency',
+          status: 'Complete',
+          time: formatTimestamp(new Date(session.lastTime).toISOString()),
+          messages: session.messages,
+        }));
+
+      // ── Process Scraper Posts ──
+      const mappedScraper: ScraperItem[] = [];
+      if (!scraperRes.error && scraperRes.data) {
+        for (const row of scraperRes.data) {
+          const text = row.comment_text || '';
+          mappedScraper.push({
+            id: String(row.id),
+            text,
+            barangay: row.barangay || 'Unknown',
+            type: inferType(row.incident_type, text),
+            urgency: inferUrgency(row.incident_type, text),
+            source: 'Facebook Comment',
+            time: formatTimestamp(row.created_at),
+            status: 'Pending Review',
+            reporter: row.user_name || 'Unknown',
+            confidence: 0,
+          });
+        }
+      }
+
+      setBotConversations(mappedConvs);
+      setScraperItems(mappedScraper);
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
+
+  // Stats
+  const totalIncidents = botConversations.length + scraperItems.length;
+  const avgResponse = 0;
 
   const openConversation = (conv: BotConversation) => {
     setSelectedConvId(conv.id);
@@ -183,28 +222,28 @@ export default function Dashboard() {
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-xl">⚠️</div>
               <div>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">0</p>
+                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{loading ? '—' : totalIncidents}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Incidents</p>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-xl">💬</div>
               <div>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">0</p>
+                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{loading ? '—' : botConversations.length}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Bot Conversations</p>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center text-xl">🌐</div>
               <div>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">0</p>
+                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{loading ? '—' : scraperItems.length}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Scraped Comments</p>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-green-50 dark:bg-green-900/30 flex items-center justify-center text-xl">⏱️</div>
               <div>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">0</p>
+                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{avgResponse}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Avg Response Time</p>
               </div>
             </div>
@@ -213,55 +252,70 @@ export default function Dashboard() {
 
         {/* ── 2. Left Column ── */}
         <StaggerItem className="col-span-12 lg:col-span-6 flex flex-col gap-6 h-full lg:min-h-0">
+          {/* Messenger Bot Activities */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex-1 flex flex-col lg:min-h-0 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 dark:border-slate-700">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800 dark:text-slate-100">Messenger Bot Activities</h3>
+              {loading && <span className="text-xs text-slate-400 animate-pulse">Loading...</span>}
             </div>
             <div className="p-2 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-              {botConversations.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() => openConversation(conv)}
-                  className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-lg transition-colors text-left"
-                >
-                  <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 shrink-0">
-                    {conv.id}
-                  </div>
-                  <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{conv.type}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded ${
-                    conv.status === 'Unread'
-                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                      : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                  }`}>{conv.status}</span>
-                </button>
-              ))}
+              {botConversations.length === 0 && !loading ? (
+                <div className="flex items-center justify-center py-10 text-slate-400 dark:text-slate-500 text-sm">No conversations yet.</div>
+              ) : (
+                botConversations.map((conv) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => openConversation(conv)}
+                    className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-lg transition-colors text-left"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-xs text-slate-600 dark:text-slate-300 shrink-0">
+                      {conv.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">{conv.name}</p>
+                    </div>
+                    <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{conv.type}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      conv.status === 'Unread'
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                        : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                    }`}>{conv.status}</span>
+                  </button>
+                ))
+              )}
             </div>
           </div>
 
+          {/* Scraper Activities */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex-1 flex flex-col lg:min-h-0 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 dark:border-slate-700">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800 dark:text-slate-100">Scraper Activities</h3>
+              {loading && <span className="text-xs text-slate-400 animate-pulse">Loading...</span>}
             </div>
             <div className="p-4 space-y-3 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-              {scraperItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveScraper(item)}
-                  className="w-full text-left p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 flex-1">{item.text}</p>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getStatusColor(item.status)} flex items-center gap-1`}>
-                      {getStatusIcon(item.status)}{item.status}
-                    </span>
-                    <span className={`text-[10px] font-medium ${getTypeColor(item.type)}`}>{item.type}</span>
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto">{item.time}</span>
-                  </div>
-                </button>
-              ))}
+              {scraperItems.length === 0 && !loading ? (
+                <div className="flex items-center justify-center py-10 text-slate-400 dark:text-slate-500 text-sm">No scraped posts yet.</div>
+              ) : (
+                scraperItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveScraper(item)}
+                    className="w-full text-left p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 flex-1">{item.text}</p>
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getStatusColor(item.status)} flex items-center gap-1`}>
+                        {getStatusIcon(item.status)}{item.status}
+                      </span>
+                      <span className={`text-[10px] font-medium ${getTypeColor(item.type)}`}>{item.type}</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto">{item.time}</span>
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </StaggerItem>
@@ -331,12 +385,12 @@ export default function Dashboard() {
               className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-4xl h-[80vh] flex overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Left: Conversation List (static) */}
-              <div className="w-80 border-r border-slate-100 dark:border-slate-700 flex flex-col shrink-0">
+              {/* Left: Conversation List */}
+              <div className="w-80 border-r border-slate-100 dark:border-slate-700 flex flex-col shrink-0 h-full">
                 <div className="p-4 border-b border-slate-100 dark:border-slate-700">
                   <h3 className="font-semibold text-slate-800 dark:text-slate-100">Recent Conversations</h3>
                 </div>
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto min-h-0">
                   {botConversations.map((conv) => (
                     <button
                       key={conv.id}
@@ -348,7 +402,7 @@ export default function Dashboard() {
                       }`}
                     >
                       <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 shrink-0 text-sm">
-                        {conv.id}
+                        {conv.name?.charAt(0).toUpperCase() || 'U'}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
@@ -369,7 +423,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Right: Chat View — Animated on switch */}
+              {/* Right: Chat View */}
               <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <AnimatePresence mode="wait">
                   <motion.div
@@ -379,13 +433,13 @@ export default function Dashboard() {
                     animate="visible"
                     exit="exit"
                     transition={{ duration: 0.2, ease: 'easeInOut' }}
-                    className="flex-1 flex flex-col min-w-0"
+                    className="flex-1 flex flex-col min-w-0 h-full"
                   >
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-700">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 text-sm">
-                          {selectedConversation.id}
+                          {selectedConversation.name?.charAt(0).toUpperCase() || 'U'}
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{selectedConversation.name}</p>
@@ -408,7 +462,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50 dark:bg-slate-900/30">
+                    <div className="flex-1 overflow-y-auto min-h-0 p-5 space-y-4 bg-slate-50/50 dark:bg-slate-900/30">
                       {selectedConversation.messages.map((msg, i) =>
                         msg.sender === 'bot' ? (
                           <div key={i} className="flex items-start gap-2.5 justify-end">
@@ -472,7 +526,7 @@ export default function Dashboard() {
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700">
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{activeScraper.id}</span>
+                  <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{activeScraper.id.slice(-10)}</span>
                   <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(activeScraper.urgency)}`}>
                     {activeScraper.urgency}
                   </span>
@@ -517,7 +571,7 @@ export default function Dashboard() {
                     <AlertCircle className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
                     <div>
                       <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">NLP Confidence</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200 font-mono">{(activeScraper.confidence * 100).toFixed(0)}%</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-200 font-mono">{activeScraper.confidence > 0 ? `${(activeScraper.confidence * 100).toFixed(0)}%` : 'N/A'}</p>
                     </div>
                   </div>
                 </div>
