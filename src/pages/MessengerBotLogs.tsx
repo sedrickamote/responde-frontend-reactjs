@@ -24,6 +24,10 @@ const contentVariants = {
   exit: { opacity: 0, x: -20 },
 };
 
+// ── Session gap threshold: messages from the same PSID within this window
+//    are treated as one conversation. Adjust as needed (e.g. 2 hours, 24 hours).
+const INACTIVITY_GAP_MS = 60 * 60 * 1000; // 1 hour
+
 export default function MessengerBotLogs() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,49 +39,107 @@ export default function MessengerBotLogs() {
   const [filterType, setFilterType] = useState("All Types");
   const [filterStatus, setFilterStatus] = useState("All Status");
 
-  // -- Fetch conversations from Supabase --
+  // -- Fetch & group conversations from Supabase --
   useEffect(() => {
     const fetchConversations = async () => {
       setLoading(true);
       setError(null);
+
       if (import.meta.env.DEV) {
         console.log("[MessengerBotLogs] Fetching conversations from Supabase...");
       }
+
       const { data, error: sbError } = await supabase
         .from("conversations")
         .select("*")
-        .order("timestamp", { ascending: false });
+        .order("timestamp", { ascending: true }); // oldest first so we build chronology
 
       if (sbError) {
         console.error("[MessengerBotLogs] Supabase error:", sbError.message);
         setError(sbError.message);
-      } else {
-        if (import.meta.env.DEV) {
-          console.log("[MessengerBotLogs] Fetched", data?.length ?? 0, "conversations:", data);
+        setLoading(false);
+        return;
+      }
+
+      if (import.meta.env.DEV) {
+        console.log("[MessengerBotLogs] Fetched", data?.length ?? 0, "rows");
+      }
+
+      // ── GROUP rows into sessions by PSID + time gap ──
+      type Session = {
+        id: string;
+        psid: string;
+        lastTime: number;
+        messages: BotMessage[];
+      };
+
+      const sessions: Session[] = [];
+      const psidToLastSessionIdx = new Map<string, number>();
+
+      for (const row of data ?? []) {
+        const psid = String(row.sender_psid || row.id || "unknown");
+        const rowTime = new Date(row.timestamp).getTime();
+        const lastIdx = psidToLastSessionIdx.get(psid);
+
+        let session: Session;
+
+        // Start a new session if:
+        // 1. First time seeing this PSID, OR
+        // 2. Time gap from last message > INACTIVITY_GAP_MS
+        if (
+          lastIdx === undefined ||
+          rowTime - sessions[lastIdx].lastTime > INACTIVITY_GAP_MS
+        ) {
+          session = {
+            id: `${psid}_${rowTime}`,
+            psid,
+            lastTime: rowTime,
+            messages: [],
+          };
+          sessions.push(session);
+          psidToLastSessionIdx.set(psid, sessions.length - 1);
+        } else {
+          // Continue existing session
+          session = sessions[lastIdx];
+          session.lastTime = rowTime;
         }
 
-        // Map Supabase rows to UI Conversation model
-        const mapped: Conversation[] = (data ?? []).map((row: any) => {
-          const dateObj = row.timestamp ? new Date(row.timestamp) : new Date();
-          const timeFormatted = `${dateObj.toLocaleDateString("en-US", { month: "numeric", day: "numeric" })} ${dateObj.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+        // Push messages in order: user first, then bot reply
+        if (row.user_message) {
+          session.messages.push({ sender: "user", text: row.user_message });
+        }
+        if (row.ai_reply) {
+          session.messages.push({ sender: "bot", text: row.ai_reply });
+        }
+      }
+
+      // Map sessions to UI model — newest session first
+      const mapped: Conversation[] = sessions
+        .sort((a, b) => b.lastTime - a.lastTime)
+        .map((session) => {
+          const lastDate = new Date(session.lastTime);
+          const timeFormatted = `${lastDate.toLocaleDateString("en-US", {
+            month: "numeric",
+            day: "numeric",
+          })} ${lastDate.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          })}`;
 
           return {
-            id: String(row.id),
-            name: `PSID: ${row.sender_psid ? row.sender_psid.slice(-6) : row.id}`,
+            id: session.id,
+            name: `PSID: ${session.psid.slice(-6)}`,
             barangay: "General",
             type: "Emergency",
             status: "Complete",
             time: timeFormatted,
-            messages: [
-              ...(row.user_message ? [{ sender: "user" as const, text: row.user_message }] : []),
-              ...(row.ai_reply ? [{ sender: "bot" as const, text: row.ai_reply }] : []),
-            ],
+            messages: session.messages,
           };
         });
 
-        setConversations(mapped);
-        if (mapped.length > 0) setSelectedId(mapped[0].id);
-      }
+      setConversations(mapped);
+      if (mapped.length > 0) setSelectedId(mapped[0].id);
       setLoading(false);
     };
 
@@ -197,15 +259,23 @@ export default function MessengerBotLogs() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{convo.name}</span>
-                          <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0 ml-2">{convo.time}</span>
+                          <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
+                            {convo.name}
+                          </span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0 ml-2">
+                            {convo.time}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{convo.type}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${convo.status === "Unread"
-                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                            : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            }`}>
+                          <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                            {convo.type}
+                          </span>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${convo.status === "Unread"
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                              : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                              }`}
+                          >
                             {convo.status}
                           </span>
                         </div>
@@ -235,14 +305,20 @@ export default function MessengerBotLogs() {
                           {selectedConversation.name?.charAt(0) ?? "?"}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-slate-800 dark:text-slate-100">{selectedConversation.name}</h3>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{selectedConversation.barangay} • {selectedConversation.type}</p>
+                          <h3 className="font-semibold text-slate-800 dark:text-slate-100">
+                            {selectedConversation.name}
+                          </h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {selectedConversation.barangay} • {selectedConversation.type}
+                          </p>
                         </div>
                       </div>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${selectedConversation.status === "Unread"
-                        ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
-                        : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
-                        }`}>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${selectedConversation.status === "Unread"
+                          ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+                          : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+                          }`}
+                      >
                         {selectedConversation.status}
                       </span>
                     </div>
@@ -250,12 +326,15 @@ export default function MessengerBotLogs() {
                       {(selectedConversation.messages ?? []).map((msg, idx) => (
                         <div
                           key={idx}
-                          className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                          className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"
+                            }`}
                         >
-                          <div className={`max-w-[85%] sm:max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${msg.sender === "user"
-                            ? "bg-blue-600 text-white rounded-br-md"
-                            : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-bl-md"
-                            }`}>
+                          <div
+                            className={`max-w-[85%] sm:max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${msg.sender === "user"
+                              ? "bg-blue-600 text-white rounded-br-md"
+                              : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-bl-md"
+                              }`}
+                          >
                             {msg.text}
                           </div>
                         </div>
