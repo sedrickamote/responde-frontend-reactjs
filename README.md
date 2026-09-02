@@ -145,7 +145,7 @@ responde-frontend-reactjs/
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/samsonjeff/responde-frontend-reactjs.git
+git clone https://github.com/sedrickamote/responde-frontend-reactjs.git
 cd responde-frontend-reactjs
 ```
 
@@ -210,8 +210,8 @@ The frontend expects the following Supabase tables:
 
 | Table | Purpose |
 |-------|---------|
-| `conversations` | Messenger bot messages (`sender_psid`, `sender_name`, `user_message`, `ai_reply`, `timestamp`) |
-| `fb_comments` | Scraped Facebook comments (`comment_text`, `user_name`, `barangay`, `incident_type`, `created_at`, `status`) |
+| `conversations` | Messenger bot message |
+| `fb_comments` | Scraped Facebook comments |
 
 For the **Incident Reports** verification workflow, the backend should support:
 - `status` enum: `pending`, `under_review`, `verified`, `rejected`, `resolved`
@@ -231,12 +231,6 @@ For the **Incident Reports** verification workflow, the backend should support:
 
 ---
 
-## Contributors
-
-| Role | Name |
-|------|------|
-| Frontend & UI/UX | Rochelle Samson |
-| Backend & PostGIS | Jefferson Samson |
 
 ---
 
