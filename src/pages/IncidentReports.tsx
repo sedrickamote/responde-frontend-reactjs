@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Filter, X, Eye, EyeOff, Archive, ArchiveRestore,
+  Filter, X, Eye, ChevronLeft, ChevronRight,
   MapPin, Clock, User, Phone, MessageSquare,
-  ChevronLeft, ChevronRight,
+  CheckCircle2, AlertTriangle, RotateCcw, Send,
+  ShieldCheck, FileText, AlertOctagon, MapPinned,
 } from 'lucide-react';
 import DatePicker from '../components/DatePicker';
 import FilterDropdown from '../components/DropDown';
+
+// ── Status Type ──
+type ReportStatus = 'pending' | 'under_review' | 'verified' | 'rejected' | 'resolved';
 
 // ── Type Definition ──
 interface Report {
@@ -16,40 +21,45 @@ interface Report {
   urgency: string;
   source: string;
   time: string;
-  read: boolean;
-  archived: boolean;
+  status: ReportStatus;
   description: string;
+  originalText: string;
   reporter: string;
   contact: string;
   coordinates: string;
+  landmark: string;
+  verifiedBy: string | null;
+  verifiedAt: string | null;
+  rejectionReason: string | null;
+  possibleDuplicateOf: string | null;
 }
 
 const sampleReports: Report[] = [
-  { id: '011', barangay: 'Leynes', type: 'Search & Rescue', urgency: 'Low', source: 'Scraper', time: '10/24 10:57', read: true, archived: false, description: 'Missing person reported near the riverbank. Last seen wearing a red shirt.', reporter: 'Juan Dela Cruz', contact: '0912-345-6789', coordinates: '14.0951, 121.0203' },
-  { id: '012', barangay: 'Poblacion', type: 'Medical', urgency: 'High', source: 'Bot', time: '10/24 10:57', read: false, archived: false, description: 'Elderly resident collapsed at the market. Needs immediate medical attention.', reporter: 'Maria Santos', contact: '0918-234-5678', coordinates: '14.0923, 121.0187' },
-  { id: '013', barangay: 'Leynes', type: 'Food & Water', urgency: 'Low', source: 'Scraper', time: '10/24 10:57', read: true, archived: false, description: 'Request for water supply delivery due to pipe maintenance.', reporter: 'Pedro Reyes', contact: '0917-876-5432', coordinates: '14.0945, 121.0210' },
-  { id: '014', barangay: 'Cawit', type: 'Infrastructure', urgency: 'Moderate', source: 'Scraper', time: '10/24 10:57', read: true, archived: false, description: 'Road partially blocked by fallen tree after heavy rains.', reporter: 'Ana Lim', contact: '0919-123-4567', coordinates: '14.0987, 121.0156' },
-  { id: '015', barangay: 'Leynes', type: 'Search & Rescue', urgency: 'Low', source: 'Scraper', time: '10/24 10:57', read: true, archived: false, description: 'Stranded dog on rooftop during flooding. Owner requesting assistance.', reporter: 'Carlos Tan', contact: '0915-987-6543', coordinates: '14.0934, 121.0221' },
-  { id: '016', barangay: 'San Isidro', type: 'Medical', urgency: 'Low', source: 'Bot', time: '10/24 10:57', read: true, archived: false, description: 'Child with high fever, parents requesting transport to health center.', reporter: 'Elena Cruz', contact: '0916-456-7890', coordinates: '14.0912, 121.0254' },
-  { id: '017', barangay: 'Leynes', type: 'Search & Rescue', urgency: 'Low', source: 'Scraper', time: '10/24 10:57', read: true, archived: false, description: 'Boat capsized near the shore. Two fishermen accounted for, one missing.', reporter: 'Ramon Garcia', contact: '0913-222-3333', coordinates: '14.0967, 121.0198' },
-  { id: '018', barangay: 'Leynes', type: 'Food & Water', urgency: 'Low', source: 'Bot', time: '10/24 10:57', read: true, archived: false, description: 'Relief goods distribution needed for 15 families affected by flash flood.', reporter: 'Liza Mendoza', contact: '0914-555-6666', coordinates: '14.0941, 121.0234' },
-  { id: '019', barangay: 'Banga', type: 'Medical', urgency: 'High', source: 'Bot', time: '10/24 11:15', read: false, archived: false, description: 'Pregnant woman in labor needing immediate transport to hospital.', reporter: 'Josefina Reyes', contact: '0920-111-2222', coordinates: '14.0891, 121.0284' },
-  { id: '020', barangay: 'Banadero', type: 'Infrastructure', urgency: 'High', source: 'Scraper', time: '10/24 11:30', read: false, archived: false, description: 'Bridge collapsed due to heavy rainfall. Alternative route needed.', reporter: 'Miguel Santos', contact: '0921-333-4444', coordinates: '14.1012, 121.0123' },
-  { id: '021', barangay: 'Sampaloc', type: 'Search & Rescue', urgency: 'Moderate', source: 'Bot', time: '10/24 11:45', read: true, archived: false, description: 'Family trapped on second floor due to flash flooding.', reporter: 'Carmen Villanueva', contact: '0922-555-6666', coordinates: '14.0876, 121.0312' },
-  { id: '022', barangay: 'Poblacion', type: 'Food & Water', urgency: 'Moderate', source: 'Scraper', time: '10/24 12:00', read: true, archived: false, description: 'Evacuation center needs 50 food packs and clean drinking water.', reporter: 'Antonio dela Cruz', contact: '0923-777-8888', coordinates: '14.0925, 121.0190' },
-  { id: '023', barangay: 'Banga', type: 'Search & Rescue', urgency: 'Moderate', source: 'Scraper', time: '10/24 12:15', read: false, archived: false, description: 'Trapped residents on rooftop after sudden rise in water level. Barangay rescue team requesting backup.', reporter: 'Rodelio Cruz', contact: '0924-888-9999', coordinates: '14.0885, 121.0295' },
-  { id: '024', barangay: 'Banadero', type: 'Medical', urgency: 'Low', source: 'Bot', time: '10/24 12:30', read: true, archived: false, description: 'Senior citizen with hypertension needs maintenance medication. Barangay health worker on site.', reporter: 'Lourdes Reyes', contact: '0925-111-2223', coordinates: '14.1005, 121.0135' },
-  { id: '025', barangay: 'Sampaloc', type: 'Infrastructure', urgency: 'High', source: 'Scraper', time: '10/24 12:45', read: false, archived: false, description: 'Power lines down near elementary school. Area needs immediate clearing before classes resume.', reporter: 'Fernando Lim', contact: '0926-444-5555', coordinates: '14.0865, 121.0325' },
-  { id: '026', barangay: 'Poblacion', type: 'Search & Rescue', urgency: 'High', source: 'Bot', time: '10/24 13:00', read: false, archived: false, description: 'Vehicle swept away by flash flood near the bridge. Driver still inside, urgent extraction needed.', reporter: 'Gloria Santos', contact: '0927-666-7777', coordinates: '14.0915, 121.0205' },
-  { id: '027', barangay: 'Cawit', type: 'Food & Water', urgency: 'Low', source: 'Scraper', time: '10/24 13:15', read: true, archived: false, description: 'Barangay hall requesting additional water containers for evacuation center residents.', reporter: 'Ricardo Tan', contact: '0928-888-9990', coordinates: '14.0995, 121.0145' },
-  { id: '028', barangay: 'San Isidro', type: 'Infrastructure', urgency: 'Moderate', source: 'Bot', time: '10/24 13:30', read: true, archived: false, description: 'Barangay road eroded after continuous rain. Motorcycles can no longer pass through.', reporter: 'Marites Garcia', contact: '0929-000-1111', coordinates: '14.0905, 121.0265' },
-  { id: '029', barangay: 'Leynes', type: 'Medical', urgency: 'High', source: 'Scraper', time: '10/24 13:45', read: false, archived: false, description: 'Multiple residents showing symptoms of leptospirosis after wading through floodwater. Health team dispatched.', reporter: 'Dr. Emmanuel Cruz', contact: '0930-222-3334', coordinates: '14.0955, 121.0215' },
-  { id: '030', barangay: 'Banga', type: 'Food & Water', urgency: 'Moderate', source: 'Bot', time: '10/24 14:00', read: true, archived: false, description: '20 families in temporary shelter need hot meals and blankets for the night.', reporter: 'Helena Mendoza', contact: '0931-444-5556', coordinates: '14.0895, 121.0275' },
-  { id: '031', barangay: 'Banadero', type: 'Search & Rescue', urgency: 'Low', source: 'Scraper', time: '10/24 14:15', read: true, archived: false, description: 'Livestock stranded in flooded pasture. Owner requesting assistance in moving animals to higher ground.', reporter: 'Domingo Reyes', contact: '0932-666-7778', coordinates: '14.1025, 121.0115' },
-  { id: '032', barangay: 'Sampaloc', type: 'Medical', urgency: 'Moderate', source: 'Bot', time: '10/24 14:30', read: false, archived: false, description: 'Child with asthma attack, inhaler supply depleted. Parents requesting emergency transport.', reporter: 'Cecilia Villanueva', contact: '0933-888-9991', coordinates: '14.0875, 121.0305' },
-  { id: '033', barangay: 'Poblacion', type: 'Infrastructure', urgency: 'Low', source: 'Scraper', time: '10/24 14:45', read: true, archived: false, description: 'Drainage system clogged with debris causing minor flooding on main street. Clearing team requested.', reporter: 'Alberto dela Cruz', contact: '0934-000-1112', coordinates: '14.0935, 121.0185' },
-  { id: '034', barangay: 'Cawit', type: 'Search & Rescue', urgency: 'High', source: 'Bot', time: '10/24 15:00', read: false, archived: false, description: 'Landslide reported near hillside residences. Three houses affected, families evacuated to barangay hall.', reporter: 'Patricia Lim', contact: '0935-222-3335', coordinates: '14.0975, 121.0165' },
-  { id: '035', barangay: 'San Isidro', type: 'Food & Water', urgency: 'Low', source: 'Scraper', time: '10/24 15:15', read: true, archived: false, description: 'Request for hygiene kits and potable water for 30 families staying in makeshift tents.', reporter: 'Roberto Garcia', contact: '0936-444-5557', coordinates: '14.0925, 121.0245' },
+  { id: '011', barangay: 'Leynes', type: 'Search & Rescue', urgency: 'Low', source: 'Scraper', time: '10/24 10:57', status: 'pending', description: 'Missing person reported near the riverbank. Last seen wearing a red shirt.', originalText: 'May nawawala daw malapit sa ilog, naka pula daw ang damit.', reporter: 'Juan Dela Cruz', contact: '0912-345-6789', coordinates: '14.0951, 121.0203', landmark: 'Near riverbank', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
+  { id: '012', barangay: 'Poblacion', type: 'Medical', urgency: 'High', source: 'Bot', time: '10/24 10:57', status: 'under_review', description: 'Elderly resident collapsed at the market. Needs immediate medical attention.', originalText: 'May matandang natumba sa palengke, kailangan ng tulong medikal.', reporter: 'Maria Santos', contact: '0918-234-5678', coordinates: '14.0923, 121.0187', landmark: 'Public market', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
+  { id: '013', barangay: 'Leynes', type: 'Food & Water', urgency: 'Low', source: 'Scraper', time: '10/24 10:57', status: 'verified', description: 'Request for water supply delivery due to pipe maintenance.', originalText: 'Kailangan ng tubig dito, sira daw ang tubo.', reporter: 'Pedro Reyes', contact: '0917-876-5432', coordinates: '14.0945, 121.0210', landmark: 'Barangay hall', verifiedBy: 'Officer Cruz', verifiedAt: '10/24 11:15', rejectionReason: null, possibleDuplicateOf: null },
+  { id: '014', barangay: 'Cawit', type: 'Infrastructure', urgency: 'Moderate', source: 'Scraper', time: '10/24 10:57', status: 'resolved', description: 'Road partially blocked by fallen tree after heavy rains.', originalText: 'May punong bumagsak sa daan, hindi makadaan ang mga sasakyan.', reporter: 'Ana Lim', contact: '0919-123-4567', coordinates: '14.0987, 121.0156', landmark: 'Main road Cawit', verifiedBy: 'Officer Cruz', verifiedAt: '10/24 11:00', rejectionReason: null, possibleDuplicateOf: null },
+  { id: '015', barangay: 'Leynes', type: 'Search & Rescue', urgency: 'Low', source: 'Scraper', time: '10/24 10:57', status: 'rejected', description: 'Stranded dog on rooftop during flooding. Owner requesting assistance.', originalText: 'May aso na stranded sa bubong, tulungan nyo po.', reporter: 'Carlos Tan', contact: '0915-987-6543', coordinates: '14.0934, 121.0221', landmark: 'Rooftop', verifiedBy: null, verifiedAt: null, rejectionReason: 'not_disaster_related', possibleDuplicateOf: null },
+  { id: '016', barangay: 'San Isidro', type: 'Medical', urgency: 'Low', source: 'Bot', time: '10/24 10:57', status: 'pending', description: 'Child with high fever, parents requesting transport to health center.', originalText: 'Anak ko may lagnat, paabot po sa health center.', reporter: 'Elena Cruz', contact: '0916-456-7890', coordinates: '14.0912, 121.0254', landmark: 'Health center', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
+  { id: '017', barangay: 'Leynes', type: 'Search & Rescue', urgency: 'Low', source: 'Scraper', time: '10/24 10:57', status: 'pending', description: 'Boat capsized near the shore. Two fishermen accounted for, one missing.', originalText: 'May bumagsak na bangka, may nawawalang isda.', reporter: 'Ramon Garcia', contact: '0913-222-3333', coordinates: '14.0967, 121.0198', landmark: 'Shoreline', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: '011' },
+  { id: '018', barangay: 'Leynes', type: 'Food & Water', urgency: 'Low', source: 'Bot', time: '10/24 10:57', status: 'under_review', description: 'Relief goods distribution needed for 15 families affected by flash flood.', originalText: 'Kailangan ng relief goods para sa 15 pamilya.', reporter: 'Liza Mendoza', contact: '0914-555-6666', coordinates: '14.0941, 121.0234', landmark: 'Evacuation center', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
+  { id: '019', barangay: 'Banga', type: 'Medical', urgency: 'High', source: 'Bot', time: '10/24 11:15', status: 'verified', description: 'Pregnant woman in labor needing immediate transport to hospital.', originalText: 'Manganganak na po, kailangan ng ambulansya papuntang ospital.', reporter: 'Josefina Reyes', contact: '0920-111-2222', coordinates: '14.0891, 121.0284', landmark: 'Banga health center', verifiedBy: 'Officer Samson', verifiedAt: '10/24 11:20', rejectionReason: null, possibleDuplicateOf: null },
+  { id: '020', barangay: 'Banadero', type: 'Infrastructure', urgency: 'High', source: 'Scraper', time: '10/24 11:30', status: 'pending', description: 'Bridge collapsed due to heavy rainfall. Alternative route needed.', originalText: 'Bumagsak ang tulay, kailangan ng ibang daanan.', reporter: 'Miguel Santos', contact: '0921-333-4444', coordinates: '14.1012, 121.0123', landmark: 'Banadero bridge', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
+  { id: '021', barangay: 'Sampaloc', type: 'Search & Rescue', urgency: 'Moderate', source: 'Bot', time: '10/24 11:45', status: 'under_review', description: 'Family trapped on second floor due to flash flooding.', originalText: 'May pamilyang nakaipit sa second floor, baha na po.', reporter: 'Carmen Villanueva', contact: '0922-555-6666', coordinates: '14.0876, 121.0312', landmark: 'Residential area', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
+  { id: '022', barangay: 'Poblacion', type: 'Food & Water', urgency: 'Moderate', source: 'Scraper', time: '10/24 12:00', status: 'verified', description: 'Evacuation center needs 50 food packs and clean drinking water.', originalText: 'Kailangan ng pagkain at tubig sa evacuation center, 50 pamilya.', reporter: 'Antonio dela Cruz', contact: '0923-777-8888', coordinates: '14.0925, 121.0190', landmark: 'Poblacion gym', verifiedBy: 'Officer Cruz', verifiedAt: '10/24 12:10', rejectionReason: null, possibleDuplicateOf: null },
+  { id: '023', barangay: 'Banga', type: 'Search & Rescue', urgency: 'Moderate', source: 'Scraper', time: '10/24 12:15', status: 'rejected', description: 'Trapped residents on rooftop after sudden rise in water level.', originalText: 'Nakaipit sa bubong, tumataas na ang tubig.', reporter: 'Rodelio Cruz', contact: '0924-888-9999', coordinates: '14.0885, 121.0295', landmark: 'Rooftop', verifiedBy: null, verifiedAt: null, rejectionReason: 'duplicate', possibleDuplicateOf: '021' },
+  { id: '024', barangay: 'Banadero', type: 'Medical', urgency: 'Low', source: 'Bot', time: '10/24 12:30', status: 'resolved', description: 'Senior citizen with hypertension needs maintenance medication.', originalText: 'Matandang may high blood, kailangan ng gamot.', reporter: 'Lourdes Reyes', contact: '0925-111-2223', coordinates: '14.1005, 121.0135', landmark: 'Barangay health station', verifiedBy: 'Officer Samson', verifiedAt: '10/24 12:35', rejectionReason: null, possibleDuplicateOf: null },
+  { id: '025', barangay: 'Sampaloc', type: 'Infrastructure', urgency: 'High', source: 'Scraper', time: '10/24 12:45', status: 'pending', description: 'Power lines down near elementary school. Area needs immediate clearing.', originalText: 'May poste ng kuryenteng bumagsak malapit sa school.', reporter: 'Fernando Lim', contact: '0926-444-5555', coordinates: '14.0865, 121.0325', landmark: 'Sampaloc elementary', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
+  { id: '026', barangay: 'Poblacion', type: 'Search & Rescue', urgency: 'High', source: 'Bot', time: '10/24 13:00', status: 'verified', description: 'Vehicle swept away by flash flood near the bridge. Driver still inside.', originalText: 'May sasakyang inanod, may tao pa loob, kailangan ng rescue.', reporter: 'Gloria Santos', contact: '0927-666-7777', coordinates: '14.0915, 121.0205', landmark: 'Poblacion bridge', verifiedBy: 'Officer Cruz', verifiedAt: '10/24 13:05', rejectionReason: null, possibleDuplicateOf: null },
+  { id: '027', barangay: 'Cawit', type: 'Food & Water', urgency: 'Low', source: 'Scraper', time: '10/24 13:15', status: 'pending', description: 'Barangay hall requesting additional water containers for evacuation center.', originalText: 'Kailangan ng lagayan ng tubig sa evacuation.', reporter: 'Ricardo Tan', contact: '0928-888-9990', coordinates: '14.0995, 121.0145', landmark: 'Cawit barangay hall', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
+  { id: '028', barangay: 'San Isidro', type: 'Infrastructure', urgency: 'Moderate', source: 'Bot', time: '10/24 13:30', status: 'under_review', description: 'Barangay road eroded after continuous rain. Motorcycles can no longer pass.', originalText: 'Nasira ang daan, hindi na makadaan ang motor.', reporter: 'Marites Garcia', contact: '0929-000-1111', coordinates: '14.0905, 121.0265', landmark: 'San Isidro road', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
+  { id: '029', barangay: 'Leynes', type: 'Medical', urgency: 'High', source: 'Scraper', time: '10/24 13:45', status: 'pending', description: 'Multiple residents showing symptoms of leptospirosis after wading through floodwater.', originalText: 'Maraming may sakit sa leptospirosis, lumusong sa baha.', reporter: 'Dr. Emmanuel Cruz', contact: '0930-222-3334', coordinates: '14.0955, 121.0215', landmark: 'Leynes clinic', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
+  { id: '030', barangay: 'Banga', type: 'Food & Water', urgency: 'Moderate', source: 'Bot', time: '10/24 14:00', status: 'verified', description: '20 families in temporary shelter need hot meals and blankets.', originalText: '20 pamilya sa temporary shelter, kailangan ng pagkain at kumot.', reporter: 'Helena Mendoza', contact: '0931-444-5556', coordinates: '14.0895, 121.0275', landmark: 'Banga shelter', verifiedBy: 'Officer Samson', verifiedAt: '10/24 14:10', rejectionReason: null, possibleDuplicateOf: null },
+  { id: '031', barangay: 'Banadero', type: 'Search & Rescue', urgency: 'Low', source: 'Scraper', time: '10/24 14:15', status: 'rejected', description: 'Livestock stranded in flooded pasture.', originalText: 'Naiwan ang mga hayop sa baha, tulungan nyo po.', reporter: 'Domingo Reyes', contact: '0932-666-7778', coordinates: '14.1025, 121.0115', landmark: 'Pasture', verifiedBy: null, verifiedAt: null, rejectionReason: 'not_disaster_related', possibleDuplicateOf: null },
+  { id: '032', barangay: 'Sampaloc', type: 'Medical', urgency: 'Moderate', source: 'Bot', time: '10/24 14:30', status: 'resolved', description: 'Child with asthma attack, inhaler supply depleted.', originalText: 'Anak ko hinika, wala nang inhaler.', reporter: 'Cecilia Villanueva', contact: '0933-888-9991', coordinates: '14.0875, 121.0305', landmark: 'Sampaloc health center', verifiedBy: 'Officer Cruz', verifiedAt: '10/24 14:40', rejectionReason: null, possibleDuplicateOf: null },
+  { id: '033', barangay: 'Poblacion', type: 'Infrastructure', urgency: 'Low', source: 'Scraper', time: '10/24 14:45', status: 'pending', description: 'Drainage system clogged with debris causing minor flooding.', originalText: 'Barado ang kanal, bumabaha sa kalsada.', reporter: 'Alberto dela Cruz', contact: '0934-000-1112', coordinates: '14.0935, 121.0185', landmark: 'Main street', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
+  { id: '034', barangay: 'Cawit', type: 'Search & Rescue', urgency: 'High', source: 'Bot', time: '10/24 15:00', status: 'under_review', description: 'Landslide reported near hillside residences. Three houses affected.', originalText: 'May landslide, tatlong bahay naapektuhan.', reporter: 'Patricia Lim', contact: '0935-222-3335', coordinates: '14.0975, 121.0165', landmark: 'Hillside Cawit', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
+  { id: '035', barangay: 'San Isidro', type: 'Food & Water', urgency: 'Low', source: 'Scraper', time: '10/24 15:15', status: 'pending', description: 'Request for hygiene kits and potable water for 30 families.', originalText: 'Kailangan ng hygiene kits at tubig para sa 30 pamilya.', reporter: 'Roberto Garcia', contact: '0936-444-5557', coordinates: '14.0925, 121.0245', landmark: 'San Isidro tent area', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
 ];
 
 // ── Animation presets ──
@@ -69,6 +79,12 @@ const pageVariants = {
   hidden: { opacity: 0, x: 30 },
   visible: { opacity: 1, x: 0 },
   exit: { opacity: 0, x: -30 },
+};
+
+const barActionVariants = {
+  hidden: { opacity: 0, y: -16, scale: 0.97, height: 0 },
+  visible: { opacity: 1, y: 0, scale: 1, height: 'auto' },
+  exit: { opacity: 0, y: -16, scale: 0.97, height: 0 },
 };
 
 // ── Pagination Component ──
@@ -108,11 +124,10 @@ function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: nu
           <button
             key={page}
             onClick={() => onPageChange(page as number)}
-            className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-              currentPage === page
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 bg-white dark:bg-slate-800'
-            }`}
+            className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${currentPage === page
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 bg-white dark:bg-slate-800'
+              }`}
           >
             {page}
           </button>
@@ -131,24 +146,71 @@ function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: nu
 }
 
 export default function IncidentReports() {
+  const navigate = useNavigate();
   const [reports, setReports] = useState<Report[]>(sampleReports);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'archived'>('all');
-  const [viewingReport, setViewingReport] = useState<Report | null>(null);
+  const [activeTab, setActiveTab] = useState<ReportStatus | 'all'>('all');
+  const [reviewingReport, setReviewingReport] = useState<Report | null>(null);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // ── NEW: Filter states ──
+  // Filters
   const [filterBarangay, setFilterBarangay] = useState('All Barangays');
   const [filterType, setFilterType] = useState('All Types');
   const [filterUrgency, setFilterUrgency] = useState('All Urgency');
 
+  // Edit form state inside modal
+  const [editForm, setEditForm] = useState<Partial<Report>>({});
+  const [checklist, setChecklist] = useState({
+    barangayCorrect: false,
+    typeAccurate: false,
+    locationReal: false,
+    notDuplicate: false,
+    urgencyAppropriate: false,
+  });
+  const [showRejectPanel, setShowRejectPanel] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+
   const itemsPerPage = 10;
+
+  const tabs = [
+    { key: 'all' as const, label: 'All Reports', count: reports.length },
+    { key: 'pending' as const, label: 'Pending', count: reports.filter(r => r.status === 'pending').length },
+    { key: 'under_review' as const, label: 'Under Review', count: reports.filter(r => r.status === 'under_review').length },
+    { key: 'verified' as const, label: 'Verified', count: reports.filter(r => r.status === 'verified').length },
+    { key: 'resolved' as const, label: 'Resolved', count: reports.filter(r => r.status === 'resolved').length },
+    { key: 'rejected' as const, label: 'Rejected', count: reports.filter(r => r.status === 'rejected').length },
+  ];
 
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedIds([]);
   }, [activeTab, filterBarangay, filterType, filterUrgency]);
+
+  const openReview = (report: Report) => {
+    setReviewingReport(report);
+    setEditForm({ ...report });
+    setChecklist({
+      barangayCorrect: false,
+      typeAccurate: false,
+      locationReal: false,
+      notDuplicate: false,
+      urgencyAppropriate: false,
+    });
+    setShowRejectPanel(false);
+    setRejectReason('');
+    // Auto-mark as under_review if pending
+    if (report.status === 'pending') {
+      setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: 'under_review' } : r));
+    }
+  };
+
+  const closeReview = () => {
+    setReviewingReport(null);
+    setEditForm({});
+    setShowRejectPanel(false);
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>
@@ -166,51 +228,70 @@ export default function IncidentReports() {
     }
   };
 
-  const handleView = (report: Report) => {
-    setViewingReport(report);
-    if (!report.read) {
-      setReports(prev => prev.map(r => r.id === report.id ? { ...r, read: true } : r));
-    }
+  const handleSaveDraft = () => {
+    if (!reviewingReport || !editForm) return;
+    setReports(prev => prev.map(r => r.id === reviewingReport.id ? { ...r, ...editForm } as Report : r));
+    closeReview();
   };
 
-  const handleToggleRead = (id: string) => {
-    setReports(prev => prev.map(r => r.id === id ? { ...r, read: !r.read } : r));
+  const handleVerify = () => {
+    if (!reviewingReport || !editForm) return;
+    const now = new Date().toLocaleString('en-US', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    setReports(prev => prev.map(r => r.id === reviewingReport.id ? {
+      ...r,
+      ...editForm,
+      status: 'verified',
+      verifiedBy: 'Current Officer',
+      verifiedAt: now,
+      rejectionReason: null,
+    } as Report : r));
+    closeReview();
   };
 
-  const handleArchive = (id: string) => {
-    setReports(prev => prev.map(r => r.id === id ? { ...r, archived: true } : r));
+  const handleResolve = () => {
+    if (!reviewingReport) return;
+    setReports(prev => prev.map(r => r.id === reviewingReport.id ? { ...r, status: 'resolved' } : r));
+    closeReview();
+  };
+
+  const handleReject = () => {
+    if (!reviewingReport || !rejectReason) return;
+    setReports(prev => prev.map(r => r.id === reviewingReport.id ? {
+      ...r,
+      status: 'rejected',
+      rejectionReason: rejectReason,
+      verifiedBy: null,
+      verifiedAt: null,
+    } as Report : r));
+    closeReview();
+  };
+
+  const handleRestore = (id: string) => {
+    setReports(prev => prev.map(r => r.id === id ? { ...r, status: 'pending', rejectionReason: null } : r));
     setSelectedIds(prev => prev.filter(i => i !== id));
   };
 
-  const handleUnarchive = (id: string) => {
-    setReports(prev => prev.map(r => r.id === id ? { ...r, archived: false } : r));
-    setSelectedIds(prev => prev.filter(i => i !== id));
-  };
-
-  const handleBulkArchive = () => {
-    setReports(prev => prev.map(r => selectedIds.includes(r.id) ? { ...r, archived: true } : r));
+  // Bulk actions
+  const handleBulkStartReview = () => {
+    setReports(prev => prev.map(r => selectedIds.includes(r.id) && r.status === 'pending' ? { ...r, status: 'under_review' } : r));
     setSelectedIds([]);
   };
 
-  const handleBulkUnarchive = () => {
-    setReports(prev => prev.map(r => selectedIds.includes(r.id) ? { ...r, archived: false } : r));
+  const handleBulkResolve = () => {
+    setReports(prev => prev.map(r => selectedIds.includes(r.id) && r.status === 'verified' ? { ...r, status: 'resolved' } : r));
     setSelectedIds([]);
   };
 
-  const handleBulkRead = () => {
-    setReports(prev => prev.map(r => selectedIds.includes(r.id) ? { ...r, read: true } : r));
+  const handleBulkRestore = () => {
+    setReports(prev => prev.map(r => selectedIds.includes(r.id) && r.status === 'rejected' ? { ...r, status: 'pending', rejectionReason: null } : r));
+    setSelectedIds([]);
   };
 
-  const handleBulkUnread = () => {
-    setReports(prev => prev.map(r => selectedIds.includes(r.id) ? { ...r, read: false } : r));
-  };
+  const allChecklistChecked = Object.values(checklist).every(Boolean);
 
-  // ── UPDATED: Filter logic ──
+  // Filter logic
   const filteredReports = reports.filter(r => {
-    if (activeTab === 'unread') return !r.read && !r.archived;
-    if (activeTab === 'archived') return r.archived;
-    return !r.archived;
-  }).filter(r => {
+    if (activeTab !== 'all' && r.status !== activeTab) return false;
     if (filterBarangay !== 'All Barangays' && r.barangay !== filterBarangay) return false;
     if (filterType !== 'All Types' && r.type !== filterType) return false;
     if (filterUrgency !== 'All Urgency' && r.urgency !== filterUrgency) return false;
@@ -242,28 +323,53 @@ export default function IncidentReports() {
     }
   };
 
+  const getStatusColor = (status: ReportStatus) => {
+    switch (status) {
+      case 'pending': return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
+      case 'under_review': return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800';
+      case 'verified': return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800';
+      case 'resolved': return 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600';
+      case 'rejected': return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
+    }
+  };
+
+  const getStatusLabel = (status: ReportStatus) => {
+    switch (status) {
+      case 'pending': return 'Pending';
+      case 'under_review': return 'Under Review';
+      case 'verified': return 'Verified';
+      case 'resolved': return 'Resolved';
+      case 'rejected': return 'Rejected';
+    }
+  };
+
+  const getRejectionLabel = (reason: string | null) => {
+    switch (reason) {
+      case 'spam_or_fake': return 'Spam / Fake';
+      case 'duplicate': return 'Duplicate';
+      case 'outside_jurisdiction': return 'Outside Jurisdiction';
+      case 'not_disaster_related': return 'Not Disaster-Related';
+      case 'insufficient_info': return 'Insufficient Info';
+      default: return reason || '';
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-6">
       {/* Tabs */}
-      <div className="flex items-center gap-2 shrink-0">
-        {[
-          { key: 'all' as const, label: 'All Reports', count: reports.filter(r => !r.archived).length },
-          { key: 'unread' as const, label: 'Unread', count: reports.filter(r => !r.read && !r.archived).length },
-          { key: 'archived' as const, label: 'Archived', count: reports.filter(r => r.archived).length },
-        ].map(tab => (
+      <div className="flex items-center gap-2 shrink-0 flex-wrap">
+        {tabs.map(tab => (
           <button
             key={tab.key}
-            onClick={() => { setActiveTab(tab.key); setSelectedIds([]); }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === tab.key
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
-            }`}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.key
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+              }`}
           >
             {tab.label}
-            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
-              activeTab === tab.key ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-            }`}>
+            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+              }`}>
               {tab.count}
             </span>
           </button>
@@ -314,44 +420,39 @@ export default function IncidentReports() {
         {selectedIds.length > 0 && (
           <motion.div
             key="bulk-actions"
-            initial={{ opacity: 0, y: -16, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -16, scale: 0.97 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 shrink-0 origin-top"
+            variants={barActionVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 shrink-0 origin-top overflow-hidden"
           >
             <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
               {selectedIds.length} selected
             </span>
             <div className="ml-auto flex items-center gap-2">
-              {activeTab !== 'archived' && (
-                <>
-                  <button
-                    onClick={handleBulkRead}
-                    className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
-                  >
-                    <Eye className="w-3.5 h-3.5" /> Mark Read
-                  </button>
-                  <button
-                    onClick={handleBulkUnread}
-                    className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
-                  >
-                    <EyeOff className="w-3.5 h-3.5" /> Mark Unread
-                  </button>
-                  <button
-                    onClick={handleBulkArchive}
-                    className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
-                  >
-                    <Archive className="w-3.5 h-3.5" /> Archive
-                  </button>
-                </>
-              )}
-              {activeTab === 'archived' && (
+              {activeTab === 'pending' && (
                 <button
-                  onClick={handleBulkUnarchive}
+                  onClick={handleBulkStartReview}
+                  className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
+                >
+                  <Eye className="w-3.5 h-3.5" /> Start Review
+                </button>
+              )}
+              {activeTab === 'verified' && (
+                <button
+                  onClick={handleBulkResolve}
                   className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
                 >
-                  <ArchiveRestore className="w-3.5 h-3.5" /> Restore
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Mark Resolved
+                </button>
+              )}
+              {activeTab === 'rejected' && (
+                <button
+                  onClick={handleBulkRestore}
+                  className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Restore to Pending
                 </button>
               )}
             </div>
@@ -362,7 +463,7 @@ export default function IncidentReports() {
       {/* Table */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
         <div className="overflow-auto flex-1">
-          <table className="w-full min-w-[700px] text-sm text-left">
+          <table className="w-full min-w-[800px] text-sm text-left">
             <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
               <tr>
                 <th className="px-4 py-3 w-10">
@@ -377,6 +478,7 @@ export default function IncidentReports() {
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Barangay</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Type</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Urgency</th>
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Source</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Time</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200 text-right">Action</th>
@@ -394,9 +496,9 @@ export default function IncidentReports() {
               >
                 {paginatedReports.length === 0 ? (
                   <tr className="h-full">
-                    <td colSpan={8} className="h-full px-4 text-center text-slate-400 dark:text-slate-500 align-middle">
+                    <td colSpan={9} className="h-full px-4 text-center text-slate-400 dark:text-slate-500 align-middle">
                       <div className="flex flex-col items-center justify-center py-20">
-                        <span className="text-sm">{activeTab === 'archived' ? 'No archived reports.' : activeTab === 'unread' ? 'No unread reports.' : 'No reports found.'}</span>
+                        <span className="text-sm">No reports found.</span>
                       </div>
                     </td>
                   </tr>
@@ -404,9 +506,8 @@ export default function IncidentReports() {
                   paginatedReports.map((report) => (
                     <tr
                       key={report.id}
-                      className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors ${
-                        !report.read && !report.archived ? 'bg-blue-50/40 dark:bg-blue-900/15' : ''
-                      }`}
+                      className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors ${report.status === 'pending' ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''
+                        }`}
                     >
                       <td className="px-4 py-3">
                         <input
@@ -418,8 +519,8 @@ export default function IncidentReports() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          {!report.read && !report.archived && (
-                            <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Unread" />
+                          {report.status === 'pending' && (
+                            <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 animate-pulse" title="Pending" />
                           )}
                           <span className="font-mono text-slate-600 dark:text-slate-400">#{report.id}</span>
                         </div>
@@ -433,44 +534,56 @@ export default function IncidentReports() {
                           {report.urgency}
                         </span>
                       </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(report.status)}`}>
+                          {getStatusLabel(report.status)}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{report.source}</td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">{report.time}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleView(report)}
-                            className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center gap-1"
-                          >
-                            <Eye className="w-3.5 h-3.5" /> View
-                          </button>
-
-                          {!report.archived && (
+                          {(report.status === 'pending' || report.status === 'under_review') && (
                             <button
-                              onClick={() => handleToggleRead(report.id)}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 ${
-                                report.read
-                                  ? 'text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
-                                  : 'text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30'
-                              }`}
+                              onClick={() => openReview(report)}
+                              className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-lg transition-colors flex items-center gap-1"
                             >
-                              {report.read ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                              {report.read ? 'Unread' : 'Read'}
+                              <ShieldCheck className="w-3.5 h-3.5" /> Review
                             </button>
                           )}
 
-                          {report.archived ? (
+                          {report.status === 'verified' && (
+                            <>
+                              <button
+                                onClick={() => openReview(report)}
+                                className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center gap-1"
+                              >
+                                <Eye className="w-3.5 h-3.5" /> View
+                              </button>
+                              <button
+                                onClick={() => navigate(`/geospatial?focus=${report.id}`)}
+                                className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/30 rounded-lg transition-colors flex items-center gap-1"
+                              >
+                                <MapPinned className="w-3.5 h-3.5" /> Map
+                              </button>
+                            </>
+                          )}
+
+                          {(report.status === 'resolved' || report.status === 'rejected') && (
                             <button
-                              onClick={() => handleUnarchive(report.id)}
-                              className="px-3 py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/30 rounded-lg transition-colors flex items-center gap-1"
+                              onClick={() => openReview(report)}
+                              className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-1"
                             >
-                              <ArchiveRestore className="w-3.5 h-3.5" /> Restore
+                              <Eye className="w-3.5 h-3.5" /> View
                             </button>
-                          ) : (
+                          )}
+
+                          {report.status === 'rejected' && (
                             <button
-                              onClick={() => handleArchive(report.id)}
-                              className="px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-lg transition-colors flex items-center gap-1"
+                              onClick={() => handleRestore(report.id)}
+                              className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center gap-1"
                             >
-                              <Archive className="w-3.5 h-3.5" /> Archive
+                              <RotateCcw className="w-3.5 h-3.5" /> Restore
                             </button>
                           )}
                         </div>
@@ -492,39 +605,44 @@ export default function IncidentReports() {
       />
 
       {/* ════════════════════════════════════════
-          VIEW MODAL — Animated
+          REVIEW & VERIFY MODAL
          ════════════════════════════════════════ */}
       <AnimatePresence>
-        {viewingReport && (
+        {reviewingReport && editForm && (
           <motion.div
-            key="view-modal-backdrop"
+            key="review-modal-backdrop"
             variants={backdropVariants}
             initial="hidden"
             animate="visible"
             exit="exit"
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-            onClick={() => setViewingReport(null)}
+            onClick={closeReview}
           >
             <motion.div
               variants={modalVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg overflow-hidden"
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{viewingReport.id}</span>
-                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(viewingReport.urgency)}`}>
-                    {viewingReport.urgency}
+                  <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{reviewingReport.id}</span>
+                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(reviewingReport.status)}`}>
+                    {getStatusLabel(reviewingReport.status)}
                   </span>
+                  {reviewingReport.possibleDuplicateOf && (
+                    <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                      <AlertTriangle className="w-3 h-3" /> Dup #{reviewingReport.possibleDuplicateOf}
+                    </span>
+                  )}
                 </div>
                 <button
-                  onClick={() => setViewingReport(null)}
+                  onClick={closeReview}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 >
                   <X className="w-5 h-5" />
@@ -532,76 +650,277 @@ export default function IncidentReports() {
               </div>
 
               {/* Body */}
-              <div className="px-6 py-5 space-y-5">
-                <div>
-                  <h3 className={`text-lg font-bold ${getTypeColor(viewingReport.type)}`}>
-                    {viewingReport.type}
-                  </h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{viewingReport.barangay}, Talisay</p>
+              <div className="px-6 py-5 space-y-6">
+                {/* Two Column Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* LEFT: Original Report */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <FileText className="w-4 h-4" /> Original Report
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 border border-slate-100 dark:border-slate-700 space-y-3">
+                      <p className="text-sm text-slate-700 dark:text-slate-200 italic leading-relaxed">
+                        "{reviewingReport.originalText}"
+                      </p>
+                      <div className="pt-3 border-t border-slate-200 dark:border-slate-600 space-y-2">
+                        <div className="flex items-center gap-2 text-xs">
+                          <User className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="text-slate-600 dark:text-slate-300">{reviewingReport.reporter}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <Phone className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="text-slate-600 dark:text-slate-300">{reviewingReport.contact}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="text-slate-600 dark:text-slate-300">{reviewingReport.source}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="text-slate-600 dark:text-slate-300">{reviewingReport.time}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Verified info if applicable */}
+                    {reviewingReport.verifiedBy && (
+                      <div className="bg-emerald-50 dark:bg-emerald-900/10 rounded-xl p-3 border border-emerald-200 dark:border-emerald-800">
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                          <CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />
+                          Verified by {reviewingReport.verifiedBy} at {reviewingReport.verifiedAt}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Rejection info if applicable */}
+                    {reviewingReport.rejectionReason && (
+                      <div className="bg-red-50 dark:bg-red-900/10 rounded-xl p-3 border border-red-200 dark:border-red-800">
+                        <p className="text-xs text-red-700 dark:text-red-400 font-medium">
+                          <AlertOctagon className="w-3.5 h-3.5 inline mr-1" />
+                          Rejected: {getRejectionLabel(reviewingReport.rejectionReason)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* RIGHT: Officer Edit Form */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <ShieldCheck className="w-4 h-4" /> Officer Review
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
+                        <select
+                          value={editForm.barangay || ''}
+                          onChange={e => setEditForm(prev => ({ ...prev, barangay: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        >
+                          {['Leynes', 'Poblacion', 'Cawit', 'San Isidro', 'Sampaloc', 'Banga', 'Banadero'].map(b => (
+                            <option key={b} value={b}>{b}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Type</label>
+                          <select
+                            value={editForm.type || ''}
+                            onChange={e => setEditForm(prev => ({ ...prev, type: e.target.value }))}
+                            className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                          >
+                            {['Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure'].map(t => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Urgency</label>
+                          <select
+                            value={editForm.urgency || ''}
+                            onChange={e => setEditForm(prev => ({ ...prev, urgency: e.target.value }))}
+                            className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                          >
+                            {['High', 'Moderate', 'Low'].map(u => (
+                              <option key={u} value={u}>{u}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Landmark</label>
+                        <input
+                          type="text"
+                          value={editForm.landmark || ''}
+                          onChange={e => setEditForm(prev => ({ ...prev, landmark: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                          placeholder="e.g. Near 7-Eleven, in front of school..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Coordinates (lat, lng)</label>
+                        <input
+                          type="text"
+                          value={editForm.coordinates || ''}
+                          onChange={e => setEditForm(prev => ({ ...prev, coordinates: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono"
+                          placeholder="14.0951, 121.0203"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Description</label>
+                        <textarea
+                          value={editForm.description || ''}
+                          onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                          rows={4}
+                          className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
-                  <p className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed">
-                    {viewingReport.description}
-                  </p>
-                </div>
+                {/* Verification Checklist */}
+                {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
+                  <div className="bg-slate-50 dark:bg-slate-700/20 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                    <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-blue-500" /> Verification Checklist
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {[
+                        { key: 'barangayCorrect', label: 'Barangay & coordinates verified' },
+                        { key: 'typeAccurate', label: 'Incident type is accurate' },
+                        { key: 'locationReal', label: 'Location / landmark is real' },
+                        { key: 'notDuplicate', label: 'Not a duplicate report' },
+                        { key: 'urgencyAppropriate', label: 'Urgency level is appropriate' },
+                      ].map((item) => (
+                        <label key={item.key} className="flex items-center gap-2.5 cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={checklist[item.key as keyof typeof checklist]}
+                            onChange={(e) => setChecklist(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                            className="rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                          />
+                          <span className="text-sm text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100 transition-colors">
+                            {item.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-start gap-2.5">
-                    <User className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Reporter</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{viewingReport.reporter}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <Phone className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Contact</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{viewingReport.contact}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Coordinates</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200 font-mono">{viewingReport.coordinates}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <Clock className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Reported</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200">{viewingReport.time}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-2">
-                  <MessageSquare className="w-4 h-4 text-slate-400" />
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Source: <span className="font-medium text-slate-700 dark:text-slate-300">{viewingReport.source}</span></span>
-                </div>
+                {/* Rejection Panel */}
+                <AnimatePresence>
+                  {showRejectPanel && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="bg-red-50 dark:bg-red-900/10 rounded-xl p-4 border border-red-200 dark:border-red-800 overflow-hidden"
+                    >
+                      <label className="block text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+                        Rejection Reason
+                      </label>
+                      <select
+                        value={rejectReason}
+                        onChange={e => setRejectReason(e.target.value)}
+                        className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-red-200 dark:border-red-700 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-red-500 outline-none mb-3"
+                      >
+                        <option value="">Select a reason...</option>
+                        <option value="spam_or_fake">Spam / Fake Report</option>
+                        <option value="duplicate">Duplicate Report</option>
+                        <option value="outside_jurisdiction">Outside Talisay Jurisdiction</option>
+                        <option value="not_disaster_related">Not Disaster-Related</option>
+                        <option value="insufficient_info">Insufficient Information</option>
+                      </select>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleReject}
+                          disabled={!rejectReason}
+                          className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
+                        >
+                          Confirm Reject
+                        </button>
+                        <button
+                          onClick={() => setShowRejectPanel(false)}
+                          className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              {/* Footer */}
-              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
-                <button
-                  onClick={() => setViewingReport(null)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                >
-                  Close
-                </button>
-                {!viewingReport.archived && (
+              {/* Footer Actions */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 sticky bottom-0">
+                <div className="flex items-center gap-2">
+                  {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
+                    <>
+                      <button
+                        onClick={handleSaveDraft}
+                        className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                      >
+                        Save Draft
+                      </button>
+                      <button
+                        onClick={() => setShowRejectPanel(true)}
+                        className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30 rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <AlertOctagon className="w-4 h-4" /> Reject
+                      </button>
+                    </>
+                  )}
+
+                  {reviewingReport.status === 'verified' && (
+                    <button
+                      onClick={handleResolve}
+                      className="px-4 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/30 rounded-lg transition-colors flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-4 h-4" /> Mark Resolved
+                    </button>
+                  )}
+
+                  {reviewingReport.status === 'rejected' && (
+                    <button
+                      onClick={() => {
+                        setReports(prev => prev.map(r => r.id === reviewingReport.id ? { ...r, status: 'pending', rejectionReason: null } : r));
+                        closeReview();
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center gap-1.5"
+                    >
+                      <RotateCcw className="w-4 h-4" /> Restore to Pending
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => {
-                      handleArchive(viewingReport.id);
-                      setViewingReport(null);
-                    }}
-                    className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-lg transition-colors flex items-center gap-1.5"
+                    onClick={closeReview}
+                    className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                   >
-                    <Archive className="w-4 h-4" /> Archive
+                    Close
                   </button>
-                )}
+
+                  {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
+                    <button
+                      onClick={handleVerify}
+                      disabled={!allChecklistChecked}
+                      title={!allChecklistChecked ? 'Complete the checklist first' : ''}
+                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm flex items-center gap-1.5"
+                    >
+                      <Send className="w-4 h-4" /> Verify & Plot
+                    </button>
+                  )}
+                </div>
               </div>
             </motion.div>
           </motion.div>

@@ -38,9 +38,17 @@ export default function MessengerBotLogs() {
   const [filterType, setFilterType] = useState("All Types");
   const [filterStatus, setFilterStatus] = useState("All Status");
 
+  const POLL_INTERVAL_MS = 30_000; // Auto-refresh every 30 seconds
+
   useEffect(() => {
+    let isFirstLoad = true;
+
     const fetchConversations = async () => {
-      setLoading(true);
+      console.log(`[MessengerBotLogs] Fetching conversations... (${new Date().toLocaleTimeString()})${isFirstLoad ? " [initial]" : " [poll]"}`);
+      // Only show the loading spinner on initial load, not on background polls.
+      if (isFirstLoad) {
+        setLoading(true);
+      }
       setError(null);
 
       const { data, error: sbError } = await supabase
@@ -51,7 +59,8 @@ export default function MessengerBotLogs() {
       if (sbError) {
         console.error("[MessengerBotLogs] Supabase error:", sbError.message);
         setError(sbError.message);
-        setLoading(false);
+        if (isFirstLoad) setLoading(false);
+        isFirstLoad = false;
         return;
       }
 
@@ -63,6 +72,18 @@ export default function MessengerBotLogs() {
         messages: BotMessage[];
       };
 
+      // First pass: build the best known name for each PSID across ALL rows.
+      // This ensures rows with null/unknown sender_name still get the correct
+      // name if any other row from the same sender has one.
+      const psidNameMap = new Map<string, string>();
+      for (const row of data ?? []) {
+        const psid = String(row.sender_psid || row.id || "unknown");
+        const name = row.sender_name;
+        if (name && name !== "Unknown User" && !psidNameMap.has(psid)) {
+          psidNameMap.set(psid, name);
+        }
+      }
+
       const sessions: Session[] = [];
       const psidToLastSessionIdx = new Map<string, number>();
 
@@ -70,6 +91,9 @@ export default function MessengerBotLogs() {
         const psid = String(row.sender_psid || row.id || "unknown");
         const rowTime = new Date(row.timestamp).getTime();
         const lastIdx = psidToLastSessionIdx.get(psid);
+
+        // Use the best known name for this PSID, falling back to "Unknown User".
+        const resolvedName = psidNameMap.get(psid) ?? "Unknown User";
 
         let session: Session;
 
@@ -80,7 +104,7 @@ export default function MessengerBotLogs() {
           session = {
             id: `${psid}_${rowTime}`,
             psid,
-            senderName: row.sender_name || "Unknown User",
+            senderName: resolvedName,
             lastTime: rowTime,
             messages: [],
           };
@@ -89,12 +113,9 @@ export default function MessengerBotLogs() {
         } else {
           session = sessions[lastIdx];
           session.lastTime = rowTime;
-          if (
-            session.senderName === "Unknown User" &&
-            row.sender_name &&
-            row.sender_name !== "Unknown User"
-          ) {
-            session.senderName = row.sender_name;
+          // Upgrade name if we somehow have a better one now.
+          if (session.senderName === "Unknown User" && resolvedName !== "Unknown User") {
+            session.senderName = resolvedName;
           }
         }
 
@@ -135,11 +156,21 @@ export default function MessengerBotLogs() {
         });
 
       setConversations(mapped);
-      if (mapped.length > 0) setSelectedId(mapped[0].id);
-      setLoading(false);
+      // Only auto-select the first conversation on initial load.
+      // On polls, preserve the user's current selection.
+      if (isFirstLoad && mapped.length > 0) {
+        setSelectedId(mapped[0].id);
+      }
+      if (isFirstLoad) setLoading(false);
+      isFirstLoad = false;
     };
 
+    // Fetch immediately, then poll every 60 seconds.
     fetchConversations();
+    const intervalId = setInterval(fetchConversations, POLL_INTERVAL_MS);
+
+    // Cleanup: clear the interval when the component unmounts.
+    return () => clearInterval(intervalId);
   }, []);
 
   const filteredConversations = conversations.filter((c) => {
@@ -230,11 +261,10 @@ export default function MessengerBotLogs() {
                     <button
                       key={convo.id}
                       onClick={() => setSelectedId(convo.id)}
-                      className={`w-full flex items-center gap-3 p-4 border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors text-left ${
-                        selectedId === convo.id
-                          ? "bg-blue-50/50 dark:bg-blue-900/20 border-l-4 border-l-blue-500"
-                          : "border-l-4 border-l-transparent"
-                      }`}
+                      className={`w-full flex items-center gap-3 p-4 border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors text-left ${selectedId === convo.id
+                        ? "bg-blue-50/50 dark:bg-blue-900/20 border-l-4 border-l-blue-500"
+                        : "border-l-4 border-l-transparent"
+                        }`}
                     >
                       <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 shrink-0">
                         {convo.name?.charAt(0) ?? "?"}
@@ -253,11 +283,10 @@ export default function MessengerBotLogs() {
                             {convo.type}
                           </span>
                           <span
-                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                              convo.status === "Unread"
-                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                                : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            }`}
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${convo.status === "Unread"
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                              : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                              }`}
                           >
                             {convo.status}
                           </span>
@@ -297,11 +326,10 @@ export default function MessengerBotLogs() {
                         </div>
                       </div>
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                          selectedConversation.status === "Unread"
-                            ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
-                            : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
-                        }`}
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${selectedConversation.status === "Unread"
+                          ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+                          : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+                          }`}
                       >
                         {selectedConversation.status}
                       </span>
