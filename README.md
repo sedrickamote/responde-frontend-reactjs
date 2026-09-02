@@ -26,22 +26,47 @@ The system supports **Tagalog**, **Batangueño**, and **English** for natural la
 
 | Module | Description |
 |--------|-------------|
-| **Dashboard** | Real-time KPI cards, heat map visualization, bot & scraper activity feeds |
-| **Incident Reports** | Filterable, sortable table with multi-select, date range picker, urgency badges |
-| **Messenger Bot Logs** | Split-pane chat UI showing full conversation history with citizens |
-| **Scraper Feed** | Facebook page comment monitoring for disaster-related posts |
-| **Geospatial Map** | Interactive Leaflet map for incident location tracking across barangays |
+| **Dashboard** | Real-time KPI cards, Talisay heat map, Messenger bot & scraper activity feeds with click-to-detail modals |
+| **Incident Reports** | Full officer verification pipeline with editable review modal, checklist, rejection reasons, bulk actions, and pagination |
+| **Messenger Bot Logs** | Split-pane chat UI with PSID-based session grouping, real-time polling (30s), and staggered message animations |
+| **Scraper Feed** | Facebook comment monitoring with NLP entity extraction, confidence scoring, and status management |
+| **Geospatial Map** | Interactive map consuming only *verified* incidents with coordinate pins (Leaflet + PostGIS) |
 | **Analytics** | Charts and statistical reports on incident trends and response metrics |
 | **Settings** | Dark mode toggle, auto-refresh intervals, notification preferences, user management |
 
+### Incident Verification Pipeline
+
+```
+Incoming (Bot/Scraper)
+    │
+    ▼
+[PENDING] ── officer hasn't reviewed yet
+    │
+    ▼
+[UNDER REVIEW] ── officer opened, possibly editing
+    │
+    ├─→ [VERIFIED] ── confirmed real → plots on Geospatial Map
+    └─→ [REJECTED] ── fake/spam/outside jurisdiction
+              │
+              ▼
+         [RESOLVED] ── team responded, incident closed
+```
+
 ### Key Capabilities
 
-- **Dark / Light Mode** — Fully themeable UI with system preference detection
-- **Collapsible Sidebar** — TailAdmin-inspired navigation with icon-only compact mode
-- **Responsive Design** — Mobile-first layout that adapts from phones to desktop monitors
-- **Real-time Data** — Auto-refresh with configurable intervals (10s to 5min)
-- **Multi-language NLP** — BERT/spaCy pipeline for Tagalog, Batangueño, and English
-- **Sector Classification** — Automatic categorization into Search & Rescue, Medical, Food/Water, Infrastructure
+- **Officer Review & Edit** — Officers can correct NLP mistakes (barangay, type, urgency, coordinates, landmark) while preserving the original raw text
+- **Verification Checklist** — 5-point checklist before an incident can be verified and plotted on the map
+- **Rejection Reasons** — Structured rejection with enum reasons: `spam_or_fake`, `duplicate`, `outside_jurisdiction`, `not_disaster_related`, `insufficient_info`
+- **Bulk Actions** — Multi-select rows to start review, mark resolved, or restore to pending
+- **Duplicate Detection** — Simple heuristic warning when same barangay + type appears within 30 minutes
+- **Dark / Light Mode** — Fully themeable UI with system preference detection and gradient backgrounds
+- **Collapsible Sidebar** — 240px expanded / 89px compact mode with hamburger toggle and active pill indicator
+- **Smooth Animations** — Framer Motion page transitions, staggered list entrances, modal scale animations, and button press feedback (`active:scale-[0.97]`)
+- **Real-time Data** — Auto-refresh with polling intervals; optimistic UI updates with rollback on error
+- **Toast Notifications** — Slide-in feedback for verify, reject, save, and error states
+- **Hidden Scrollbars** — Clean UI with functional scrolling (mouse wheel / trackpad) but no visible scrollbars
+- **Multi-language NLP** — BERT/spaCy pipeline for Tagalog, Batangueño, and English entity extraction
+- **Sector Classification** — Automatic categorization into Search & Rescue, Medical, Food & Water, Infrastructure
 
 ---
 
@@ -54,9 +79,10 @@ The system supports **Tagalog**, **Batangueño**, and **English** for natural la
 | [React 19](https://react.dev) | UI library |
 | [TypeScript](https://www.typescriptlang.org) | Type safety |
 | [Vite](https://vitejs.dev) | Build tool & dev server |
-| [Tailwind CSS v4](https://tailwindcss.com) | Utility-first styling |
+| [Tailwind CSS v4](https://tailwindcss.com) | Utility-first styling (`@import tailwindcss`) |
 | [React Router v7](https://reactrouter.com) | Client-side routing |
-| [Supabase JS](https://supabase.com/docs/reference/javascript) | Real-time database & client |
+| [Framer Motion](https://www.framer.com/motion/) | Page transitions, staggered animations, modals |
+| [Supabase JS](https://supabase.com/docs/reference/javascript) | Real-time database client |
 | [Lucide React](https://lucide.dev) | Icon library |
 
 ### Backend
@@ -78,21 +104,26 @@ responde-frontend-reactjs/
 │   └── Responde_logo.png          # Application logo
 ├── src/
 │   ├── components/
-│   │   ├── Layout.tsx             # Main shell (sidebar + header)
+│   │   ├── Layout.tsx             # Main shell (sidebar + header + page transitions)
 │   │   ├── ThemeContent.tsx       # Dark/light mode context provider
-│   │   └── DatePicker.tsx         # Custom date picker component
+│   │   ├── DatePicker.tsx         # Custom date picker component
+│   │   ├── DropDown.tsx           # Reusable filter dropdown
+│   │   ├── Stagger.tsx            # StaggerContainer & StaggerItem animation wrappers
+│   │   └── Transition.tsx         # Page transition wrapper (AnimatePresence)
 │   ├── pages/
-│   │   ├── Dashboard.tsx          # Overview & heat map
-│   │   ├── IncidentReports.tsx    # Incident table with filters
-│   │   ├── MessengerBotLogs.tsx   # Chat-style conversation viewer
-│   │   ├── ScraperFeed.tsx        # Facebook scraper feed
-│   │   ├── GeospatialMap.tsx      # Leaflet map integration
+│   │   ├── Dashboard.tsx          # Overview, heat map, bot/scraper feeds
+│   │   ├── IncidentReports.tsx    # Verification pipeline table & review modal
+│   │   ├── MessengerBotLogs.tsx   # Chat-style conversation viewer with polling
+│   │   ├── ScraperFeed.tsx        # Facebook scraper feed with NLP extraction
+│   │   ├── GeospatialMap.tsx      # Leaflet map (verified incidents only)
 │   │   ├── Analytics.tsx          # Charts & reports
 │   │   ├── Settings.tsx           # System preferences & user management
 │   │   └── Login.tsx              # Authentication screen
-│   ├── App.tsx                    # Route definitions
+│   ├── lib/
+│   │   └── supabaseClient.ts      # Supabase client initialization
+│   ├── App.tsx                    # Route definitions with Transition wrapper
 │   ├── main.tsx                   # Entry point (ThemeProvider wrapper)
-│   └── index.css                  # Tailwind v4 directives + custom variants
+│   └── index.css                  # Tailwind v4 directives + custom scrollbar hide
 ├── index.html
 ├── package.json
 ├── tsconfig.json
@@ -101,15 +132,13 @@ responde-frontend-reactjs/
 
 ---
 
-## Getting Started & Setup Guide
+## Getting Started
 
 ### Prerequisites
 
 - [Node.js](https://nodejs.org) 18.0 or higher
 - [npm](https://www.npmjs.com) (or yarn / pnpm)
 - A [Supabase](https://supabase.com) project with API credentials
-
----
 
 ### Step-by-Step Setup
 
@@ -120,79 +149,96 @@ git clone https://github.com/samsonjeff/responde-frontend-reactjs.git
 cd responde-frontend-reactjs
 ```
 
-#### 2. Package Installation
-
-Install all required dependencies using `npm`:
+#### 2. Install Dependencies
 
 ```bash
 npm install
 ```
 
-> **Key dependencies installed:**
-> - `@supabase/supabase-js` — Database client & authentication
-> - `react` & `react-dom` (v19) — Core UI framework
-> - `react-router-dom` (v7) — Page routing
-> - `tailwindcss` (v4) & `@tailwindcss/vite` — Styling
+> **Key dependencies:**
+> - `@supabase/supabase-js` — Database client & auth
+> - `react` & `react-dom` (v19)
+> - `react-router-dom` (v7)
+> - `tailwindcss` (v4) & `@tailwindcss/vite`
+> - `framer-motion` — Animations
 > - `leaflet` & `react-leaflet` — Geospatial mapping
-> - `framer-motion` & `lucide-react` — UI animations & icons
+> - `lucide-react` — Icons
 
-#### 3. Environment Variables Configuration
-
-Copy the example environment file to create your local `.env` file:
+#### 3. Configure Environment Variables
 
 ```bash
 # Windows (PowerShell)
 Copy-Item .env.example .env
 
-# macOS / Linux (Bash)
+# macOS / Linux
 cp .env.example .env
 ```
 
-Open `.env` and fill in your Supabase project credentials:
+Fill in your Supabase credentials:
 
 ```env
-# Supabase Configuration (Frontend - Vite)
-VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-or-publishable-key
+VITE_SUPABASE_URL=""
+VITE_SUPABASE_ANON_KEY=""
 ```
 
-> [!NOTE]
-> - **`VITE_SUPABASE_URL`**: Found under your Supabase Dashboard → **Project Settings** → **API** → **Project URL**.
-> - **`VITE_SUPABASE_ANON_KEY`**: Found under **Project Settings** → **API** → **Project API Keys** (`anon` / `public` or `sb_publishable_...`).
-> - All variables used by Vite must be prefixed with `VITE_` to be accessible in frontend code.
+> All Vite env variables must be prefixed with `VITE_` to be accessible in frontend code.
 
-#### 4. Run the Development Server
+#### 4. Start the Dev Server
 
 ```bash
 npm run dev
 ```
 
-The application will start locally at:
-👉 **`http://localhost:5173`**
-
 ---
 
-### Available Scripts
+## Available Scripts
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Starts the Vite development server with HMR |
-| `npm run debug` | Runs the dev server with verbose Vite debug logging |
-| `npm run typecheck` | Validates TypeScript types across the project (`tsc --noEmit`) |
-| `npm run build` | Compiles TypeScript and builds production assets in `dist/` |
-| `npm run preview` | Locally preview the production build |
-| `npm run lint` | Runs ESLint to identify code style and syntax issues |
+| `npm run dev` | Start Vite dev server with HMR |
+| `npm run debug` | Dev server with verbose Vite logging |
+| `npm run typecheck` | TypeScript validation (`tsc --noEmit`) |
+| `npm run build` | Production build to `dist/` |
+| `npm run preview` | Preview production build locally |
+| `npm run lint` | ESLint check |
 
 ---
 
-## Screenshots
+## Database Schema Notes
 
-| Light Mode | Dark Mode |
-|------------|-----------|
-| ![Dashboard Light](docs/screenshots/dashboard-light.png) | ![Dashboard Dark](docs/screenshots/dashboard-dark.png) |
+The frontend expects the following Supabase tables:
+
+| Table | Purpose |
+|-------|---------|
+| `conversations` | Messenger bot messages (`sender_psid`, `sender_name`, `user_message`, `ai_reply`, `timestamp`) |
+| `fb_comments` | Scraped Facebook comments (`comment_text`, `user_name`, `barangay`, `incident_type`, `created_at`, `status`) |
+
+For the **Incident Reports** verification workflow, the backend should support:
+- `status` enum: `pending`, `under_review`, `verified`, `rejected`, `resolved`
+- Officer-editable fields: `barangay`, `type`, `urgency`, `coordinates`, `landmark`, `description`
+- Auto-tracked fields: `original_text`, `source`, `reported_at`, `reporter_name`, `verified_by`, `verified_at`, `rejection_reason`
 
 ---
 
+## UI/UX Design Notes
+
+- **Tailwind v4** syntax: `@import tailwindcss`, `@custom-variant dark`
+- **Dark mode** toggled via `ThemeContext` with `dark:` variants throughout
+- **Light background gradient**: `113deg #fff → #f1f5ff → #e5ebff → #e3eaff`
+- **Animation easing**: Strong ease-out `[0.23, 1, 0.32, 1]` for UI interactions; no animation on high-frequency actions (tab switching)
+- **Modal pattern**: `scale(0.96)` at 250ms with backdrop blur; sections stagger in at 50ms
+- **Scrollbars**: Hidden globally via CSS while preserving scroll functionality
+
+---
+
+## Contributors
+
+| Role | Name |
+|------|------|
+| Frontend & UI/UX | Rochelle Samson |
+| Backend & PostGIS | Jefferson Samson |
+
+---
 
 <p align="center">
   <strong>RESPONDE</strong> — Real-Time Disaster Intelligence for Talisay, Batangas
