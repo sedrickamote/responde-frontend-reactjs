@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowRight, ExternalLink, MapPin, Clock, User, AlertCircle, CheckCircle, HelpCircle } from 'lucide-react';
+import { X, ArrowRight, ExternalLink, MapPin, Clock, User, AlertCircle, CheckCircle, HelpCircle, Loader2 } from 'lucide-react';
 import { StaggerContainer, StaggerItem } from '../components/Stagger';
 import { supabase } from '../lib/supabaseClient';
 
@@ -16,6 +16,13 @@ interface ScraperItem {
   urgency: 'High' | 'Moderate' | 'Low'; source: string; time: string;
   status: 'Pending Review' | 'Verified' | 'False Alarm';
   reporter: string; confidence: number;
+}
+
+// ── Toast Type ──
+interface Toast {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'info';
 }
 
 // ── Helpers ──
@@ -67,6 +74,45 @@ const contentVariants = {
   exit: { opacity: 0, x: -20 },
 };
 
+// ── Toast Item Component ──
+function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
+  useEffect(() => {
+    const timer = setTimeout(() => onDismiss(toast.id), 3500);
+    return () => clearTimeout(timer);
+  }, [toast.id, onDismiss]);
+
+  const icon = toast.type === 'success'
+    ? <CheckCircle className="w-4 h-4 text-emerald-500" />
+    : toast.type === 'error'
+      ? <AlertCircle className="w-4 h-4 text-red-500" />
+      : <Loader2 className="w-4 h-4 text-blue-500" />;
+
+  const bgClass = toast.type === 'success'
+    ? 'bg-white dark:bg-slate-800 border-emerald-200 dark:border-emerald-800'
+    : toast.type === 'error'
+      ? 'bg-white dark:bg-slate-800 border-red-200 dark:border-red-800'
+      : 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 60, scale: 0.95 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: 40, scale: 0.95 }}
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg ${bgClass} min-w-[280px] max-w-[380px]`}
+    >
+      {icon}
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200 flex-1">{toast.message}</span>
+      <button
+        onClick={() => onDismiss(toast.id)}
+        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </motion.div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
 
@@ -79,6 +125,21 @@ export default function Dashboard() {
   const [activeConv, setActiveConv] = useState<BotConversation | null>(null);
   const [selectedConvId, setSelectedConvId] = useState<string>('');
   const [activeScraper, setActiveScraper] = useState<ScraperItem | null>(null);
+
+  // ── Toast State ──
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [toastIdCounter, setToastIdCounter] = useState(0);
+  const showToast = (message: string, type: Toast['type'] = 'info') => {
+    const id = toastIdCounter + 1;
+    setToastIdCounter(id);
+    setToasts((prev) => [...prev, { id, message, type }]);
+  };
+  const dismissToast = (id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // ── Ref to prevent Strict Mode duplicate toasts ──
+  const hasShownInitialToast = useRef(false);
 
   // ── Fetch from Supabase ──
   useEffect(() => {
@@ -161,6 +222,22 @@ export default function Dashboard() {
       setBotConversations(mappedConvs);
       setScraperItems(mappedScraper);
       setLoading(false);
+
+      // Toast feedback
+      if (!hasShownInitialToast.current) {
+        hasShownInitialToast.current = true;
+        const total = mappedConvs.length + mappedScraper.length;
+        if (total > 0) {
+          showToast(`${total} items loaded — ${mappedConvs.length} bot, ${mappedScraper.length} scraper`, 'success');
+        }
+      }
+
+      if (convRes.error) {
+        showToast(`Bot data error: ${convRes.error.message}`, 'error');
+      }
+      if (scraperRes.error) {
+        showToast(`Scraper data error: ${scraperRes.error.message}`, 'error');
+      }
     };
 
     fetchData();
@@ -212,31 +289,62 @@ export default function Dashboard() {
     }
   };
 
+  // ════════════════════════════════════════
+  //  FIX #1: Smooth loading — render ONLY a spinner while fetching.
+  //  This prevents StaggerContainer from mounting early and shaking
+  //  as empty states flip to populated lists.
+  // ════════════════════════════════════════
+  if (loading) {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 animate-pulse">
+          Loading dashboard…
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
-      <StaggerContainer className="grid grid-cols-12 gap-6 h-full lg:grid-rows-[auto_1fr]">
-        
+      {/* Toast Notifications — Top Right */}
+      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <div key={toast.id} className="pointer-events-auto">
+              <ToastItem toast={toast} onDismiss={dismissToast} />
+            </div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* ════════════════════════════════════════
+          FIX #2: Prevent horizontal scrollbar
+          by adding overflow-x-hidden.
+         ════════════════════════════════════════ */}
+      <StaggerContainer className="grid grid-cols-12 gap-6 h-full lg:grid-rows-[auto_1fr] overflow-x-hidden w-full">
+
         {/* ── 1. Stats Row ── */}
         <StaggerItem className="col-span-12">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-xl">⚠️</div>
               <div>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{loading ? '—' : totalIncidents}</p>
+                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{totalIncidents}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Incidents</p>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-xl">💬</div>
               <div>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{loading ? '—' : botConversations.length}</p>
+                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{botConversations.length}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Bot Conversations</p>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center text-xl">🌐</div>
               <div>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{loading ? '—' : scraperItems.length}</p>
+                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{scraperItems.length}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Scraped Comments</p>
               </div>
             </div>
@@ -256,10 +364,9 @@ export default function Dashboard() {
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex-1 flex flex-col lg:min-h-0 overflow-hidden">
             <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800 dark:text-slate-100">Messenger Bot Activities</h3>
-              {loading && <span className="text-xs text-slate-400 animate-pulse">Loading...</span>}
             </div>
             <div className="p-2 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-              {botConversations.length === 0 && !loading ? (
+              {botConversations.length === 0 ? (
                 <div className="flex items-center justify-center py-10 text-slate-400 dark:text-slate-500 text-sm">No conversations yet.</div>
               ) : (
                 botConversations.map((conv) => (
@@ -275,11 +382,10 @@ export default function Dashboard() {
                       <p className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">{conv.name}</p>
                     </div>
                     <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{conv.type}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded ${
-                      conv.status === 'Unread'
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                        : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                    }`}>{conv.status}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${conv.status === 'Unread'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                      : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                      }`}>{conv.status}</span>
                   </button>
                 ))
               )}
@@ -290,10 +396,9 @@ export default function Dashboard() {
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex-1 flex flex-col lg:min-h-0 overflow-hidden">
             <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800 dark:text-slate-100">Scraper Activities</h3>
-              {loading && <span className="text-xs text-slate-400 animate-pulse">Loading...</span>}
             </div>
             <div className="p-4 space-y-3 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-              {scraperItems.length === 0 && !loading ? (
+              {scraperItems.length === 0 ? (
                 <div className="flex items-center justify-center py-10 text-slate-400 dark:text-slate-500 text-sm">No scraped posts yet.</div>
               ) : (
                 scraperItems.map((item) => (
@@ -328,16 +433,16 @@ export default function Dashboard() {
           <div className="p-4 flex flex-col h-full min-h-0">
             <div className="flex-1 min-h-0 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center p-3">
               <svg viewBox="0 0 400 320" className="w-full h-full">
-                <rect width="400" height="320" fill="transparent" rx="6"/>
-                <path d="M 70 50 L 200 35 L 330 65 L 360 170 L 310 280 L 140 295 L 45 240 L 35 140 Z" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="2"/>
-                <path d="M 200 35 L 330 65 L 360 170 L 260 150 L 230 80 Z" fill="#fca5a5" stroke="#ef4444" strokeWidth="1.5" opacity="0.75"/>
-                <circle cx="290" cy="100" r="5" fill="#ef4444"/>
+                <rect width="400" height="320" fill="transparent" rx="6" />
+                <path d="M 70 50 L 200 35 L 330 65 L 360 170 L 310 280 L 140 295 L 45 240 L 35 140 Z" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="2" />
+                <path d="M 200 35 L 330 65 L 360 170 L 260 150 L 230 80 Z" fill="#fca5a5" stroke="#ef4444" strokeWidth="1.5" opacity="0.75" />
+                <circle cx="290" cy="100" r="5" fill="#ef4444" />
                 <text x="290" y="98" fontSize="9" fill="#7f1d1d" textAnchor="middle" fontWeight="600">Sampaloc</text>
-                <path d="M 70 50 L 200 35 L 230 80 L 260 150 L 170 190 L 90 170 L 35 140 Z" fill="#fde68a" stroke="#eab308" strokeWidth="1.5" opacity="0.7"/>
-                <circle cx="155" cy="110" r="5" fill="#eab308"/>
+                <path d="M 70 50 L 200 35 L 230 80 L 260 150 L 170 190 L 90 170 L 35 140 Z" fill="#fde68a" stroke="#eab308" strokeWidth="1.5" opacity="0.7" />
+                <circle cx="155" cy="110" r="5" fill="#eab308" />
                 <text x="155" y="108" fontSize="9" fill="#713f12" textAnchor="middle" fontWeight="600">Leynes</text>
-                <path d="M 35 140 L 90 170 L 170 190 L 260 150 L 310 280 L 140 295 L 45 240 Z" fill="#86efac" stroke="#22c55e" strokeWidth="1.5" opacity="0.6"/>
-                <circle cx="130" cy="230" r="5" fill="#22c55e"/>
+                <path d="M 35 140 L 90 170 L 170 190 L 260 150 L 310 280 L 140 295 L 45 240 Z" fill="#86efac" stroke="#22c55e" strokeWidth="1.5" opacity="0.6" />
+                <circle cx="130" cy="230" r="5" fill="#22c55e" />
                 <text x="130" y="228" fontSize="9" fill="#14532d" textAnchor="middle" fontWeight="600">Banga</text>
                 <text x="200" y="315" fontSize="10" fill="#64748b" textAnchor="middle">Barangays by Incident Density</text>
               </svg>
@@ -362,7 +467,7 @@ export default function Dashboard() {
       </StaggerContainer>
 
       {/* ════════════════════════════════════════
-          CONVERSATION MODAL — Animated
+          CONVERSATION MODAL — Staggered
          ════════════════════════════════════════ */}
       <AnimatePresence>
         {activeConv && selectedConversation && (
@@ -395,11 +500,10 @@ export default function Dashboard() {
                     <button
                       key={conv.id}
                       onClick={() => setSelectedConvId(conv.id)}
-                      className={`w-full flex items-center gap-3 p-4 text-left transition-colors border-l-4 ${
-                        selectedConvId === conv.id
-                          ? 'bg-slate-50 dark:bg-slate-700/40 border-l-blue-500'
-                          : 'border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                      }`}
+                      className={`w-full flex items-center gap-3 p-4 text-left transition-colors border-l-4 ${selectedConvId === conv.id
+                        ? 'bg-slate-50 dark:bg-slate-700/40 border-l-blue-500'
+                        : 'border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-700/30'
+                        }`}
                     >
                       <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 shrink-0 text-sm">
                         {conv.name?.charAt(0).toUpperCase() || 'U'}
@@ -411,11 +515,10 @@ export default function Dashboard() {
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-[10px] text-slate-500 dark:text-slate-400">{conv.type}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                            conv.status === 'Unread'
-                              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                              : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                          }`}>{conv.status}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${conv.status === 'Unread'
+                            ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                            : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                            }`}>{conv.status}</span>
                         </div>
                       </div>
                     </button>
@@ -423,7 +526,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Right: Chat View */}
+              {/* Right: Chat View — Staggered */}
               <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <AnimatePresence mode="wait">
                   <motion.div
@@ -461,31 +564,37 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    {/* Messages */}
-                    <div className="flex-1 overflow-y-auto min-h-0 p-5 space-y-4 bg-slate-50/50 dark:bg-slate-900/30">
-                      {selectedConversation.messages.map((msg, i) =>
-                        msg.sender === 'bot' ? (
-                          <div key={i} className="flex items-start gap-2.5 justify-end">
-                            <div className="bg-blue-600 rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[75%]">
-                              <p className="text-sm text-white leading-relaxed">{msg.text}</p>
-                            </div>
-                            <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-[10px] font-bold text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">B</div>
-                          </div>
-                        ) : (
-                          <div key={i} className="flex items-start gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-300 shrink-0 mt-0.5">U</div>
-                            <div className="bg-white dark:bg-slate-700 border border-slate-100 dark:border-slate-600 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[75%]">
-                              <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{msg.text}</p>
-                            </div>
-                          </div>
-                        )
-                      )}
+                    {/* Messages — Staggered */}
+                    <div className="flex-1 overflow-y-auto min-h-0 p-5 bg-slate-50/50 dark:bg-slate-900/30">
+                      <StaggerContainer className="space-y-4">
+                        {selectedConversation.messages.map((msg, i) =>
+                          msg.sender === 'bot' ? (
+                            <StaggerItem key={i}>
+                              <div className="flex items-start gap-2.5 justify-end">
+                                <div className="bg-blue-600 rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[75%]">
+                                  <p className="text-sm text-white leading-relaxed">{msg.text}</p>
+                                </div>
+                                <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-[10px] font-bold text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">B</div>
+                              </div>
+                            </StaggerItem>
+                          ) : (
+                            <StaggerItem key={i}>
+                              <div className="flex items-start gap-2.5">
+                                <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-300 shrink-0 mt-0.5">U</div>
+                                <div className="bg-white dark:bg-slate-700 border border-slate-100 dark:border-slate-600 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[75%]">
+                                  <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{msg.text}</p>
+                                </div>
+                              </div>
+                            </StaggerItem>
+                          )
+                        )}
+                      </StaggerContainer>
                     </div>
 
                     {/* Footer */}
                     <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex justify-end">
                       <button
-                        onClick={() => { setActiveConv(null); navigate('/messenger-bot-logs'); }}
+                        onClick={() => { setActiveConv(null); showToast('Navigating to Messenger Bot Logs', 'info'); navigate('/messenger-bot-logs'); }}
                         className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
                       >
                         Go to MessengerBot<ArrowRight className="w-4 h-4" />
@@ -500,7 +609,7 @@ export default function Dashboard() {
       </AnimatePresence>
 
       {/* ════════════════════════════════════════
-          SCRAPER MODAL — Animated
+          SCRAPER MODAL — Staggered
          ════════════════════════════════════════ */}
       <AnimatePresence>
         {activeScraper && (
@@ -536,51 +645,64 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              {/* Body */}
-              <div className="px-6 py-5 space-y-5">
-                <div>
-                  <h3 className={`text-lg font-bold ${getTypeColor(activeScraper.type)}`}>{activeScraper.type}</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{activeScraper.barangay}, Talisay</p>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
-                  <p className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed">"{activeScraper.text}"</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-start gap-2.5">
-                    <User className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+              {/* Body — Staggered */}
+              <div className="px-6 py-5">
+                <StaggerContainer className="space-y-5">
+                  <StaggerItem>
                     <div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Original Poster</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{activeScraper.reporter}</p>
+                      <h3 className={`text-lg font-bold ${getTypeColor(activeScraper.type)}`}>{activeScraper.type}</h3>
+                      <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{activeScraper.barangay}, Talisay</p>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <Clock className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Scraped At</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200">{activeScraper.time}</p>
+                  </StaggerItem>
+
+                  <StaggerItem>
+                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
+                      <p className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed">&ldquo;{activeScraper.text}&rdquo;</p>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Source</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200">{activeScraper.source}</p>
+                  </StaggerItem>
+
+                  <StaggerItem>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-start gap-2.5">
+                        <User className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Original Poster</p>
+                          <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{activeScraper.reporter}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2.5">
+                        <Clock className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Scraped At</p>
+                          <p className="text-sm text-slate-700 dark:text-slate-200">{activeScraper.time}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2.5">
+                        <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Source</p>
+                          <p className="text-sm text-slate-700 dark:text-slate-200">{activeScraper.source}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2.5">
+                        <AlertCircle className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">NLP Confidence</p>
+                          <p className="text-sm text-slate-700 dark:text-slate-200 font-mono">{activeScraper.confidence > 0 ? `${(activeScraper.confidence * 100).toFixed(0)}%` : 'N/A'}</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <AlertCircle className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">NLP Confidence</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-200 font-mono">{activeScraper.confidence > 0 ? `${(activeScraper.confidence * 100).toFixed(0)}%` : 'N/A'}</p>
+                  </StaggerItem>
+
+                  <StaggerItem>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Status:</span>
+                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border ${getStatusColor(activeScraper.status)}`}>
+                        {getStatusIcon(activeScraper.status)}{activeScraper.status}
+                      </span>
                     </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Status:</span>
-                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border ${getStatusColor(activeScraper.status)}`}>
-                    {getStatusIcon(activeScraper.status)}{activeScraper.status}
-                  </span>
-                </div>
+                  </StaggerItem>
+                </StaggerContainer>
               </div>
 
               {/* Footer */}
@@ -589,7 +711,7 @@ export default function Dashboard() {
                   Close
                 </button>
                 <button
-                  onClick={() => { setActiveScraper(null); navigate('/scraper-feed'); }}
+                  onClick={() => { setActiveScraper(null); showToast('Navigating to Scraper Feed', 'info'); navigate('/scraper-feed'); }}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
                 >
                   Go to Scraper Feed<ArrowRight className="w-4 h-4" />

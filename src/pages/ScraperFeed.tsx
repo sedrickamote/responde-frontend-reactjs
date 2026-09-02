@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Filter, Globe, MessageCircle, AlertTriangle, MapPin, Clock,
@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import DatePicker from "../components/DatePicker";
 import FilterDropdown from "../components/DropDown";
+import { StaggerContainer, StaggerItem } from "../components/Stagger";
 import { supabase } from "../lib/supabaseClient";
 
 interface ScrapedPost {
@@ -28,12 +29,60 @@ interface ScrapedPost {
   };
 }
 
+// -- Toast Type --
+interface Toast {
+  id: number;
+  message: string;
+  type: "success" | "error" | "info";
+}
+
 // -- Animation presets --
 const contentVariants = {
   hidden: { opacity: 0, x: 20 },
   visible: { opacity: 1, x: 0 },
   exit: { opacity: 0, x: -20 },
 };
+
+const INACTIVITY_GAP_MS = 60 * 60 * 1000;
+
+// -- Toast Item Component --
+function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
+  useEffect(() => {
+    const timer = setTimeout(() => onDismiss(toast.id), 3500);
+    return () => clearTimeout(timer);
+  }, [toast.id, onDismiss]);
+
+  const icon = toast.type === "success"
+    ? <CheckCircle className="w-4 h-4 text-emerald-500" />
+    : toast.type === "error"
+      ? <AlertTriangle className="w-4 h-4 text-red-500" />
+      : <Loader2 className="w-4 h-4 text-blue-500" />;
+
+  const bgClass = toast.type === "success"
+    ? "bg-white dark:bg-slate-800 border-emerald-200 dark:border-emerald-800"
+    : toast.type === "error"
+      ? "bg-white dark:bg-slate-800 border-red-200 dark:border-red-800"
+      : "bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 60, scale: 0.95 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: 40, scale: 0.95 }}
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg ${bgClass} min-w-[280px] max-w-[380px]`}
+    >
+      {icon}
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200 flex-1">{toast.message}</span>
+      <button
+        onClick={() => onDismiss(toast.id)}
+        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+      >
+        <XCircle className="w-4 h-4" />
+      </button>
+    </motion.div>
+  );
+}
 
 // ── Heuristic: map DB incident_type + text to UI type ──
 function inferType(incidentType: string, text: string): ScrapedPost["type"] {
@@ -85,9 +134,22 @@ export default function ScraperFeed() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
+  // -- Toast State --
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [toastIdCounter, setToastIdCounter] = useState(0);
+  const showToast = (message: string, type: Toast["type"] = "info") => {
+    const id = toastIdCounter + 1;
+    setToastIdCounter(id);
+    setToasts((prev) => [...prev, { id, message, type }]);
+  };
+  const dismissToast = (id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // -- Ref to prevent Strict Mode duplicate toasts --
+  const hasShownInitialToast = useRef(false);
+
   const processData = (data: any[] | null, tableName: string) => {
-    // Sort records in-memory by timestamp/created_at descending (newest first)
-    // This is bulletproof even if the database table lacks a created_at index or column
     const sorted = (data ?? []).sort((a, b) => {
       const timeA = new Date(a.created_at || a.timestamp || 0).getTime();
       const timeB = new Date(b.created_at || b.timestamp || 0).getTime();
@@ -95,7 +157,6 @@ export default function ScraperFeed() {
     });
 
     const mapped: ScrapedPost[] = sorted.map((row: any) => {
-      // Map columns flexibly, supporting both snake_case and camelCase
       const idVal = row.id || row.comment_id || row.post_id;
       const userName = row.user_name || row.username || row.author || "Unknown";
       const barangay = row.barangay || row.location || "Unknown";
@@ -133,6 +194,11 @@ export default function ScraperFeed() {
     setPosts(mapped);
     if (mapped.length > 0) setSelectedId(mapped[0].id);
     setLoading(false);
+
+    if (!hasShownInitialToast.current) {
+      hasShownInitialToast.current = true;
+      showToast(`${mapped.length} scraped posts loaded`, "success");
+    }
   };
 
   // -- Fetch from Supabase with self-healing table detection --
@@ -145,7 +211,6 @@ export default function ScraperFeed() {
         let tableName = "fb_comments";
         let availableTables: string[] = [];
 
-        // Try querying the OpenAPI schema to find active tables automatically
         try {
           const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`, {
             headers: {
@@ -182,11 +247,11 @@ export default function ScraperFeed() {
 
         if (sbError) {
           console.error(`[ScraperFeed] Failed to fetch from "${tableName}":`, sbError.message);
+          showToast(`Failed to load: ${sbError.message}`, "error");
 
           let fallbackData: any[] | null = null;
           let fallbackError: string | null = sbError.message;
 
-          // Attempt fallback list if OpenAPI schema discovery didn't work
           if (availableTables.length === 0) {
             const fallbacks = ["comments", "facebook_comments", "scraped_posts", "posts"].filter(f => f !== tableName);
             for (const fbTable of fallbacks) {
@@ -217,6 +282,7 @@ export default function ScraperFeed() {
       } catch (err: any) {
         console.error("[ScraperFeed] Fetch error:", err);
         setError(err.message || "An unexpected error occurred");
+        showToast(err.message || "An unexpected error occurred", "error");
         setLoading(false);
       }
     };
@@ -225,12 +291,14 @@ export default function ScraperFeed() {
   }, []);
 
   const handleUpdateStatus = async (postId: string, newStatus: ScrapedPost["status"]) => {
-    try {
-      // Optimistically update status locally
-      setPosts((prev) =>
-        prev.map((p) => (p.id === postId ? { ...p, status: newStatus } : p))
-      );
+    const prevStatus = posts.find(p => p.id === postId)?.status;
 
+    // Optimistically update status locally
+    setPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, status: newStatus } : p))
+    );
+
+    try {
       const { error: updateError } = await supabase
         .from(activeTable)
         .update({ status: newStatus })
@@ -238,9 +306,21 @@ export default function ScraperFeed() {
 
       if (updateError) {
         console.error(`[ScraperFeed] Failed to update status in Supabase table "${activeTable}":`, updateError.message);
+        showToast(`Update failed: ${updateError.message}`, "error");
+        // Revert on error
+        setPosts((prev) =>
+          prev.map((p) => (p.id === postId ? { ...p, status: prevStatus || p.status } : p))
+        );
+      } else {
+        showToast(`Post marked as ${newStatus.toLowerCase()}`, "success");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("[ScraperFeed] Status update error:", err);
+      showToast(`Update failed: ${err.message}`, "error");
+      // Revert on error
+      setPosts((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, status: prevStatus || p.status } : p))
+      );
     }
   };
 
@@ -284,7 +364,18 @@ export default function ScraperFeed() {
   };
 
   return (
-    <div className="space-y-5 h-full flex flex-col">
+    <div className="space-y-5 h-full flex flex-col relative">
+      {/* Toast Notifications — Top Right */}
+      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <div key={toast.id} className="pointer-events-auto">
+              <ToastItem toast={toast} onDismiss={dismissToast} />
+            </div>
+          ))}
+        </AnimatePresence>
+      </div>
+
       {/* Loading State */}
       {loading && (
         <div className="flex-1 flex items-center justify-center">
@@ -366,7 +457,7 @@ export default function ScraperFeed() {
 
           {/* Two Column Layout */}
           <div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-5 min-h-0">
-            {/* LEFT: Post List */}
+            {/* LEFT: Post List — Staggered */}
             <div className="lg:col-span-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden min-h-[300px] lg:min-h-0">
               <div className="p-4 border-b border-slate-100 dark:border-slate-700">
                 <h3 className="font-semibold text-slate-800 dark:text-slate-100">Scraped Posts</h3>
@@ -405,60 +496,63 @@ export default function ScraperFeed() {
                     </div>
                   </div>
                 ) : (
-                  filteredPosts.map((post) => (
-                    <button
-                      key={post.id}
-                      onClick={() => setSelectedId(post.id)}
-                      className={`w-full text-left p-4 border-b border-slate-50 dark:border-slate-700/50 transition-all ${selectedId === post.id
-                        ? "bg-blue-50/50 dark:bg-blue-900/20 border-l-4 border-l-blue-500"
-                        : "border-l-4 border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-700/30"
-                        }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-sm text-slate-600 dark:text-slate-300 shrink-0">
-                          {post.avatar}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
-                              {post.author}
-                            </span>
-                            <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                              {post.timestamp}
-                            </span>
+                  <StaggerContainer>
+                    {filteredPosts.map((post) => (
+                      <StaggerItem key={post.id} className="w-full">
+                        <button
+                          onClick={() => setSelectedId(post.id)}
+                          className={`w-full text-left p-4 border-b border-slate-50 dark:border-slate-700/50 transition-all ${selectedId === post.id
+                            ? "bg-blue-50/50 dark:bg-blue-900/20 border-l-4 border-l-blue-500"
+                            : "border-l-4 border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-700/30"
+                            }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-sm text-slate-600 dark:text-slate-300 shrink-0">
+                              {post.avatar}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
+                                  {post.author}
+                                </span>
+                                <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                                  {post.timestamp}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                                  {getSourceIcon(post.source)}
+                                  {post.source}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-2">
+                                {post.rawText}
+                              </p>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium border ${getUrgencyColor(post.urgency)}`}>
+                                  {post.urgency}
+                                </span>
+                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(post.status)}`}>
+                                  {post.status}
+                                </span>
+                                {post.confidence > 0 && (
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                                    <Brain className="w-3 h-3" />
+                                    {post.confidence}%
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1.5 mb-1.5">
-                            <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
-                              {getSourceIcon(post.source)}
-                              {post.source}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-2">
-                            {post.rawText}
-                          </p>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium border ${getUrgencyColor(post.urgency)}`}>
-                              {post.urgency}
-                            </span>
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(post.status)}`}>
-                              {post.status}
-                            </span>
-                            {post.confidence > 0 && (
-                              <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500">
-                                <Brain className="w-3 h-3" />
-                                {post.confidence}%
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  ))
+                        </button>
+                      </StaggerItem>
+                    ))}
+                  </StaggerContainer>
                 )}
               </div>
             </div>
 
-            {/* RIGHT: Post Detail — Animated */}
+            {/* RIGHT: Post Detail — Staggered */}
             <div className="lg:col-span-7 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden min-h-[400px] lg:min-h-0">
               <AnimatePresence mode="wait">
                 {selectedPost ? (
@@ -504,48 +598,56 @@ export default function ScraperFeed() {
                     </div>
 
                     <div className="flex-1 overflow-y-auto">
-                      <div className="p-5 border-b border-slate-100 dark:border-slate-700">
-                        <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                          Original Post
-                        </h4>
-                        <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
-                          &ldquo;{selectedPost.rawText}&rdquo;
-                        </p>
-                      </div>
+                      <StaggerContainer className="space-y-0">
+                        {/* Original Post */}
+                        <StaggerItem>
+                          <div className="p-5 border-b border-slate-100 dark:border-slate-700">
+                            <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                              Original Post
+                            </h4>
+                            <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
+                              &ldquo;{selectedPost.rawText}&rdquo;
+                            </p>
+                          </div>
+                        </StaggerItem>
 
-                      <div className="p-5 border-b border-slate-100 dark:border-slate-700">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Brain className="w-4 h-4 text-blue-500" />
-                          <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                            NLP Extraction
-                          </h4>
-                          {selectedPost.confidence > 0 && (
-                            <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">
-                              Confidence: {selectedPost.confidence}%
-                            </span>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
-                            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
-                              <MapPin className="w-3.5 h-3.5" />
-                              Location
+                        {/* NLP Extraction */}
+                        <StaggerItem>
+                          <div className="p-5 border-b border-slate-100 dark:border-slate-700">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Brain className="w-4 h-4 text-blue-500" />
+                              <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                NLP Extraction
+                              </h4>
+                              {selectedPost.confidence > 0 && (
+                                <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">
+                                  Confidence: {selectedPost.confidence}%
+                                </span>
+                              )}
                             </div>
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {selectedPost.extractedEntities.location}
-                            </p>
-                          </div>
-                          <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
-                            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                              Incident Type
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+                                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
+                                  <MapPin className="w-3.5 h-3.5" />
+                                  Location
+                                </div>
+                                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                  {selectedPost.extractedEntities.location}
+                                </p>
+                              </div>
+                              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+                                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
+                                  <AlertTriangle className="w-3.5 h-3.5" />
+                                  Incident Type
+                                </div>
+                                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                  {selectedPost.type}
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {selectedPost.type}
-                            </p>
                           </div>
-                        </div>
-                      </div>
+                        </StaggerItem>
+                      </StaggerContainer>
                     </div>
 
                     <div className="p-5 shrink-0">
