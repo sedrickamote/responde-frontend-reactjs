@@ -51,10 +51,10 @@ export function buildRasterStyle(tileUrl: string): any {
 export const DEFAULT_CENTER: [number, number] = [121.0214, 14.0966];
 
 /** Default zoom: shows most of Talisay municipality */
-export const DEFAULT_ZOOM = 13;
+export const DEFAULT_ZOOM = 12;
 
-/** Max bounds to keep the map roughly around Talisay */
+/** Max bounds to keep the map roughly around Talisay — wide enough to let users zoom out comfortably */
 export const MAX_BOUNDS: [[number, number], [number, number]] = [
-    [120.98, 14.06], // SW
-    [121.07, 14.14], // NE
+    [120.90, 13.95], // SW — generous padding south/west for Poblacion Brgy 6 & Sampaloc
+    [121.12, 14.20], // NE — generous padding north/east for Tranca & Aya
 ];

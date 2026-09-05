@@ -11,6 +11,7 @@ import { StaggerContainer, StaggerItem } from '../components/Stagger';
 import { useTheme } from '../components/ThemeContent';
 import MapContainer from '../components/MapContainer';
 import { useReports } from '../context/ReportsContext';
+import { talisayBarangays } from '../data/talisay-barangays';
 import type { MapLayerState, SelectedFeature } from '../types/geospatial';
 import type { Report } from '../data/sample-reports';
 
@@ -276,21 +277,25 @@ export default function GeospatialMap() {
   const [filterUrgency, setFilterUrgency] = useState<string>('All');
   const [filterType, setFilterType] = useState<string>('All');
 
-  // Compute barangay counts from REAL reports
+  // Compute barangay max urgency level (High=3, Moderate=2, Low=1) reflecting active filters
+  const URGENCY_WEIGHTS: Record<string, number> = { High: 3, Moderate: 2, Low: 1 };
   const barangayCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
+    const maxUrgency: Record<string, number> = {};
     reports
       .filter((r) => r.status === 'verified' || r.status === 'under_review')
+      .filter((r) => filterUrgency === 'All' || r.urgency === filterUrgency)
+      .filter((r) => filterType === 'All' || r.type === filterType)
       .forEach((r) => {
-        counts[r.barangay] = (counts[r.barangay] || 0) + 1;
+        const weight = URGENCY_WEIGHTS[r.urgency] || 1;
+        maxUrgency[r.barangay] = Math.max(maxUrgency[r.barangay] || 0, weight);
       });
-    return counts;
-  }, [reports]);
+    return maxUrgency;
+  }, [reports, filterUrgency, filterType]);
 
-  // Verified reports with coords for pin layer
+  // Reports with coords for pin layer (verified + under_review — matches drawer)
   const pinReports = useMemo(() => {
     return reports
-      .filter((r) => r.status === 'verified' && parseCoords(r.coordinates))
+      .filter((r) => (r.status === 'verified' || r.status === 'under_review') && parseCoords(r.coordinates))
       .filter((r) => filterUrgency === 'All' || r.urgency === filterUrgency)
       .filter((r) => filterType === 'All' || r.type === filterType);
   }, [reports, filterUrgency, filterType]);
@@ -311,10 +316,11 @@ export default function GeospatialMap() {
   const searchSuggestions = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
-    return Object.keys(barangayCounts)
+    const names = Array.from(new Set(talisayBarangays.features.map((f) => f.properties.name)));
+    return names
       .filter((name) => name.toLowerCase().includes(q))
       .slice(0, 5);
-  }, [searchQuery, barangayCounts]);
+  }, [searchQuery]);
 
   const toggleLayer = useCallback((key: keyof MapLayerState) => {
     setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -333,14 +339,12 @@ export default function GeospatialMap() {
   }, []);
 
   const handleSearchSelect = useCallback((barangayName: string) => {
-    import('../data/talisay-barangays').then(({ talisayBarangays }) => {
-      const feature = talisayBarangays.features.find((f) => f.properties.name === barangayName);
-      if (feature) {
-        const [lng, lat] = feature.properties.centroid;
-        window.dispatchEvent(new CustomEvent('map-fly-to', { detail: { center: [lng, lat], zoom: 15 } }));
-        setSelected({ type: 'barangay', id: feature.properties.id, name: barangayName });
-      }
-    });
+    const feature = talisayBarangays.features.find((f) => f.properties.name === barangayName);
+    if (feature) {
+      const [lng, lat] = feature.properties.centroid;
+      window.dispatchEvent(new CustomEvent('map-fly-to', { detail: { center: [lng, lat], zoom: 15 } }));
+      setSelected({ type: 'barangay', id: feature.properties.id, name: barangayName });
+    }
     setSearchQuery('');
   }, []);
 
@@ -367,9 +371,13 @@ export default function GeospatialMap() {
     ? reports.find((r) => r.id === selected.id)
     : null;
 
-  const selectedBarangayReports = selected?.type === 'barangay'
-    ? getReportsByBarangay()[selected.name] || []
-    : [];
+  const selectedBarangayReports = useMemo(() => {
+    if (selected?.type !== 'barangay') return [];
+    const all = getReportsByBarangay()[selected.name] || [];
+    return all
+      .filter((r) => filterUrgency === 'All' || r.urgency === filterUrgency)
+      .filter((r) => filterType === 'All' || r.type === filterType);
+  }, [selected, getReportsByBarangay, filterUrgency, filterType]);
 
   return (
     <StaggerContainer className="flex flex-col flex-1 min-h-0 gap-4">
@@ -505,11 +513,11 @@ export default function GeospatialMap() {
 
                 {/* Legend */}
                 <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-50 dark:border-slate-700/50 shrink-0">
-                  <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Density:</span>
-                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-slate-300 dark:bg-slate-600" /><span className="text-[10px] text-slate-400">0</span></div>
-                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-yellow-400" /><span className="text-[10px] text-slate-400">1–2</span></div>
-                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-orange-500" /><span className="text-[10px] text-slate-400">3–5</span></div>
-                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-500" /><span className="text-[10px] text-slate-400">6+</span></div>
+                  <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Severity:</span>
+                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-slate-300 dark:bg-slate-600" /><span className="text-[10px] text-slate-400">None</span></div>
+                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-green-500" /><span className="text-[10px] text-slate-400">Low</span></div>
+                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-yellow-500" /><span className="text-[10px] text-slate-400">Moderate</span></div>
+                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-500" /><span className="text-[10px] text-slate-400">High</span></div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">

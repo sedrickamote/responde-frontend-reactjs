@@ -1,9 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, ExternalLink, MapPin, Clock, User, AlertCircle, CheckCircle, HelpCircle, Loader2 } from 'lucide-react';
 import { StaggerContainer, StaggerItem } from '../components/Stagger';
+import { useTheme } from '../components/ThemeContent';
 import { supabase } from '../lib/supabaseClient';
+import MapContainer from '../components/MapContainer';
+import { useReports } from '../context/ReportsContext';
+import type { MapLayerState } from '../types/geospatial';
 
 // ── Types ──
 interface BotMessage { sender: 'bot' | 'user'; text: string; }
@@ -115,6 +119,8 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const { reports } = useReports();
 
   // Data states
   const [botConversations, setBotConversations] = useState<BotConversation[]>([]);
@@ -246,6 +252,29 @@ export default function Dashboard() {
   // Stats
   const totalIncidents = botConversations.length + scraperItems.length;
   const avgResponse = 0;
+
+  // ── Dashboard Map Data ──
+  const URGENCY_WEIGHTS: Record<string, number> = { High: 3, Moderate: 2, Low: 1 };
+
+  const dashboardMapLayers: MapLayerState = { choropleth: true, pins: true, boundaries: true };
+
+  const dashboardBarangayCounts = useMemo(() => {
+    const maxUrgency: Record<string, number> = {};
+    reports
+      .filter((r) => r.status === 'verified' || r.status === 'under_review')
+      .forEach((r) => {
+        const weight = URGENCY_WEIGHTS[r.urgency] || 1;
+        maxUrgency[r.barangay] = Math.max(maxUrgency[r.barangay] || 0, weight);
+      });
+    return maxUrgency;
+  }, [reports]);
+
+  const dashboardPinReports = useMemo(() => {
+    return reports.filter((r) =>
+      (r.status === 'verified' || r.status === 'under_review') &&
+      r.coordinates && r.coordinates.includes(',')
+    );
+  }, [reports]);
 
   const openConversation = (conv: BotConversation) => {
     setSelectedConvId(conv.id);
@@ -425,41 +454,38 @@ export default function Dashboard() {
           </div>
         </StaggerItem>
 
-        {/* ── 3. Heat Map ── */}
+        {/* ── 3. Heat Map (Real MapContainer) ── */}
         <StaggerItem className="col-span-12 lg:col-span-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col lg:min-h-0">
-          <div className="p-5 border-b border-slate-100 dark:border-slate-700">
+          <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
             <h3 className="font-semibold text-slate-800 dark:text-slate-100">Talisay Heat Map</h3>
+            <button
+              onClick={() => navigate('/geospatial-map')}
+              className="flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+            >
+              View Full Map <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <div className="p-4 flex flex-col h-full min-h-0">
-            <div className="flex-1 min-h-0 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center p-3">
-              <svg viewBox="0 0 400 320" className="w-full h-full">
-                <rect width="400" height="320" fill="transparent" rx="6" />
-                <path d="M 70 50 L 200 35 L 330 65 L 360 170 L 310 280 L 140 295 L 45 240 L 35 140 Z" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="2" />
-                <path d="M 200 35 L 330 65 L 360 170 L 260 150 L 230 80 Z" fill="#fca5a5" stroke="#ef4444" strokeWidth="1.5" opacity="0.75" />
-                <circle cx="290" cy="100" r="5" fill="#ef4444" />
-                <text x="290" y="98" fontSize="9" fill="#7f1d1d" textAnchor="middle" fontWeight="600">Sampaloc</text>
-                <path d="M 70 50 L 200 35 L 230 80 L 260 150 L 170 190 L 90 170 L 35 140 Z" fill="#fde68a" stroke="#eab308" strokeWidth="1.5" opacity="0.7" />
-                <circle cx="155" cy="110" r="5" fill="#eab308" />
-                <text x="155" y="108" fontSize="9" fill="#713f12" textAnchor="middle" fontWeight="600">Leynes</text>
-                <path d="M 35 140 L 90 170 L 170 190 L 260 150 L 310 280 L 140 295 L 45 240 Z" fill="#86efac" stroke="#22c55e" strokeWidth="1.5" opacity="0.6" />
-                <circle cx="130" cy="230" r="5" fill="#22c55e" />
-                <text x="130" y="228" fontSize="9" fill="#14532d" textAnchor="middle" fontWeight="600">Banga</text>
-                <text x="200" y="315" fontSize="10" fill="#64748b" textAnchor="middle">Barangays by Incident Density</text>
-              </svg>
+          <div className="relative flex-1 min-h-[320px]">
+            <MapContainer
+              theme={theme}
+              layers={dashboardMapLayers}
+              barangayCounts={dashboardBarangayCounts}
+              pinReports={dashboardPinReports}
+              onSelectFeature={() => { }}
+            />
+          </div>
+          <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700 flex justify-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">High</span>
             </div>
-            <div className="mt-3 flex justify-center gap-4">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">High</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Moderate</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Low</span>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Moderate</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Low</span>
             </div>
           </div>
         </StaggerItem>
