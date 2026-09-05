@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Filter, X, Eye, ChevronLeft, ChevronRight,
-  MapPin, Clock, User, Phone, MessageSquare,
+  Clock, User, Phone, MessageSquare,
   CheckCircle2, AlertTriangle, RotateCcw, Send,
   ShieldCheck, FileText, AlertOctagon, MapPinned,
 } from 'lucide-react';
@@ -87,7 +87,7 @@ const barActionVariants = {
 };
 
 // ── Shake animation for validation errors ──
-const shakeVariants = {
+export const shakeVariants = {
   shake: {
     x: [0, -6, 6, -6, 6, -3, 3, 0],
     transition: { duration: 0.4, ease: 'easeInOut' },

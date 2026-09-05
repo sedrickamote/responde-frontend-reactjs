@@ -24,14 +24,12 @@ export default function Login() {
     }, 800);
   };
 
-  const handleGoogleSuccess = () => {
-    // TODO: Wire to backend when ready
-    navigate('/dashboard');
-  };
-
-  const handleGoogleError = () => {
-    setErrorMessage('Google sign-in failed. Please try again.');
-  };
+  // const handleGoogleSuccess = () => {
+  //   navigate('/dashboard');
+  // };
+  // const handleGoogleError = () => {
+  //   setErrorMessage('Google sign-in failed. Please try again.');
+  // };
 
   return (
     <main className="flex items-center justify-center min-h-screen bg-white p-4 md:p-8">

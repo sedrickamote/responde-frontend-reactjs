@@ -43,7 +43,7 @@ const contentVariants = {
   exit: { opacity: 0, x: -20 },
 };
 
-const INACTIVITY_GAP_MS = 60 * 60 * 1000;
+export const INACTIVITY_GAP_MS = 60 * 60 * 1000;
 
 // -- Toast Item Component --
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {

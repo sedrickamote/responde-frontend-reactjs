@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import { sampleReports, type Report, type ReportStatus } from '../data/sample-reports';
+import { sampleReports, type Report } from '../data/sample-reports';
 
 interface ReportsContextValue {
     reports: Report[];
