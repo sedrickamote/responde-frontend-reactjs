@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ReportsProvider } from './context/ReportsContext'; // ← DID YOU ADD THIS?
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -12,21 +13,22 @@ import Settings from './pages/Settings';
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" />} />
-        <Route path="/login" element={<Login />} />
+      <ReportsProvider> {/* ← IS THIS HERE? */}
+        <Routes>
+          <Route path="/" element={<Navigate to="/login" />} />
+          <Route path="/login" element={<Login />} />
 
-        {/* All pages that share the sidebar + header */}
-        <Route element={<Layout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/incident-reports" element={<IncidentReports />} />
-          <Route path="/messenger-bot-logs" element={<MessengerBotLogs />} />
-          <Route path="/scraper-feed" element={<ScraperFeed />} />
-          <Route path="/geospatial-map" element={<GeospatialMap />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/settings" element={<Settings />} />
-        </Route>
-      </Routes>
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/incident-reports" element={<IncidentReports />} />
+            <Route path="/messenger-bot-logs" element={<MessengerBotLogs />} />
+            <Route path="/scraper-feed" element={<ScraperFeed />} />
+            <Route path="/geospatial-map" element={<GeospatialMap />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+        </Routes>
+      </ReportsProvider> {/* ← AND CLOSING HERE? */}
     </BrowserRouter>
   );
 }
