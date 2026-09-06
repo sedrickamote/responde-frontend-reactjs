@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ReportsProvider } from './context/ReportsContext'; // ← DID YOU ADD THIS?
+import { NotificationProvider } from './context/NotificationContext';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -13,6 +14,7 @@ import Settings from './pages/Settings';
 function App() {
   return (
     <BrowserRouter>
+      <NotificationProvider>
       <ReportsProvider> {/* ← IS THIS HERE? */}
         <Routes>
           <Route path="/" element={<Navigate to="/login" />} />
@@ -29,6 +31,7 @@ function App() {
           </Route>
         </Routes>
       </ReportsProvider> {/* ← AND CLOSING HERE? */}
+      </NotificationProvider>
     </BrowserRouter>
   );
 }
