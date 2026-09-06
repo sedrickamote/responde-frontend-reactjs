@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, X } from 'lucide-react';
 
 interface DatePickerProps {
   value: string;
@@ -18,14 +18,23 @@ export default function DatePicker({ value, onChange, placeholder = 'Select date
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
-    } 
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
 
   const months = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December'
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
   const currentYear = new Date().getFullYear();
@@ -58,6 +67,12 @@ export default function DatePicker({ value, onChange, placeholder = 'Select date
 
   const handleApply = () => {
     if (tempDate) onChange(tempDate);
+    setIsOpen(false);
+  };
+
+  const handleClear = () => {
+    onChange('');
+    setTempDate(null);
     setIsOpen(false);
   };
 
@@ -95,7 +110,7 @@ export default function DatePicker({ value, onChange, placeholder = 'Select date
     const prevDays = getDaysInMonth(year, month - 1);
     for (let i = firstDay - 1; i >= 0; i--) {
       cells.push(
-        <div key={`prev-${i}`} className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-xs sm:text-sm text-slate-300">
+        <div key={`prev-${i}`} className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-xs sm:text-sm text-slate-300 dark:text-slate-600 select-none">
           {prevDays - i}
         </div>
       );
@@ -111,13 +126,14 @@ export default function DatePicker({ value, onChange, placeholder = 'Select date
       cells.push(
         <button
           key={day}
+          type="button"
           onClick={() => handleDateClick(day)}
           className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full text-xs sm:text-sm flex items-center justify-center transition-colors
-            ${isSelected 
-              ? 'bg-indigo-600 text-white font-medium shadow-sm' 
-              : isToday 
-                ? 'text-indigo-600 font-semibold border border-indigo-200 hover:bg-indigo-50'
-                : 'text-slate-700 hover:bg-slate-100'
+            ${isSelected
+              ? 'bg-blue-600 dark:bg-blue-500 text-white font-medium shadow-sm'
+              : isToday
+                ? 'text-blue-600 dark:text-blue-400 font-semibold border border-blue-200 dark:border-blue-500/40 hover:bg-blue-50 dark:hover:bg-blue-950/50'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
             }`}
         >
           {day}
@@ -129,7 +145,7 @@ export default function DatePicker({ value, onChange, placeholder = 'Select date
     const remaining = 42 - cells.length;
     for (let i = 1; i <= remaining; i++) {
       cells.push(
-        <div key={`next-${i}`} className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-xs sm:text-sm text-slate-300">
+        <div key={`next-${i}`} className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-xs sm:text-sm text-slate-300 dark:text-slate-600 select-none">
           {i}
         </div>
       );
@@ -141,43 +157,79 @@ export default function DatePicker({ value, onChange, placeholder = 'Select date
   return (
     <div ref={containerRef} className="relative">
       <button
+        type="button"
         onClick={handleOpen}
-        className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:min-w-[150px] sm:w-auto"
+        className="flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors w-full sm:min-w-[150px] sm:w-auto cursor-pointer"
       >
-        <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-        <span className={`truncate ${value ? 'text-slate-800' : 'text-slate-400'}`}>
+        <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-400 shrink-0" />
+        <span className={`truncate ${value ? 'text-slate-800 dark:text-slate-100 font-medium' : 'text-slate-400 dark:text-slate-400'}`}>
           {value ? formatDisplay(value) : placeholder}
         </span>
+        {value && (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClear();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.stopPropagation();
+                handleClear();
+              }
+            }}
+            className="ml-auto p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+            title="Clear date"
+            aria-label="Clear date"
+          >
+            <X className="w-3.5 h-3.5" />
+          </span>
+        )}
       </button>
 
       {isOpen && (
-        <div className="absolute top-full mt-2 left-0 sm:left-auto sm:right-0 bg-white rounded-2xl border border-slate-200 shadow-xl p-3 sm:p-5 w-[280px] sm:w-[340px] max-w-[calc(100vw-2rem)] z-50">
+        <div className="absolute top-full mt-2 left-0 sm:left-auto sm:right-0 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl dark:shadow-2xl dark:shadow-black/50 p-3 sm:p-5 w-[280px] sm:w-[340px] max-w-[calc(100vw-2rem)] z-50">
           {/* Header */}
           <div className="flex items-center justify-between mb-4 sm:mb-5">
             <div className="flex items-center gap-1">
-              <button onClick={handlePrevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-                <ChevronLeft className="w-4 h-4 text-slate-500" />
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                aria-label="Previous month"
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 rounded-lg transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-sm font-semibold text-slate-800 min-w-[80px] sm:min-w-[90px] text-center">
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 min-w-20 sm:min-w-22.5 text-center">
                 {months[viewDate.getMonth()]}
               </span>
-              <button onClick={handleNextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-                <ChevronRight className="w-4 h-4 text-slate-500" />
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                aria-label="Next month"
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 rounded-lg transition-colors cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
             <select
               value={viewDate.getFullYear()}
               onChange={(e) => setViewDate(new Date(parseInt(e.target.value), viewDate.getMonth(), 1))}
-              className="px-2 sm:px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+              className="px-2 sm:px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium cursor-pointer"
             >
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
+              {years.map(y => (
+                <option key={y} value={y} className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                  {y}
+                </option>
+              ))}
             </select>
           </div>
 
           {/* Weekday headers */}
           <div className="grid grid-cols-7 gap-y-1 gap-x-0.5 mb-1 sm:mb-2">
-            {['Mo','Tu','We','Th','Fr','Sa','Su'].map(d => (
-              <div key={d} className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-[10px] sm:text-xs font-semibold text-slate-500">
+            {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
+              <div key={d} className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-[10px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {d}
               </div>
             ))}
@@ -189,19 +241,30 @@ export default function DatePicker({ value, onChange, placeholder = 'Select date
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-2 pt-3 sm:pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-700/80">
             <button
-              onClick={handleCancel}
-              className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              type="button"
+              onClick={handleClear}
+              className="px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 rounded-lg transition-colors cursor-pointer"
             >
-              Cancel
+              Clear
             </button>
-            <button
-              onClick={handleApply}
-              className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-            >
-              Apply
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApply}
+                className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-lg transition-colors shadow-sm cursor-pointer"
+              >
+                Apply
+              </button>
+            </div>
           </div>
         </div>
       )}
