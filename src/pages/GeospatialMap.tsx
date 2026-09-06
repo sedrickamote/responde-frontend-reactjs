@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { StaggerContainer, StaggerItem } from '../components/Stagger';
 import { useTheme } from '../components/ThemeContent';
+import FilterDropdown from '../components/DropDown';
 import MapContainer from '../components/MapContainer';
 import { useReports } from '../context/ReportsContext';
 import { talisayBarangays } from '../data/talisay-barangays';
@@ -274,8 +275,8 @@ export default function GeospatialMap() {
   const [selected, setSelected] = useState<SelectedFeature>(null);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterUrgency, setFilterUrgency] = useState<string>('All');
-  const [filterType, setFilterType] = useState<string>('All');
+  const [filterUrgency, setFilterUrgency] = useState<string>('All Urgency');
+  const [filterType, setFilterType] = useState<string>('All Types');
 
   // Compute barangay max urgency level (High=3, Moderate=2, Low=1) reflecting active filters
   const URGENCY_WEIGHTS: Record<string, number> = { High: 3, Moderate: 2, Low: 1 };
@@ -283,8 +284,8 @@ export default function GeospatialMap() {
     const maxUrgency: Record<string, number> = {};
     reports
       .filter((r) => r.status === 'verified' || r.status === 'under_review')
-      .filter((r) => filterUrgency === 'All' || r.urgency === filterUrgency)
-      .filter((r) => filterType === 'All' || r.type === filterType)
+      .filter((r) => filterUrgency === 'All Urgency' || filterUrgency === 'All' || r.urgency === filterUrgency)
+      .filter((r) => filterType === 'All Types' || filterType === 'All' || r.type === filterType)
       .forEach((r) => {
         const weight = URGENCY_WEIGHTS[r.urgency] || 1;
         maxUrgency[r.barangay] = Math.max(maxUrgency[r.barangay] || 0, weight);
@@ -296,16 +297,16 @@ export default function GeospatialMap() {
   const pinReports = useMemo(() => {
     return reports
       .filter((r) => (r.status === 'verified' || r.status === 'under_review') && parseCoords(r.coordinates))
-      .filter((r) => filterUrgency === 'All' || r.urgency === filterUrgency)
-      .filter((r) => filterType === 'All' || r.type === filterType);
+      .filter((r) => filterUrgency === 'All Urgency' || filterUrgency === 'All' || r.urgency === filterUrgency)
+      .filter((r) => filterType === 'All Types' || filterType === 'All' || r.type === filterType);
   }, [reports, filterUrgency, filterType]);
 
   // Drawer list: verified + under_review with coords
   const drawerReports = useMemo(() => {
     return reports
       .filter((r) => (r.status === 'verified' || r.status === 'under_review') && parseCoords(r.coordinates))
-      .filter((r) => filterUrgency === 'All' || r.urgency === filterUrgency)
-      .filter((r) => filterType === 'All' || r.type === filterType)
+      .filter((r) => filterUrgency === 'All Urgency' || filterUrgency === 'All' || r.urgency === filterUrgency)
+      .filter((r) => filterType === 'All Types' || filterType === 'All' || r.type === filterType)
       .sort((a, b) => {
         const u = { High: 3, Moderate: 2, Low: 1 };
         return (u[b.urgency as keyof typeof u] || 0) - (u[a.urgency as keyof typeof u] || 0);
@@ -375,8 +376,8 @@ export default function GeospatialMap() {
     if (selected?.type !== 'barangay') return [];
     const all = getReportsByBarangay()[selected.name] || [];
     return all
-      .filter((r) => filterUrgency === 'All' || r.urgency === filterUrgency)
-      .filter((r) => filterType === 'All' || r.type === filterType);
+      .filter((r) => filterUrgency === 'All Urgency' || filterUrgency === 'All' || r.urgency === filterUrgency)
+      .filter((r) => filterType === 'All Types' || filterType === 'All' || r.type === filterType);
   }, [selected, getReportsByBarangay, filterUrgency, filterType]);
 
   return (
@@ -430,28 +431,17 @@ export default function GeospatialMap() {
             </div>
 
             {/* Filters */}
-            <select
+            <FilterDropdown
               value={filterUrgency}
-              onChange={(e) => setFilterUrgency(e.target.value)}
-              className="text-sm bg-slate-100/80 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500/40"
-            >
-              <option value="All">All Urgency</option>
-              <option value="High">🔴 High</option>
-              <option value="Moderate">🟡 Moderate</option>
-              <option value="Low">🟢 Low</option>
-            </select>
+              options={['All Urgency', 'High', 'Moderate', 'Low']}
+              onChange={setFilterUrgency}
+            />
 
-            <select
+            <FilterDropdown
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="text-sm bg-slate-100/80 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500/40"
-            >
-              <option value="All">All Types</option>
-              <option value="Search & Rescue">🚨 Search & Rescue</option>
-              <option value="Medical">🚑 Medical</option>
-              <option value="Food & Water">💧 Food & Water</option>
-              <option value="Infrastructure">🏗️ Infrastructure</option>
-            </select>
+              options={['All Types', 'Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure']}
+              onChange={setFilterType}
+            />
 
             <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 shrink-0 hidden sm:block" />
 

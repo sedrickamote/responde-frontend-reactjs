@@ -2,7 +2,7 @@
 // MapLibre base map + Choropleth (real data) + Pin layer + Boundaries
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -26,6 +26,79 @@ const LINE_LAYER_ID = 'barangays-boundary';
 const HIGHLIGHT_LAYER_ID = 'barangays-highlight';
 const PIN_SOURCE_ID = 'pins';
 const PIN_LAYER_ID = 'incident-pins';
+
+interface BarangayLabelInfo {
+    id: number;
+    name: string;
+    displayName: string;
+    centroid: [number, number];
+}
+
+function getBarangayLabels(): {
+    regularBarangays: BarangayLabelInfo[];
+    poblacionBarangays: BarangayLabelInfo[];
+    poblacionCenter: [number, number];
+} {
+    const seen = new Set<string>();
+    const regular: BarangayLabelInfo[] = [];
+    const poblacion: BarangayLabelInfo[] = [];
+
+    for (const feature of talisayBarangays.features) {
+        const { id, name, centroid } = feature.properties;
+        // Poblacion Barangay 6 has 4 polygon parts in data; use the town center centroid
+        if (name === 'Poblacion Barangay 6' && (centroid[0] < 121.01 || centroid[1] < 14.08)) {
+            continue;
+        }
+        if (seen.has(name)) continue;
+        seen.add(name);
+
+        if (name.startsWith('Poblacion Barangay ')) {
+            const num = name.replace('Poblacion Barangay ', '').trim();
+            poblacion.push({
+                id,
+                name,
+                displayName: `Poblacion ${num}`,
+                centroid,
+            });
+        } else {
+            regular.push({
+                id,
+                name,
+                displayName: name,
+                centroid,
+            });
+        }
+    }
+
+    // Centroid of the Poblacion cluster in Talisay
+    const poblacionCenter: [number, number] = [121.022, 14.0925];
+    return { regularBarangays: regular, poblacionBarangays: poblacion, poblacionCenter };
+}
+
+function createLabelElement(
+    text: string,
+    onClick: () => void,
+    isSummary = false
+): HTMLDivElement {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'barangay-map-label-wrapper';
+    wrapper.style.pointerEvents = 'auto';
+    wrapper.style.cursor = 'pointer';
+
+    const pill = document.createElement('div');
+    pill.className = `px-2 py-0.5 rounded-md text-[11px] font-semibold tracking-tight whitespace-nowrap select-none transition-all duration-150 shadow-xs hover:shadow-md hover:scale-105 active:scale-95 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xs text-slate-800 dark:text-slate-100 border border-slate-300/80 dark:border-slate-700/80 ${
+        isSummary ? 'ring-1 ring-blue-500/40 text-blue-700 dark:text-blue-300 font-bold' : ''
+    }`;
+    pill.textContent = text;
+    wrapper.appendChild(pill);
+
+    wrapper.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onClick();
+    });
+
+    return wrapper;
+}
 
 function enrichGeoJSONWithCounts(
     geojson: BarangayFeatureCollection,
@@ -101,6 +174,11 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
     const mapRef = useRef<maplibregl.Map | null>(null);
     const isLoadedRef = useRef(false);
 
+    // Label markers references
+    const regularMarkersRef = useRef<maplibregl.Marker[]>([]);
+    const poblacionSummaryMarkerRef = useRef<maplibregl.Marker | null>(null);
+    const poblacionDetailMarkersRef = useRef<maplibregl.Marker[]>([]);
+
     // Keep refs to avoid stale closures or race conditions during map load
     const layersRef = useRef(layers);
     layersRef.current = layers;
@@ -116,6 +194,28 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
 
     const onSelectFeatureRef = useRef(onSelectFeature);
     onSelectFeatureRef.current = onSelectFeature;
+
+    const updateLabelsVisibility = useCallback(() => {
+        const map = mapRef.current;
+        if (!map || !isLoadedRef.current) return;
+        const isLayerVisible = layersRef.current.boundaries || layersRef.current.choropleth;
+        const isZoomedIn = map.getZoom() >= 13.5;
+
+        regularMarkersRef.current.forEach((marker) => {
+            const el = marker.getElement();
+            el.style.display = isLayerVisible ? 'block' : 'none';
+        });
+
+        if (poblacionSummaryMarkerRef.current) {
+            const el = poblacionSummaryMarkerRef.current.getElement();
+            el.style.display = isLayerVisible && !isZoomedIn ? 'block' : 'none';
+        }
+
+        poblacionDetailMarkersRef.current.forEach((marker) => {
+            const el = marker.getElement();
+            el.style.display = isLayerVisible && isZoomedIn ? 'block' : 'none';
+        });
+    }, []);
 
     // ── 1. Initialize Map Once ──
     useEffect(() => {
@@ -234,6 +334,46 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
                         onSelectFeatureRef.current({ type: 'incident', id });
                     }
                 });
+
+                // ── Barangay Center Name Labels ──
+                const { regularBarangays, poblacionBarangays, poblacionCenter } = getBarangayLabels();
+
+                // 1. Regular barangays (always centered in their boundary)
+                regularBarangays.forEach((item) => {
+                    const el = createLabelElement(item.displayName, () => {
+                        onSelectFeatureRef.current({ type: 'barangay', id: item.id, name: item.name });
+                    });
+                    const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+                        .setLngLat(item.centroid)
+                        .addTo(map);
+                    regularMarkersRef.current.push(marker);
+                });
+
+                // 2. Poblacion overview cluster label (shown when zoomed out < 13.5)
+                const summaryEl = createLabelElement(
+                    'Poblacion',
+                    () => {
+                        map.flyTo({ center: poblacionCenter, zoom: 15, duration: 800, essential: true });
+                    },
+                    true
+                );
+                poblacionSummaryMarkerRef.current = new maplibregl.Marker({ element: summaryEl, anchor: 'center' })
+                    .setLngLat(poblacionCenter)
+                    .addTo(map);
+
+                // 3. Poblacion individual detail labels (shown when zoomed in >= 13.5)
+                poblacionBarangays.forEach((item) => {
+                    const el = createLabelElement(item.displayName, () => {
+                        onSelectFeatureRef.current({ type: 'barangay', id: item.id, name: item.name });
+                    });
+                    const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+                        .setLngLat(item.centroid)
+                        .addTo(map);
+                    poblacionDetailMarkersRef.current.push(marker);
+                });
+
+                map.on('zoom', updateLabelsVisibility);
+                updateLabelsVisibility();
             });
 
             map.on('error', (e: any) => console.error('❌ MapLibre error:', e.error));
@@ -258,6 +398,17 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
                 window.removeEventListener('map-fly-to', handleFlyTo);
                 resizeObserver.disconnect();
                 isLoadedRef.current = false;
+
+                // Cleanup markers
+                regularMarkersRef.current.forEach((m) => m.remove());
+                regularMarkersRef.current = [];
+                if (poblacionSummaryMarkerRef.current) {
+                    poblacionSummaryMarkerRef.current.remove();
+                    poblacionSummaryMarkerRef.current = null;
+                }
+                poblacionDetailMarkersRef.current.forEach((m) => m.remove());
+                poblacionDetailMarkersRef.current = [];
+
                 map.remove();
                 mapRef.current = null;
             };
@@ -332,7 +483,9 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
         if (map.getLayer(PIN_LAYER_ID)) {
             map.setLayoutProperty(PIN_LAYER_ID, 'visibility', layers.pins ? 'visible' : 'none');
         }
-    }, [layers]);
+
+        updateLabelsVisibility();
+    }, [layers, updateLabelsVisibility]);
 
     return (
         <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" style={{ minHeight: '100%' }} />
