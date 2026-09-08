@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowRight, ExternalLink, MapPin, Clock, User, AlertCircle, CheckCircle, HelpCircle, Loader2 } from 'lucide-react';
+import { X, ArrowRight, ExternalLink, MapPin, Clock, User, AlertCircle, CheckCircle, HelpCircle } from 'lucide-react';
 import { StaggerContainer, StaggerItem } from '../components/Stagger';
 import { useTheme } from '../components/ThemeContent';
 import { supabase } from '../lib/supabaseClient';
 import MapContainer from '../components/MapContainer';
 import { useReports } from '../context/ReportsContext';
 import type { MapLayerState } from '../types/geospatial';
+import PageLoader from '../components/PageLoader';
 
 // ── Types ──
 interface BotMessage { sender: 'bot' | 'user'; text: string; }
@@ -318,21 +319,9 @@ export default function Dashboard() {
     }
   };
 
-  // ════════════════════════════════════════
-  //  FIX #1: Smooth loading — render ONLY a spinner while fetching.
-  //  This prevents StaggerContainer from mounting early and shaking
-  //  as empty states flip to populated lists.
-  // ════════════════════════════════════════
-  if (loading) {
-    return (
-      <div className="h-full w-full flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 animate-pulse">
-          Loading dashboard…
-        </p>
-      </div>
-    );
-  }
+  // Skeleton loading — show content-shaped shimmer while Supabase fetches.
+  // Early-return keeps the real content's flex layout 100% intact.
+  if (loading) return <PageLoader variant="dashboard" />;
 
   return (
     <>

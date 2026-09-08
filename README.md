@@ -231,8 +231,56 @@ For the **Incident Reports** verification workflow, the backend should support:
 
 ---
 
+## Skeleton Loading Screens
+
+Loading states on data-heavy pages (Dashboard, Messenger Bot Logs, Scraper Feed) use
+**[boneyard-js](https://boneyard.vercel.app)** to show pixel-perfect, content-shaped shimmer skeletons
+instead of a generic spinning circle. The skeletons are automatically derived from your real DOM — no
+manual skeleton shapes to write or maintain.
+
+### How it works
+
+1. `<PageLoader variant="dashboard" loading={loading}>` wraps each page's real content.
+2. When `loading=true`, boneyard renders a shimmer skeleton whose bones match the page's actual layout.
+3. When `loading=false`, the skeleton cross-fades into the real content (300 ms, no layout shift).
+4. The global theme (slate-100/200/800/700 palette, shimmer) is set in `main.tsx` via `configureBoneyard()`.
+
+### Generating / refreshing bone files
+
+Bones are captured from your running app by the CLI and committed to source control
+(`src/bones/*.bones.json`). You only need to regenerate them when the **layout** of a wrapped page changes.
+
+```bash
+# 1. Install Playwright browser (one-time setup)
+npx playwright install chromium
+
+# 2. Start the dev server
+npm run dev
+
+# 3. In a second terminal, run the capture
+npx boneyard-js build http://localhost:5173
+
+# 4. Commit the generated files
+git add src/bones/
+git commit -m "chore: refresh boneyard skeleton bones"
+```
+
+The CLI will visit `/dashboard`, `/messenger-bot-logs`, and `/scraper-feed` at widths 375 / 768 / 1280 px
+and write three `.bones.json` files. Until these files exist, the pages silently show no skeleton
+(they appear blank during the loading state, then snap to content when data arrives).
+
+> **Note:** Pages require Supabase login to render. Log in via `/login` in your browser before running
+> the build step, or use the `fixture` prop on `<PageLoader>` to supply mock data for the CLI.
+
+### Adding a new page
+
+1. Wrap the page content: `<PageLoader variant="my-page" loading={loading}>…</PageLoader>`
+2. Add `'my-page'` to the `VARIANT_NAMES` map in [`src/components/PageLoader.tsx`](src/components/PageLoader.tsx)
+3. Add `'/my-page'` to the `routes` array in [`vite.config.ts`](vite.config.ts)
+4. Re-run the boneyard build step above
 
 ---
+
 
 <p align="center">
   <strong>RESPONDE</strong> — Real-Time Disaster Intelligence for Talisay, Batangas

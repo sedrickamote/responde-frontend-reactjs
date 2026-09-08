@@ -15,22 +15,22 @@ function App() {
   return (
     <BrowserRouter>
       <NotificationProvider>
-      <ReportsProvider> {/* ← IS THIS HERE? */}
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" />} />
-          <Route path="/login" element={<Login />} />
+        <ReportsProvider>
+          <Routes>
+            <Route path="/" element={<Navigate to="/login" />} />
+            <Route path="/login" element={<Login />} />
 
-          <Route element={<Layout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/incident-reports" element={<IncidentReports />} />
-            <Route path="/messenger-bot-logs" element={<MessengerBotLogs />} />
-            <Route path="/scraper-feed" element={<ScraperFeed />} />
-            <Route path="/geospatial-map" element={<GeospatialMap />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
-        </Routes>
-      </ReportsProvider> {/* ← AND CLOSING HERE? */}
+            <Route element={<Layout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/incident-reports" element={<IncidentReports />} />
+              <Route path="/messenger-bot-logs" element={<MessengerBotLogs />} />
+              <Route path="/scraper-feed" element={<ScraperFeed />} />
+              <Route path="/geospatial-map" element={<GeospatialMap />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
+          </Routes>
+        </ReportsProvider>
       </NotificationProvider>
     </BrowserRouter>
   );

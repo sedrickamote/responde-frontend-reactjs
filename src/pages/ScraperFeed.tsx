@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Filter, Globe, MessageCircle, AlertTriangle, MapPin, Clock,
-  CheckCircle, XCircle, Brain, Users, ExternalLink, Loader2,
+  CheckCircle, XCircle, Brain, Users, ExternalLink,
+  Loader2,
 } from "lucide-react";
 import DatePicker from "../components/DatePicker";
 import FilterDropdown from "../components/DropDown";
 import { StaggerContainer, StaggerItem } from "../components/Stagger";
 import { supabase } from "../lib/supabaseClient";
+import PageLoader from "../components/PageLoader";
 
 interface ScrapedPost {
   id: string;
@@ -376,15 +378,9 @@ export default function ScraperFeed() {
         </AnimatePresence>
       </div>
 
-      {/* Loading State */}
-      {loading && (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-slate-400 dark:text-slate-500">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-            <span className="text-sm font-medium">Loading scraped posts from Supabase...</span>
-          </div>
-        </div>
-      )}
+
+      {/* Skeleton — shown on first load, replaced by real content */}
+      {loading && <PageLoader variant="scraper" />}
 
       {/* Error State */}
       {!loading && error && (
