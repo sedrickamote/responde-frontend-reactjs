@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ReportsProvider } from './context/ReportsContext'; // ← DID YOU ADD THIS?
+import { ReportsProvider } from './context/ReportsContext';
 import { NotificationProvider } from './context/NotificationContext';
+import Landing from './website/Landing-Page';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -17,9 +18,11 @@ function App() {
       <NotificationProvider>
         <ReportsProvider>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" />} />
+            {/* Public routes — no login required */}
+            <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
 
+            {/* Protected admin routes — wrapped in Layout */}
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/incident-reports" element={<IncidentReports />} />

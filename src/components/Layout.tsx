@@ -331,11 +331,10 @@ export default function Layout() {
                         >
                           {tab.label}
                           {tab.count > 0 && (
-                            <span className={`text-[10px] font-bold px-1 rounded-full ${
-                              activeTab === tab.key
+                            <span className={`text-[10px] font-bold px-1 rounded-full ${activeTab === tab.key
                                 ? 'bg-white/20 text-white'
                                 : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                            }`}>
+                              }`}>
                               {tab.count}
                             </span>
                           )}
@@ -561,18 +560,16 @@ function GlobalToast({
     >
       {/* Accent bar */}
       <div
-        className={`absolute left-0 top-0 bottom-0 w-1 ${
-          isMessenger ? 'bg-purple-500' : 'bg-blue-500'
-        }`}
+        className={`absolute left-0 top-0 bottom-0 w-1 ${isMessenger ? 'bg-purple-500' : 'bg-blue-500'
+          }`}
       />
 
       {/* Icon */}
       <div
-        className={`shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center ${
-          isMessenger
+        className={`shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center ${isMessenger
             ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-500'
             : 'bg-blue-100 dark:bg-blue-900/30 text-blue-500'
-        }`}
+          }`}
       >
         {isMessenger ? (
           <MessageCircle className="w-4 h-4" />
@@ -590,11 +587,10 @@ function GlobalToast({
         {/* View button */}
         <button
           onClick={() => onView(toast.targetPath)}
-          className={`mt-2 flex items-center gap-1 text-xs font-semibold transition-colors ${
-            isMessenger
+          className={`mt-2 flex items-center gap-1 text-xs font-semibold transition-colors ${isMessenger
               ? 'text-purple-500 hover:text-purple-600'
               : 'text-blue-500 hover:text-blue-600'
-          }`}
+            }`}
         >
           View
           <ArrowRight className="w-3 h-3" />
@@ -611,9 +607,8 @@ function GlobalToast({
 
       {/* Progress bar */}
       <motion.div
-        className={`absolute bottom-0 left-0 h-[3px] ${
-          isMessenger ? 'bg-purple-400' : 'bg-blue-400'
-        }`}
+        className={`absolute bottom-0 left-0 h-[3px] ${isMessenger ? 'bg-purple-400' : 'bg-blue-400'
+          }`}
         initial={{ width: '100%' }}
         animate={{ width: '0%' }}
         transition={{ duration: 5.5, ease: 'linear' }}
