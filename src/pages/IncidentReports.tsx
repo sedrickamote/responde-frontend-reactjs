@@ -449,7 +449,7 @@ export default function IncidentReports() {
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-6 relative">
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+      <div className="fixed top-4 right-4 z-[250] flex flex-col gap-2 pointer-events-none">
         <AnimatePresence>
           {toasts.map(toast => (
             <div key={toast.id} className="pointer-events-auto">
