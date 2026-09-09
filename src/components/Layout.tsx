@@ -91,7 +91,7 @@ export default function Layout() {
   };
 
   return (
-    <div className="flex h-screen bg-[linear-gradient(113deg,#ffffff_0%,#f1f5ff_26%,#e5ebff_52%,#e3eaff_100%)] dark:bg-none dark:bg-[#0B0F19] overflow-hidden">
+    <div className="relative h-screen bg-[linear-gradient(113deg,#ffffff_0%,#f1f5ff_26%,#e5ebff_52%,#e3eaff_100%)] dark:bg-none dark:bg-[#0B0F19] overflow-hidden flex">
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
@@ -103,28 +103,30 @@ export default function Layout() {
       {/* ─── SIDEBAR ─── */}
       <aside
         className={`
-          fixed lg:static inset-y-0 left-0 z-50
-          ${mobileOpen ? 'w-60' : collapsed ? 'lg:w-[89px]' : 'lg:w-60'}
+          fixed top-4 left-4 bottom-4 z-50
+          ${mobileOpen ? 'w-60' : collapsed ? 'lg:w-[72px]' : 'lg:w-56'}
           w-60
           bg-white dark:bg-[#111827]
           flex flex-col
-          border-r border-slate-300 dark:border-slate-800
+          rounded-2xl
+          border border-slate-200 dark:border-slate-700/60
+          shadow-[0_8px_32px_rgba(0,0,0,0.10)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.40)]
           transition-all duration-300 ease-in-out
-          ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-[110%] lg:translate-x-0'}
         `}
       >
         {/* Logo */}
         <div className={`
-          h-[70px] flex items-center border-b border-slate-300 dark:border-slate-800
-          ${collapsed && !mobileOpen ? 'lg:justify-center lg:px-0' : 'px-5 gap-3'}
+          h-[64px] flex items-center shrink-0
+          ${collapsed && !mobileOpen ? 'lg:justify-center lg:px-0' : 'px-4 gap-3'}
         `}>
           <img
             src="/Responde_Logo.png"
             alt="Responde"
-            className="w-9 h-9 rounded-lg object-cover shrink-0"
+            className="w-8 h-8 rounded-lg object-cover shrink-0"
           />
           <span className={`
-            font-bold text-slate-800 dark:text-white text-lg tracking-tight
+            font-bold text-slate-800 dark:text-white text-base tracking-tight
             transition-all duration-300 overflow-hidden whitespace-nowrap
             ${collapsed && !mobileOpen ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'}
           `}>
@@ -138,8 +140,11 @@ export default function Layout() {
           </button>
         </div>
 
+        {/* thin divider */}
+        <div className="mx-3 h-px bg-slate-100 dark:bg-slate-700/60 shrink-0" />
+
         {/* Navigation */}
-        <nav className="flex-1 py-5 px-3 space-y-2.5 overflow-y-auto">
+        <nav className="flex-1 py-4 px-2.5 space-y-4 overflow-y-auto">
           {navItems.map((item) => {
             const active = isActive(item.path);
             const isCollapsed = collapsed && !mobileOpen;
@@ -149,33 +154,27 @@ export default function Layout() {
                 to={item.path}
                 onClick={() => setMobileOpen(false)}
                 className={`
-                  group flex items-center rounded-xl transition-all duration-200
-                  ${isCollapsed ? 'lg:justify-center lg:px-0 lg:py-1' : 'gap-7 px-3.5 py-2.5'}
-                  ${active && !isCollapsed ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
-                  ${!active && !isCollapsed ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50' : ''}
+                  group flex items-center h-10 rounded-xl transition-all duration-200
+                  ${isCollapsed ? 'lg:justify-center lg:px-0' : 'gap-3.5 px-3'}
+                  ${active
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : 'hover:bg-slate-100/80 dark:hover:bg-slate-800/60'
+                  }
                 `}
                 title={isCollapsed ? item.label : undefined}
               >
                 <div className={`
-                  shrink-0 flex items-center justify-center transition-all duration-200
-                  ${isCollapsed
-                    ? active
-                      ? 'w-11 h-11 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                      : 'w-11 h-11 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300'
-                    : active
-                      ? 'text-blue-600 dark:text-blue-400'
-                      : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200'
-                  }
-                `}>
-                  <item.icon className="w-[18px] h-[18px]" strokeWidth={active && isCollapsed ? 2.5 : 2} />
-                </div>
-                <span className={`
-                  text-sm font-medium transition-all duration-300 overflow-hidden whitespace-nowrap
-                  ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'}
+                  shrink-0 flex items-center justify-center transition-colors duration-200
                   ${active
                     ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-white'
+                    : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'
                   }
+                `}>
+                  <item.icon className="w-[20px] h-[20px]" strokeWidth={active ? 2.5 : 1.75} />
+                </div>
+                <span className={`
+                  text-[13px] font-medium transition-all duration-300 overflow-hidden whitespace-nowrap
+                  ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'}
                 `}>
                   {item.label}
                 </span>
@@ -184,27 +183,25 @@ export default function Layout() {
           })}
         </nav>
 
+        {/* thin divider */}
+        <div className="mx-3 h-px bg-slate-100 dark:bg-slate-700/60 shrink-0" />
+
         {/* Sign Out */}
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800">
+        <div className="px-2.5 py-3 shrink-0">
           <button
             onClick={() => navigate('/login')}
             className={`
-              group flex items-center w-full rounded-xl transition-all duration-200
-              ${collapsed && !mobileOpen ? 'lg:justify-center lg:px-0 lg:py-1' : 'gap-3.5 px-3.5 py-2.5'}
+              group flex items-center w-full h-10 rounded-xl transition-all duration-200
+              ${collapsed && !mobileOpen ? 'lg:justify-center lg:px-0' : 'gap-3.5 px-3'}
+              hover:bg-red-50 dark:hover:bg-red-900/20
             `}
             title={collapsed && !mobileOpen ? 'Sign Out' : undefined}
           >
-            <div className={`
-              shrink-0 flex items-center justify-center transition-all duration-200
-              ${collapsed && !mobileOpen
-                ? 'w-11 h-11 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
-                : 'text-slate-500 dark:text-slate-400 group-hover:text-red-500'
-              }
-            `}>
-              <LogOut className="w-[18px] h-[18px]" />
+            <div className="shrink-0 flex items-center justify-center text-slate-400 dark:text-slate-500 group-hover:text-red-500 transition-colors duration-200">
+              <LogOut className="w-[20px] h-[20px]" strokeWidth={1.75} />
             </div>
             <span className={`
-              text-sm font-medium text-slate-600 dark:text-slate-300 group-hover:text-red-500
+              text-[13px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-red-500
               transition-all duration-300 overflow-hidden whitespace-nowrap
               ${collapsed && !mobileOpen ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'}
             `}>
@@ -215,7 +212,13 @@ export default function Layout() {
       </aside>
 
       {/* ─── MAIN CONTENT ─── */}
-      <main className="flex-1 flex flex-col min-w-0">
+      {/* left margin accounts for: 16px gap-left + sidebar width + 16px gap-right */}
+      <main
+        className={`
+          flex-1 flex flex-col min-w-0 transition-all duration-300
+          ${collapsed ? 'lg:ml-[calc(16px+72px+16px)]' : 'lg:ml-[calc(16px+224px+16px)]'}
+        `}
+      >
         <header className="relative z-[100] h-[70px] bg-white/70 dark:bg-[#0F1525]/70 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between px-5">
           <div className="flex items-center gap-4 flex-1 max-w-xl">
             <button
@@ -332,8 +335,8 @@ export default function Layout() {
                           {tab.label}
                           {tab.count > 0 && (
                             <span className={`text-[10px] font-bold px-1 rounded-full ${activeTab === tab.key
-                                ? 'bg-white/20 text-white'
-                                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                              ? 'bg-white/20 text-white'
+                              : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                               }`}>
                               {tab.count}
                             </span>
@@ -567,8 +570,8 @@ function GlobalToast({
       {/* Icon */}
       <div
         className={`shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center ${isMessenger
-            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-500'
-            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-500'
+          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-500'
+          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-500'
           }`}
       >
         {isMessenger ? (
@@ -588,8 +591,8 @@ function GlobalToast({
         <button
           onClick={() => onView(toast.targetPath)}
           className={`mt-2 flex items-center gap-1 text-xs font-semibold transition-colors ${isMessenger
-              ? 'text-purple-500 hover:text-purple-600'
-              : 'text-blue-500 hover:text-blue-600'
+            ? 'text-purple-500 hover:text-purple-600'
+            : 'text-blue-500 hover:text-blue-600'
             }`}
         >
           View
