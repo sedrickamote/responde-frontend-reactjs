@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import { motion, type Variants } from 'framer-motion';
 import {
   Download,
   FileText,
@@ -15,17 +16,21 @@ import {
   Lightbulb,
   CheckCircle2,
   XCircle,
-  CalendarDays,
   Bot,
   Globe2,
   Clock3,
+  Filter,
+  X,
+  Layers,
+  Sparkles,
+  PieChart as PieChartIcon,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   PieChart,
   Pie,
   Cell,
@@ -34,7 +39,8 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
-import { StaggerContainer, StaggerItem } from '../components/Stagger';
+import DatePicker from '../components/DatePicker';
+import FilterDropdown from '../components/DropDown';
 import { useReports } from '../context/ReportsContext';
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -49,18 +55,46 @@ type AnalyticsReport = {
   verifiedAt?: string | null;
 };
 
+// ── Apple Design Physics & Stagger Variants ──────────────────────────────────
+const APPLE_SPRING = { type: 'spring', stiffness: 400, damping: 32 } as const;
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.06,
+      delayChildren: 0.04,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 16, filter: 'blur(4px)' },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: 'blur(0px)',
+    transition: {
+      type: 'spring',
+      stiffness: 400,
+      damping: 32,
+    },
+  },
+};
+
 // ── Design tokens ────────────────────────────────────────────────────────────
-const RED = '#B71C1C';
-const RED_LIGHT = '#EF5350';
+const ACCENT_BLUE = '#0071E3';
+const RED = '#DC2626';
 
 const TYPE_CONFIG: Record<
   string,
-  { icon: LucideIcon; iconClass: string; color: string }
+  { icon: LucideIcon; iconClass: string; color: string; bg: string }
 > = {
-  'Search & Rescue': { icon: Siren, iconClass: 'text-orange-500', color: '#f97316' },
-  Medical: { icon: HeartPulse, iconClass: 'text-blue-500', color: '#3b82f6' },
-  'Food & Water': { icon: Droplets, iconClass: 'text-emerald-500', color: '#10b981' },
-  Infrastructure: { icon: HardHat, iconClass: 'text-purple-500', color: '#a855f7' },
+  'Search & Rescue': { icon: Siren, iconClass: 'text-amber-500', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+  Medical: { icon: HeartPulse, iconClass: 'text-rose-500', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+  'Food & Water': { icon: Droplets, iconClass: 'text-emerald-500', color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+  Infrastructure: { icon: HardHat, iconClass: 'text-indigo-500', color: '#6366f1', bg: 'rgba(99,102,241,0.12)' },
 };
 
 const URGENCY_BAR_COLOR: Record<string, string> = {
@@ -70,9 +104,9 @@ const URGENCY_BAR_COLOR: Record<string, string> = {
 };
 
 const URGENCY_CLASS: Record<string, string> = {
-  High: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
-  Moderate: 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800',
-  Low: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
+  High: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+  Moderate: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+  Low: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
 };
 
 const URGENCY_WEIGHT: Record<string, number> = { High: 3, Moderate: 2, Low: 1 };
@@ -97,42 +131,90 @@ function daysBefore(n: number): Date {
   return d;
 }
 
-// ── Shared Card ──────────────────────────────────────────────────────────────
-function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+// ── Apple Card Component with Translucent Materials & Specular Border ────────
+function AppleCard({
+  children,
+  className = '',
+  specular = true,
+}: {
+  children: ReactNode;
+  className?: string;
+  specular?: boolean;
+}) {
   return (
-    <div className={`bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] ${className}`}>
+    <div
+      className={`relative backdrop-blur-xl bg-white/80 dark:bg-[#111827]/80 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] ${
+        specular ? 'border-t border-t-white/80 dark:border-t-white/10' : ''
+      } transition-all ${className}`}
+    >
       {children}
     </div>
   );
 }
 
-function SectionHeader({ icon: Icon, title, description }: {
-  icon: LucideIcon; title: string; description?: string;
+function SectionHeader({
+  icon: Icon,
+  title,
+  description,
+  badge,
+  iconColor = ACCENT_BLUE,
+  iconBg,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  badge?: ReactNode;
+  iconColor?: string;
+  iconBg?: string;
 }) {
   return (
-    <div className="flex items-start gap-3 mb-5">
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${RED}18` }}>
-        <Icon className="w-4 h-4" style={{ color: RED }} />
+    <div className="flex items-start justify-between gap-3 mb-5">
+      <div className="flex items-start gap-3">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-2xs"
+          style={{
+            background: iconBg ?? `${iconColor}14`,
+            borderColor: `${iconColor}24`,
+            color: iconColor,
+          }}
+        >
+          <Icon className="w-4 h-4" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-slate-900 dark:text-white tracking-tight text-base">{title}</h3>
+          {description && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{description}</p>
+          )}
+        </div>
       </div>
-      <div>
-        <h3 className="font-semibold text-slate-800 dark:text-slate-100">{title}</h3>
-        {description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{description}</p>}
-      </div>
+      {badge && <div className="shrink-0">{badge}</div>}
     </div>
   );
 }
 
-// ── Custom Tooltips ───────────────────────────────────────────────────────────
-interface TooltipPayloadItem { value?: number | string; name?: string; color?: string; payload?: Record<string, unknown>; }
-interface CTP { active?: boolean; payload?: TooltipPayloadItem[]; label?: string | number; }
+// ── Apple-grade Custom Tooltips ───────────────────────────────────────────────
+interface TooltipPayloadItem {
+  value?: number | string;
+  name?: string;
+  color?: string;
+  payload?: Record<string, unknown>;
+}
+interface CTP {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  label?: string | number;
+}
 
 function VolumeTooltip({ active, payload, label }: CTP) {
   if (!active || !payload?.length) return null;
   const val = Number(payload[0]?.value ?? 0);
   return (
-    <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl shadow-xl text-xs">
-      <p className="font-semibold text-slate-700 dark:text-slate-200">{label}</p>
-      <p className="font-bold mt-0.5" style={{ color: RED_LIGHT }}>{val} {val === 1 ? 'incident' : 'incidents'}</p>
+    <div className="backdrop-blur-xl bg-white/95 dark:bg-slate-850/95 border border-slate-200/80 dark:border-white/15 px-3.5 py-2.5 rounded-xl shadow-xl text-xs">
+      <p className="font-semibold text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wider">{label}</p>
+      <div className="flex items-baseline gap-1.5 mt-0.5">
+        <span className="text-base font-bold text-slate-900 dark:text-white tabular-nums">{val}</span>
+        <span className="text-xs text-slate-500 dark:text-slate-400">{val === 1 ? 'incident' : 'incidents'}</span>
+      </div>
     </div>
   );
 }
@@ -141,10 +223,20 @@ function BarangayTooltip({ active, payload }: CTP) {
   if (!active || !payload?.length) return null;
   const item = payload[0]?.payload as { name?: string; count?: number; dominantUrgency?: string } | undefined;
   if (!item) return null;
+  const barColor = URGENCY_BAR_COLOR[item.dominantUrgency ?? ''] ?? ACCENT_BLUE;
   return (
-    <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl shadow-xl text-xs">
-      <p className="font-semibold text-slate-700 dark:text-slate-200">{item.name}</p>
-      <p className="font-bold mt-0.5" style={{ color: URGENCY_BAR_COLOR[item.dominantUrgency ?? ''] ?? RED }}>{item.count} {item.count === 1 ? 'report' : 'reports'}</p>
+    <div className="backdrop-blur-xl bg-white/95 dark:bg-slate-850/95 border border-slate-200/80 dark:border-white/15 px-3.5 py-2.5 rounded-xl shadow-xl text-xs space-y-1">
+      <p className="font-bold text-slate-900 dark:text-white text-sm">{item.name}</p>
+      <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-100 dark:border-slate-700/60">
+        <span className="text-slate-500 dark:text-slate-400">Total reports:</span>
+        <span className="font-bold text-slate-900 dark:text-white tabular-nums">{item.count}</span>
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-slate-500 dark:text-slate-400">Dominant:</span>
+        <span className="font-semibold text-[11px] px-1.5 py-0.5 rounded" style={{ color: barColor, background: `${barColor}18` }}>
+          {item.dominantUrgency} Urgency
+        </span>
+      </div>
     </div>
   );
 }
@@ -154,12 +246,14 @@ function PieTooltip({ active, payload }: CTP) {
   const d = payload[0]?.payload as { name?: string; value?: number; color?: string } | undefined;
   if (!d) return null;
   return (
-    <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl shadow-xl text-xs">
-      <div className="flex items-center gap-1.5">
-        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
-        <span className="font-semibold text-slate-700 dark:text-slate-200">{d.name}</span>
+    <div className="backdrop-blur-xl bg-white/95 dark:bg-slate-850/95 border border-slate-200/80 dark:border-white/15 px-3.5 py-2.5 rounded-xl shadow-xl text-xs">
+      <div className="flex items-center gap-2">
+        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+        <span className="font-semibold text-slate-800 dark:text-slate-100">{d.name}</span>
       </div>
-      <p className="font-bold mt-1" style={{ color: d.color }}>{d.value} {d.value === 1 ? 'report' : 'reports'}</p>
+      <p className="font-bold text-sm mt-1 text-slate-900 dark:text-white tabular-nums">
+        {d.value} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{d.value === 1 ? 'report' : 'reports'}</span>
+      </p>
     </div>
   );
 }
@@ -172,36 +266,48 @@ export default function Analytics() {
   // ── Filter state ────────────────────────────────────────────────────────
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [barangayFilter, setBarangayFilter] = useState('All');
-  const [typeFilter, setTypeFilter] = useState('All');
-  const [sourceFilter, setSourceFilter] = useState('All');
+  const [barangayFilter, setBarangayFilter] = useState('All Barangays');
+  const [typeFilter, setTypeFilter] = useState('All Types');
+  const [sourceFilter, setSourceFilter] = useState('All Sources');
   const [volumeRange, setVolumeRange] = useState<'7d' | '30d' | '3m'>('7d');
 
   // Click-to-filter from charts
   const [activeBarangay, setActiveBarangay] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string | null>(null);
 
-  const allBarangays = useMemo(() => ['All', ...Array.from(new Set(data.map(r => r.barangay))).sort()], [data]);
-  const allTypes = useMemo(() => ['All', 'Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure'], []);
-  const allSources = ['All', 'Bot', 'Scraper'];
+  const allBarangays = useMemo(() => {
+    const unique = Array.from(new Set(data.map(r => r.barangay).filter(Boolean))).sort();
+    return ['All Barangays', ...unique];
+  }, [data]);
+
+  const allTypes = useMemo(() => ['All Types', 'Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure'], []);
+  const allSources = useMemo(() => ['All Sources', 'Bot', 'Scraper'], []);
 
   // Effective filters (header dropdowns override chart clicks)
-  const effectiveBarangay = barangayFilter !== 'All' ? barangayFilter : activeBarangay;
-  const effectiveType = typeFilter !== 'All' ? typeFilter : activeType;
+  const effectiveBarangay = barangayFilter !== 'All Barangays' ? barangayFilter : activeBarangay;
+  const effectiveType = typeFilter !== 'All Types' ? typeFilter : activeType;
 
   // ── Filtered data ────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     return data.filter(r => {
       if (effectiveBarangay && r.barangay !== effectiveBarangay) return false;
       if (effectiveType && r.type !== effectiveType) return false;
-      if (sourceFilter !== 'All' && !r.source?.toLowerCase().includes(sourceFilter.toLowerCase())) return false;
+      if (sourceFilter !== 'All Sources' && !r.source?.toLowerCase().includes(sourceFilter.toLowerCase())) return false;
       if (fromDate) {
         const p = parseReportTime(r.time);
-        if (p) { const d = new Date(new Date().getFullYear(), p.month - 1, p.day); if (d < new Date(fromDate)) return false; }
+        if (p) {
+          const d = new Date(new Date().getFullYear(), p.month - 1, p.day);
+          const from = new Date(fromDate);
+          if (d < from) return false;
+        }
       }
       if (toDate) {
         const p = parseReportTime(r.time);
-        if (p) { const d = new Date(new Date().getFullYear(), p.month - 1, p.day); if (d > new Date(toDate)) return false; }
+        if (p) {
+          const d = new Date(new Date().getFullYear(), p.month - 1, p.day);
+          const to = new Date(toDate);
+          if (d > to) return false;
+        }
       }
       return true;
     });
@@ -252,7 +358,11 @@ export default function Analytics() {
     const counts: Record<string, number> = {};
     filtered.forEach(r => { counts[r.type] = (counts[r.type] || 0) + 1; });
     return ['Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure']
-      .map(type => ({ name: type, value: counts[type] || 0, color: TYPE_CONFIG[type]?.color ?? '#64748b' }))
+      .map(type => ({
+        name: type,
+        value: counts[type] || 0,
+        color: TYPE_CONFIG[type]?.color ?? '#64748b',
+      }))
       .filter(d => d.value > 0);
   }, [filtered]);
 
@@ -295,7 +405,12 @@ export default function Analytics() {
     return Object.entries(grouped)
       .map(([barangay, v]) => {
         const dominantType = Object.entries(v.types).sort((a, b) => b[1] - a[1])[0]?.[0] || 'General';
-        return { barangay, ...v, dominantType, priority: v.high > 0 ? 'High' : v.score >= 4 ? 'Moderate' : 'Low' };
+        return {
+          barangay,
+          ...v,
+          dominantType,
+          priority: v.high > 0 ? 'High' : v.score >= 4 ? 'Moderate' : 'Low',
+        };
       })
       .sort((a, b) => b.score - a.score || b.incidents - a.incidents)
       .slice(0, 6);
@@ -303,10 +418,13 @@ export default function Analytics() {
 
   const recommendations = useMemo(() => riskData.slice(0, 3).map(item => {
     const resource = item.dominantType === 'Medical' ? 'medical response teams and ambulance support'
-      : item.dominantType === 'Search & Rescue' ? 'search and rescue teams and rescue equipment'
-        : item.dominantType === 'Food & Water' ? 'food, water, and relief supplies'
-          : 'clearing and infrastructure assessment teams';
-    return { ...item, text: `Pre-position ${resource} in ${item.barangay} based on ${item.incidents} recorded incident${item.incidents === 1 ? '' : 's'} and its urgency pattern.` };
+      : item.dominantType === 'Search & Rescue' ? 'search and rescue units with extraction equipment'
+        : item.dominantType === 'Food & Water' ? 'relief food packs and potable water containers'
+          : 'road-clearing crews and structural assessment engineers';
+    return {
+      ...item,
+      text: `Pre-position ${resource} in ${item.barangay} based on ${item.incidents} recorded incident${item.incidents === 1 ? '' : 's'} and elevated urgency pattern.`,
+    };
   }), [riskData]);
 
   // ── Actions ──────────────────────────────────────────────────────────────
@@ -317,7 +435,7 @@ export default function Analytics() {
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'responde-analytics-report.csv';
+    link.download = `responde-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   }, [filtered]);
@@ -327,140 +445,245 @@ export default function Analytics() {
   }, []);
 
   const resetFilters = () => {
-    setBarangayFilter('All'); setTypeFilter('All'); setSourceFilter('All');
-    setFromDate(''); setToDate(''); setActiveBarangay(null); setActiveType(null);
+    setBarangayFilter('All Barangays');
+    setTypeFilter('All Types');
+    setSourceFilter('All Sources');
+    setFromDate('');
+    setToDate('');
+    setActiveBarangay(null);
+    setActiveType(null);
   };
 
-  const hasActiveFilters = barangayFilter !== 'All' || typeFilter !== 'All' || sourceFilter !== 'All' || fromDate || toDate || activeBarangay || activeType;
-
-  // ── Shared select className ───────────────────────────────────────────────
-  const selectCls = "text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#B71C1C]/30 transition-all duration-150 cursor-pointer";
-  const inputCls = "text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#B71C1C]/30 transition-all duration-150";
+  const hasActiveFilters =
+    barangayFilter !== 'All Barangays' ||
+    typeFilter !== 'All Types' ||
+    sourceFilter !== 'All Sources' ||
+    Boolean(fromDate) ||
+    Boolean(toDate) ||
+    Boolean(activeBarangay) ||
+    Boolean(activeType);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <StaggerContainer className="w-full space-y-5 overflow-x-hidden pb-6">
-
-      {/* ── PAGE HEADER ── */}
-      <StaggerItem>
-        <Card className="p-5">
-          {/* Title row */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${RED}18` }}>
-                <BarChart3 className="w-5 h-5" style={{ color: RED }} />
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="w-full space-y-6 pb-8"
+    >
+      {/* ── 1. PAGE HEADER & FILTER BAR (Frosted Glass Specular) ── */}
+      <motion.div variants={itemVariants} className="relative z-50">
+        <AppleCard className="p-5 md:p-6 space-y-5 relative z-50">
+          {/* Title and Primary Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-[#0071E3]/10 dark:bg-[#0071E3]/20 text-[#0071E3] dark:text-sky-400 border border-[#0071E3]/20 shadow-[0_0_16px_rgba(0,113,227,0.15)] flex items-center justify-center shrink-0">
+                <BarChart3 className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">Analytics</h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Incident trends, response patterns, and resource recommendations</p>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                    Analytics
+                  </h1>
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#0071E3]/10 text-[#0071E3] dark:text-blue-400 border border-[#0071E3]/20">
+                    <Sparkles className="w-3 h-3" /> Live Intelligence
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Incident trends, response patterns, and prescriptive resource recommendations
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
               <button
                 onClick={exportCSV}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-150 active:scale-[0.97]"
+                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-200 bg-white/80 dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl shadow-xs transition-all duration-150 active:scale-[0.97]"
               >
-                <Download className="w-4 h-4" /> Export CSV
+                <Download className="w-3.5 h-3.5" />
+                <span>Export CSV</span>
               </button>
               <button
                 onClick={downloadPDF}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl shadow-sm transition-all duration-150 active:scale-[0.97]"
-                style={{ background: RED }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#c62828')}
-                onMouseLeave={e => (e.currentTarget.style.background = RED)}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] rounded-xl shadow-md shadow-blue-500/20 transition-all duration-150 active:scale-[0.97]"
               >
-                <FileText className="w-4 h-4" /> Download PDF
+                <FileText className="w-3.5 h-3.5" />
+                <span>Download PDF</span>
               </button>
             </div>
           </div>
 
-          {/* Filter row */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">From</span>
-              <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className={inputCls} />
+          {/* Filter Bar with DatePicker and FilterDropdown */}
+          <div className="pt-4 border-t border-slate-200/60 dark:border-white/5 flex flex-col xl:flex-row xl:items-center gap-3 relative z-50">
+            <div className="flex flex-wrap items-center gap-2.5 relative z-50">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0 border border-slate-200/50 dark:border-slate-700/50">
+                <Filter className="w-3.5 h-3.5 text-[#0071E3]" />
+                <span>Filters</span>
+              </div>
+
+              {/* Barangay DropDown */}
+              <FilterDropdown
+                value={barangayFilter}
+                options={allBarangays}
+                onChange={(val) => {
+                  setBarangayFilter(val);
+                  setActiveBarangay(null);
+                }}
+              />
+
+              {/* Type DropDown */}
+              <FilterDropdown
+                value={typeFilter}
+                options={allTypes}
+                onChange={(val) => {
+                  setTypeFilter(val);
+                  setActiveType(null);
+                }}
+              />
+
+              {/* Source DropDown */}
+              <FilterDropdown
+                value={sourceFilter}
+                options={allSources}
+                onChange={setSourceFilter}
+              />
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-500 dark:text-slate-400">To</span>
-              <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className={inputCls} />
+
+            {/* Date Pickers */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 xl:ml-auto w-full xl:w-auto relative z-40">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                  From:
+                </span>
+                <DatePicker value={fromDate} onChange={setFromDate} placeholder="Select Date" />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                  To:
+                </span>
+                <DatePicker value={toDate} onChange={setToDate} placeholder="Select Date" />
+              </div>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-xl transition-all duration-150 active:scale-[0.97]"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              )}
             </div>
-
-            <select value={barangayFilter} onChange={e => { setBarangayFilter(e.target.value); setActiveBarangay(null); }} className={selectCls}>
-              {allBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All Barangays' : b}</option>)}
-            </select>
-
-            <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setActiveType(null); }} className={selectCls}>
-              {allTypes.map(t => <option key={t} value={t}>{t === 'All' ? 'All Types' : t}</option>)}
-            </select>
-
-            <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} className={selectCls}>
-              {allSources.map(s => <option key={s} value={s}>{s === 'All' ? 'All Sources' : s}</option>)}
-            </select>
-
-            {hasActiveFilters && (
-              <button
-                onClick={resetFilters}
-                className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 underline transition-colors duration-150"
-              >
-                Clear filters
-              </button>
-            )}
           </div>
-        </Card>
-      </StaggerItem>
+        </AppleCard>
+      </motion.div>
 
-      {/* ── 5-STAT BANNER ── */}
-      <StaggerItem>
+      {/* ── 2. 5-STAT APPLE METRIC CARDS ── */}
+      <motion.div variants={itemVariants} className="relative z-10">
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
           {[
-            { icon: AlertTriangle, bg: 'bg-red-50 dark:bg-red-900/20', fg: 'text-red-600 dark:text-red-400', value: stats.total, label: 'Total Reports' },
-            { icon: TrendingUp, bg: 'bg-orange-50 dark:bg-orange-900/20', fg: 'text-orange-600 dark:text-orange-400', value: stats.high, label: 'High Urgency' },
-            { icon: CheckCircle2, bg: 'bg-emerald-50 dark:bg-emerald-900/20', fg: 'text-emerald-600 dark:text-emerald-400', value: stats.verified, label: 'Verified Reports' },
-            { icon: Clock3, bg: 'bg-blue-50 dark:bg-blue-900/20', fg: 'text-blue-600 dark:text-blue-400', value: stats.resolvedToday, label: 'Resolved Today' },
-            { icon: XCircle, bg: 'bg-slate-50 dark:bg-slate-800', fg: 'text-slate-600 dark:text-slate-400', value: stats.incomplete, label: 'Incomplete' },
-          ].map(({ icon: Icon, bg, fg, value, label }) => (
-            <Card key={label} className="p-5">
-              <div className="flex items-center gap-3">
-                <div className={`w-11 h-11 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
-                  <Icon className={`w-5 h-5 ${fg}`} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-2xl font-bold text-slate-800 dark:text-slate-100 leading-none">{value}</p>
-                  <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 leading-tight">{label}</p>
+            {
+              icon: Layers,
+              bg: 'bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 border-blue-500/20',
+              value: stats.total,
+              label: 'Total Reports',
+              desc: 'Across all streams',
+            },
+            {
+              icon: AlertTriangle,
+              bg: 'bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/20',
+              value: stats.high,
+              label: 'High Urgency',
+              desc: 'Immediate dispatch',
+            },
+            {
+              icon: CheckCircle2,
+              bg: 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+              value: stats.verified,
+              label: 'Verified Reports',
+              desc: 'Confirmed on field',
+            },
+            {
+              icon: Clock3,
+              bg: 'bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-500/20',
+              value: stats.resolvedToday,
+              label: 'Resolved Today',
+              desc: 'Completed actions',
+            },
+            {
+              icon: XCircle,
+              bg: 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/20',
+              value: stats.incomplete,
+              label: 'Pending Review',
+              desc: 'Under triage',
+            },
+          ].map(({ icon: Icon, bg, value, label, desc }) => (
+            <AppleCard
+              key={label}
+              className="p-5 flex flex-col justify-between group hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
+            >
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {label}
+                </p>
+                <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${bg}`}>
+                  <Icon className="w-4 h-4" />
                 </div>
               </div>
-            </Card>
+              <div>
+                <p className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white tabular-nums leading-none">
+                  {value}
+                </p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 font-medium">
+                  {desc}
+                </p>
+              </div>
+            </AppleCard>
           ))}
         </div>
-      </StaggerItem>
+      </motion.div>
 
-      {/* ── ROW: BARANGAY BAR + DONUT ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+      {/* ── 3. ROW: BARANGAY BAR + DONUT ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 relative z-10">
+        {/* Incident Frequency per Barangay */}
+        <motion.div variants={itemVariants} className="h-full">
+          <AppleCard className="p-6 h-full flex flex-col">
+            <SectionHeader
+              icon={MapPin}
+              title="Incident Frequency per Barangay"
+              description="Click any bar to filter all analytics to that specific location"
+              iconColor="#0071E3"
+              badge={
+                activeBarangay ? (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0071E3]/10 text-[#0071E3] dark:text-sky-400 border border-[#0071E3]/20 text-xs font-semibold">
+                    <span>Filtered: {activeBarangay}</span>
+                    <button
+                      onClick={() => setActiveBarangay(null)}
+                      className="hover:opacity-75 transition-opacity"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : null
+              }
+            />
 
-        {/* Incident Frequency per Barangay — vertical bar chart */}
-        <StaggerItem>
-          <Card className="p-6 h-full flex flex-col">
-            <SectionHeader icon={MapPin} title="Incident Frequency per Barangay" description="Click a bar to filter all charts by that barangay" />
-            {activeBarangay && (
-              <div className="mb-3 flex items-center gap-2">
-                <span className="text-xs font-medium text-white px-2.5 py-1 rounded-lg" style={{ background: RED }}>
-                  Filtered: {activeBarangay}
-                </span>
-                <button onClick={() => setActiveBarangay(null)} className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 underline transition-colors">Clear</button>
-              </div>
-            )}
             {barangayChartData.length ? (
-              <div className="w-full flex-1" style={{ minHeight: 260 }}>
+              <div className="w-full flex-1" style={{ minHeight: 280 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barangayChartData} margin={{ top: 5, right: 16, left: -10, bottom: 40 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-slate-200/60 dark:text-slate-700/60" />
+                  <BarChart data={barangayChartData} margin={{ top: 10, right: 16, left: -14, bottom: 44 }}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="currentColor"
+                      className="text-slate-200/50 dark:text-slate-800/60"
+                    />
                     <XAxis
                       dataKey="name"
-                      tick={{ fontSize: 10, fill: '#94a3b8' }}
-                      axisLine={{ stroke: '#94a3b8', strokeOpacity: 0.3 }}
+                      tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      axisLine={{ stroke: '#94a3b8', strokeOpacity: 0.2 }}
                       tickLine={false}
-                      angle={-35}
+                      angle={-30}
                       textAnchor="end"
                       interval={0}
                     />
@@ -470,22 +693,22 @@ export default function Analytics() {
                       axisLine={false}
                       tickLine={false}
                     />
-                    <Tooltip content={<BarangayTooltip />} cursor={{ fill: 'rgba(183,28,28,0.06)' }} />
+                    <Tooltip content={<BarangayTooltip />} cursor={{ fill: 'rgba(0,113,227,0.06)' }} />
                     <Bar
                       dataKey="count"
-                      radius={[4, 4, 0, 0]}
-                      barSize={28}
+                      radius={[6, 6, 0, 0]}
+                      barSize={26}
                       cursor="pointer"
                       onClick={(d: { name?: string }) => {
                         if (!d?.name) return;
-                        setActiveBarangay(prev => prev === d.name ? null : (d.name ?? null));
-                        setBarangayFilter('All');
+                        setActiveBarangay(prev => (prev === d.name ? null : (d.name ?? null)));
+                        setBarangayFilter('All Barangays');
                       }}
                     >
-                      {barangayChartData.map(entry => (
+                      {barangayChartData.map((entry) => (
                         <Cell
                           key={entry.name}
-                          fill={URGENCY_BAR_COLOR[entry.dominantUrgency] ?? RED}
+                          fill={URGENCY_BAR_COLOR[entry.dominantUrgency] ?? ACCENT_BLUE}
                           opacity={activeBarangay && activeBarangay !== entry.name ? 0.35 : 1}
                         />
                       ))}
@@ -494,36 +717,55 @@ export default function Analytics() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <p className="text-sm text-slate-400 py-12 text-center my-auto">No incident data available.</p>
-            )}
-            {/* Urgency color legend */}
-            <div className="flex items-center gap-4 mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60">
-              {Object.entries(URGENCY_BAR_COLOR).map(([level, color]) => (
-                <div key={level} className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: color }} />
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{level}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </StaggerItem>
-
-        {/* Breakdown by Incident Type — donut */}
-        <StaggerItem>
-          <Card className="p-6 h-full flex flex-col">
-            <SectionHeader icon={BarChart3} title="Breakdown by Incident Type" description="Click a segment to filter all charts by that type" />
-            {activeType && (
-              <div className="mb-3 flex items-center gap-2">
-                <span className="text-xs font-medium text-white px-2.5 py-1 rounded-lg" style={{ background: TYPE_CONFIG[activeType]?.color ?? RED }}>
-                  Filtered: {activeType}
-                </span>
-                <button onClick={() => setActiveType(null)} className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 underline transition-colors">Clear</button>
+              <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500 text-xs gap-2 flex-1">
+                <BarChart3 className="w-8 h-8 stroke-[1.5] text-slate-300 dark:text-slate-600" />
+                <span>No incident records match current filters.</span>
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center flex-1">
-              {/* Donut */}
-              <div className="sm:col-span-5 relative flex items-center justify-center" style={{ height: 200 }}>
+            {/* Urgency Color Legend */}
+            <div className="flex items-center justify-between gap-4 mt-4 pt-3.5 border-t border-slate-100 dark:border-white/5">
+              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                Urgency Legend
+              </span>
+              <div className="flex items-center gap-4">
+                {Object.entries(URGENCY_BAR_COLOR).map(([level, color]) => (
+                  <div key={level} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+                    <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">{level}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </AppleCard>
+        </motion.div>
+
+        {/* Breakdown by Incident Type */}
+        <motion.div variants={itemVariants} className="h-full">
+          <AppleCard className="p-6 h-full flex flex-col">
+            <SectionHeader
+              icon={PieChartIcon}
+              title="Breakdown by Incident Type"
+              description="Click any category to filter the entire view by disaster type"
+              iconColor="#8B5CF6"
+              badge={
+                activeType ? (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-xs font-semibold">
+                    <span>Filtered: {activeType}</span>
+                    <button
+                      onClick={() => setActiveType(null)}
+                      className="hover:opacity-75 transition-opacity"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : null
+              }
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center flex-1">
+              {/* Donut Graphic */}
+              <div className="sm:col-span-5 relative flex items-center justify-center" style={{ height: 220 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Tooltip content={<PieTooltip />} />
@@ -531,17 +773,20 @@ export default function Analytics() {
                       data={typeChartData}
                       dataKey="value"
                       nameKey="name"
-                      cx="50%" cy="50%"
-                      innerRadius={52} outerRadius={76}
-                      paddingAngle={3}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={54}
+                      outerRadius={78}
+                      paddingAngle={4}
+                      cornerRadius={4}
                       cursor="pointer"
                       onClick={(d: { name?: string }) => {
                         if (!d?.name) return;
-                        setActiveType(prev => prev === d.name ? null : (d.name ?? null));
-                        setTypeFilter('All');
+                        setActiveType(prev => (prev === d.name ? null : (d.name ?? null)));
+                        setTypeFilter('All Types');
                       }}
                     >
-                      {typeChartData.map(entry => (
+                      {typeChartData.map((entry) => (
                         <Cell
                           key={entry.name}
                           fill={entry.color}
@@ -552,13 +797,17 @@ export default function Analytics() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{stats.total}</span>
-                  <span className="text-[9px] uppercase font-semibold text-slate-400 tracking-widest">Total</span>
+                  <span className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white tabular-nums">
+                    {stats.total}
+                  </span>
+                  <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-widest mt-0.5">
+                    Total
+                  </span>
                 </div>
               </div>
 
-              {/* Legend */}
-              <div className="sm:col-span-7 space-y-2.5">
+              {/* Legend with interactive buttons */}
+              <div className="sm:col-span-7 space-y-2">
                 {['Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure'].map(type => {
                   const c = TYPE_CONFIG[type];
                   const Icon = c.icon;
@@ -568,203 +817,364 @@ export default function Analytics() {
                   return (
                     <button
                       key={type}
-                      onClick={() => { setActiveType(prev => prev === type ? null : type); setTypeFilter('All'); }}
-                      className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all duration-150 text-left active:scale-[0.97] ${isActive ? 'ring-2' : 'ring-0 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}
-                      style={{ '--tw-ring-color': c.color, background: isActive ? `${c.color}12` : undefined } as React.CSSProperties}
+                      type="button"
+                      onClick={() => {
+                        setActiveType(prev => (prev === type ? null : type));
+                        setTypeFilter('All Types');
+                      }}
+                      className={`w-full flex items-center justify-between p-3 rounded-xl transition-all duration-150 text-left active:scale-[0.98] border ${
+                        isActive
+                          ? 'bg-slate-100/90 dark:bg-slate-800/90 border-slate-300 dark:border-slate-600 ring-2'
+                          : 'bg-white/60 dark:bg-slate-800/40 border-slate-200/60 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-800/80'
+                      }`}
+                      style={isActive ? ({ '--tw-ring-color': c.color } as React.CSSProperties) : {}}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${c.color}18` }}>
-                          <Icon className={`w-3.5 h-3.5 ${c.iconClass}`} />
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border"
+                          style={{ background: c.bg, borderColor: `${c.color}25` }}
+                        >
+                          <Icon className={`w-4 h-4 ${c.iconClass}`} />
                         </div>
-                        <span className="text-xs font-medium text-slate-700 dark:text-slate-200">{type}</span>
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                          {type}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{count}</span>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500">({pct}%)</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">
+                          {count}
+                        </span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+                          ({pct}%)
+                        </span>
                       </div>
                     </button>
                   );
                 })}
               </div>
             </div>
-          </Card>
-        </StaggerItem>
+          </AppleCard>
+        </motion.div>
       </div>
 
-      {/* ── VOLUME LINE CHART ── */}
-      <StaggerItem>
-        <Card className="p-6">
-          <div className="flex items-start justify-between gap-4 mb-5">
-            <SectionHeader icon={TrendingUp} title="Incident Volume Over Time" description="Daily incident submission count" />
-            {/* Range toggle */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 shrink-0">
-              {(['7d', '30d', '3m'] as const).map(r => (
-                <button
-                  key={r}
-                  onClick={() => setVolumeRange(r)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 active:scale-[0.97] ${volumeRange === r ? 'text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                  style={volumeRange === r ? { background: RED } : {}}
-                >
-                  {r === '7d' ? 'Last 7 Days' : r === '30d' ? 'Last 30 Days' : 'Last 3 Months'}
-                </button>
-              ))}
-            </div>
-          </div>
-          {volumeChartData.length ? (
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={volumeChartData} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="redGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={RED} stopOpacity={0.25} />
-                      <stop offset="95%" stopColor={RED} stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-slate-200/60 dark:text-slate-700/60" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={{ stroke: '#94a3b8', strokeOpacity: 0.3 }} tickLine={false} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<VolumeTooltip />} />
-                  <Line
-                    type="monotone"
-                    dataKey="count"
-                    stroke={RED}
-                    strokeWidth={2.5}
-                    dot={{ r: 4, fill: RED, strokeWidth: 2, stroke: '#fff' }}
-                    activeDot={{ r: 6, fill: RED_LIGHT, stroke: '#fff', strokeWidth: 2 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <p className="text-sm text-slate-400 py-10 text-center">No time-series data for the selected range.</p>
-          )}
-        </Card>
-      </StaggerItem>
+      {/* ── 4. INCIDENT VOLUME TIME-SERIES (Area Curve with Apple Sliding Pill) ── */}
+      <motion.div variants={itemVariants} className="relative z-10">
+        <AppleCard className="p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <SectionHeader
+              icon={TrendingUp}
+              title="Incident Volume Over Time"
+              description="Daily incident intake volume and rate of submissions"
+              iconColor="#0071E3"
+            />
 
-      {/* ── SOURCE BREAKDOWN ── */}
-      <StaggerItem>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {[
-            {
-              icon: Bot,
-              label: 'Bot Reports',
-              count: stats.bot,
-              desc: 'Submitted via Messenger chatbot',
-              bg: 'bg-violet-50 dark:bg-violet-900/20',
-              fg: 'text-violet-600 dark:text-violet-400',
-              ring: '#7c3aed',
-            },
-            {
-              icon: Globe2,
-              label: 'Scraper Reports',
-              count: stats.scraper,
-              desc: 'Collected from social media feeds',
-              bg: 'bg-sky-50 dark:bg-sky-900/20',
-              fg: 'text-sky-600 dark:text-sky-400',
-              ring: '#0284c7',
-            },
-          ].map(({ icon: Icon, label, count, desc, bg, fg, ring }) => {
-            const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
-            return (
-              <Card key={label} className="p-6 flex items-center gap-5">
-                <div className={`w-14 h-14 rounded-2xl ${bg} flex items-center justify-center shrink-0`}>
-                  <Icon className={`w-7 h-7 ${fg}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{label}</p>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-bold text-slate-800 dark:text-slate-100">{count}</span>
-                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{pct}% of total</span>
-                  </div>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{desc}</p>
-                  {/* Progress bar */}
-                  <div className="mt-3 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: ring }} />
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      </StaggerItem>
-
-      {/* ── HIGH-RISK TABLE + RESPONSE TIME ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-        <StaggerItem className="xl:col-span-2">
-          <Card className="p-6 h-full">
-            <SectionHeader icon={Clock3} title="Avg. Response Time per Barangay" description="Based on verified reports" />
-            <div className="space-y-2.5">
-              {riskData.map(item => {
-                const times = data.filter(r => r.barangay === item.barangay).map(responseMinutes).filter((v): v is number => v !== null);
-                const avg = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null;
+            {/* Apple Sliding Pill Segmented Control */}
+            <div className="flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-xl shrink-0 border border-slate-200/50 dark:border-white/5 self-start sm:self-auto">
+              {(['7d', '30d', '3m'] as const).map((r) => {
+                const isActive = volumeRange === r;
                 return (
-                  <div key={item.barangay} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{item.barangay}</span>
-                    </div>
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200 shrink-0 ml-2">{avg !== null ? `${avg}m` : '—'}</span>
-                  </div>
+                  <button
+                    key={r}
+                    onClick={() => setVolumeRange(r)}
+                    className={`relative px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors duration-200 active:scale-[0.97] ${
+                      isActive
+                        ? 'text-white'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="volumeRangePill"
+                        className="absolute inset-0 bg-[#0071E3] rounded-lg shadow-sm"
+                        transition={APPLE_SPRING}
+                      />
+                    )}
+                    <span className="relative z-10">
+                      {r === '7d' ? 'Last 7 Days' : r === '30d' ? 'Last 30 Days' : 'Last 3 Months'}
+                    </span>
+                  </button>
                 );
               })}
             </div>
-          </Card>
-        </StaggerItem>
+          </div>
 
-        <StaggerItem className="xl:col-span-3">
-          <Card className="p-6 h-full">
-            <SectionHeader icon={AlertTriangle} title="High-Risk Barangays" description="Priority ranking by volume and urgency" />
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px]">
+          {volumeChartData.length ? (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={volumeChartData} margin={{ top: 12, right: 12, left: -24, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="appleBlueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0071E3" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#0071E3" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="currentColor"
+                    className="text-slate-200/50 dark:text-slate-800/60"
+                  />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 11, fill: '#94a3b8' }}
+                    axisLine={{ stroke: '#94a3b8', strokeOpacity: 0.2 }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fontSize: 11, fill: '#94a3b8' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip content={<VolumeTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#0071E3"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#appleBlueGradient)"
+                    dot={{ r: 3.5, fill: '#0071E3', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 6, fill: '#0071E3', stroke: '#fff', strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500 text-xs gap-2">
+              <TrendingUp className="w-8 h-8 stroke-[1.5] text-slate-300 dark:text-slate-600" />
+              <span>No time-series reports recorded for the chosen timeframe.</span>
+            </div>
+          )}
+        </AppleCard>
+      </motion.div>
+
+      {/* ── 5. SOURCE CHANNELS BREAKDOWN ── */}
+      <motion.div variants={itemVariants} className="relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {[
+            {
+              icon: Bot,
+              label: 'Messenger Chatbot',
+              count: stats.bot,
+              desc: 'Direct citizen conversational submissions',
+              bg: 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
+              gradient: 'from-blue-600 to-indigo-600',
+            },
+            {
+              icon: Globe2,
+              label: 'Social Media Scraper',
+              count: stats.scraper,
+              desc: 'AI-mined community social feeds and groups',
+              bg: 'bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-500/20',
+              gradient: 'from-sky-500 to-blue-600',
+            },
+          ].map(({ icon: Icon, label, count, desc, bg, gradient }) => {
+            const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+            return (
+              <AppleCard key={label} className="p-6 flex items-center gap-5">
+                <div className={`w-14 h-14 rounded-2xl border flex items-center justify-center shrink-0 ${bg}`}>
+                  <Icon className="w-7 h-7" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    {label}
+                  </p>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white tabular-nums">
+                      {count}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      {pct}% of total intake
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">{desc}</p>
+                  {/* Apple Smooth Progress Bar */}
+                  <div className="mt-3.5 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                      className={`h-full rounded-full bg-gradient-to-r ${gradient}`}
+                    />
+                  </div>
+                </div>
+              </AppleCard>
+            );
+          })}
+        </div>
+      </motion.div>
+
+      {/* ── 6. HIGH-RISK RANKINGS & AVERAGE RESPONSE TIME ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 relative z-10">
+        {/* Average Response Time per Barangay */}
+        <motion.div variants={itemVariants} className="xl:col-span-2">
+          <AppleCard className="p-6 h-full flex flex-col justify-between">
+            <div>
+              <SectionHeader
+                icon={Clock3}
+                title="Response Time Benchmark"
+                description="Average verification latency per community"
+                iconColor="#0EA5E9"
+              />
+              <div className="space-y-2.5 mt-2">
+                {riskData.map((item) => {
+                  const times = data
+                    .filter((r) => r.barangay === item.barangay)
+                    .map(responseMinutes)
+                    .filter((v): v is number => v !== null);
+                  const avg = times.length
+                    ? Math.round(times.reduce((a, b) => a + b, 0) / times.length)
+                    : null;
+                  return (
+                    <div
+                      key={item.barangay}
+                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-white/5 transition-all hover:bg-slate-100/60 dark:hover:bg-slate-800/60"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                          {item.barangay}
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white tabular-nums shrink-0 ml-2">
+                        {avg !== null ? `${avg} min` : '—'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 text-[11px] text-slate-400 dark:text-slate-500">
+              *Calculated from submission timestamp to field verification stamp.
+            </div>
+          </AppleCard>
+        </motion.div>
+
+        {/* High-Risk Priority Table */}
+        <motion.div variants={itemVariants} className="xl:col-span-3">
+          <AppleCard className="p-6 h-full flex flex-col">
+            <SectionHeader
+              icon={AlertTriangle}
+              title="High-Risk Barangays"
+              description="Priority ranking determined by cumulative volume & urgency score"
+              iconColor="#DC2626"
+            />
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full min-w-[500px]">
                 <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-700">
-                    {['Barangay', 'Reports', 'High', 'Priority', 'Dominant Need'].map((h, i) => (
-                      <th key={h} className={`${i === 0 || i === 4 ? 'text-left' : 'text-center'} py-2.5 px-2 text-[10px] uppercase tracking-wider font-semibold text-slate-400`}>{h}</th>
+                  <tr className="border-b border-slate-200/60 dark:border-slate-800/80">
+                    {['Barangay', 'Reports', 'High Urgency', 'Priority', 'Dominant Need'].map((h, i) => (
+                      <th
+                        key={h}
+                        className={`${
+                          i === 0 || i === 4 ? 'text-left' : 'text-center'
+                        } py-3 px-2 text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500`}
+                      >
+                        {h}
+                      </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody>
-                  {riskData.map(item => (
-                    <tr key={item.barangay} className="border-b last:border-0 border-slate-50 dark:border-slate-700/40 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors duration-150">
-                      <td className="py-3 px-2 text-sm font-semibold text-slate-700 dark:text-slate-200">{item.barangay}</td>
-                      <td className="py-3 px-2 text-center text-sm text-slate-600 dark:text-slate-300">{item.incidents}</td>
-                      <td className="py-3 px-2 text-center text-sm font-semibold" style={{ color: RED }}>{item.high}</td>
-                      <td className="py-3 px-2 text-center">
-                        <span className={`inline-flex px-2.5 py-1 rounded-full border text-[10px] font-semibold ${URGENCY_CLASS[item.priority]}`}>{item.priority}</span>
+                <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                  {riskData.map((item) => (
+                    <tr
+                      key={item.barangay}
+                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors duration-150"
+                    >
+                      <td className="py-3 px-2 text-xs font-semibold text-slate-900 dark:text-slate-100">
+                        {item.barangay}
                       </td>
-                      <td className="py-3 px-2 text-xs text-slate-500 dark:text-slate-400">{item.dominantType}</td>
+                      <td className="py-3 px-2 text-center text-xs text-slate-600 dark:text-slate-300 tabular-nums">
+                        {item.incidents}
+                      </td>
+                      <td className="py-3 px-2 text-center text-xs font-bold text-rose-600 dark:text-rose-400 tabular-nums">
+                        {item.high}
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[10px] font-semibold ${
+                            URGENCY_CLASS[item.priority]
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              item.priority === 'High'
+                                ? 'bg-rose-500'
+                                : item.priority === 'Moderate'
+                                ? 'bg-amber-500'
+                                : 'bg-emerald-500'
+                            }`}
+                          />
+                          {item.priority}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-xs text-slate-600 dark:text-slate-400 font-medium">
+                        {item.dominantType}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </Card>
-        </StaggerItem>
+          </AppleCard>
+        </motion.div>
       </div>
 
-      {/* ── PRESCRIPTIVE RECOMMENDATIONS ── */}
-      <StaggerItem>
-        <Card className="p-6">
-          <SectionHeader icon={Lightbulb} title="Recommended Resources" description="Prescriptive recommendations based on incident severity, location, and type" />
+      {/* ── 7. PRESCRIPTIVE RECOMMENDATIONS ── */}
+      <motion.div variants={itemVariants} className="relative z-10">
+        <AppleCard className="p-6">
+          <SectionHeader
+            icon={Lightbulb}
+            title="Prescriptive Action Recommendations"
+            description="Automated resource pre-positioning intelligence based on real-time incident density"
+            iconColor="#F59E0B"
+          />
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {recommendations.map(item => (
-              <div key={item.barangay} className="rounded-xl border border-slate-200 dark:border-slate-700/60 p-4 bg-slate-50/60 dark:bg-slate-900/20">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <MapPin className="w-4 h-4 shrink-0" style={{ color: RED }} />
-                    <span className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">{item.barangay}</span>
+            {recommendations.map((item) => (
+              <div
+                key={item.barangay}
+                className="rounded-2xl border border-slate-200/70 dark:border-white/10 p-5 bg-white/40 dark:bg-slate-850/40 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <MapPin className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" />
+                      <span className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                        {item.barangay}
+                      </span>
+                    </div>
+                    <span
+                      className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[10px] font-semibold ${
+                        URGENCY_CLASS[item.priority]
+                      }`}
+                    >
+                      {item.priority} Urgency
+                    </span>
                   </div>
-                  <span className={`shrink-0 inline-flex px-2 py-0.5 rounded-full border text-[10px] font-semibold ${URGENCY_CLASS[item.priority]}`}>{item.priority}</span>
+                  <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                    {item.text}
+                  </p>
                 </div>
-                <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{item.text}</p>
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[11px] text-slate-400">
+                  <span className="font-medium text-slate-500 dark:text-slate-400">
+                    Dominant: {item.dominantType}
+                  </span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300">
+                    {item.incidents} events
+                  </span>
+                </div>
               </div>
             ))}
             {!recommendations.length && (
-              <div className="lg:col-span-3 text-center py-8 text-sm text-slate-400">Recommendations will appear when incident data is available.</div>
+              <div className="lg:col-span-3 text-center py-10 text-xs text-slate-400">
+                Prescriptive dispatch recommendations will populate dynamically as reports are verified.
+              </div>
             )}
           </div>
-        </Card>
-      </StaggerItem>
-    </StaggerContainer>
+        </AppleCard>
+      </motion.div>
+    </motion.div>
   );
 }

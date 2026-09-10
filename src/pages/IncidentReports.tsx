@@ -63,10 +63,12 @@ const sampleReports: Report[] = [
   { id: '035', barangay: 'San Isidro', type: 'Food & Water', urgency: 'Low', source: 'Scraper', time: '10/24 15:15', status: 'pending', description: 'Request for hygiene kits and potable water for 30 families.', originalText: 'Kailangan ng hygiene kits at tubig para sa 30 pamilya.', reporter: 'Roberto Garcia', contact: '0936-444-5557', coordinates: '14.0925, 121.0245', landmark: 'San Isidro tent area', verifiedBy: null, verifiedAt: null, rejectionReason: null, possibleDuplicateOf: null },
 ];
 
-// ── Skill: Strong ease-out for UI interactions ──
+// ── Apple Design Spring Physics & Ease curves ──
+const APPLE_SPRING = { type: 'spring', stiffness: 400, damping: 32 } as const;
+const APPLE_SLIDE_SPRING = { type: 'spring', stiffness: 450, damping: 35 } as const;
 const EASE_OUT = [0.23, 1, 0.32, 1] as const;
 
-// ── Animation presets (skill-tuned) ──
+// ── Animation presets (Apple HIG & Emil Kowalski craft bar) ──
 const backdropVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1 },
@@ -74,16 +76,16 @@ const backdropVariants = {
 };
 
 const modalVariants = {
-  hidden: { opacity: 0, scale: 0.96, y: 20 },
+  hidden: { opacity: 0, scale: 0.96, y: 16 },
   visible: { opacity: 1, scale: 1, y: 0 },
-  exit: { opacity: 0, scale: 0.96, y: 20 },
+  exit: { opacity: 0, scale: 0.96, y: 16 },
 };
 
-// ── Skill: bulk bar uses transform + opacity only, no height ──
+// ── Bulk bar: hardware-accelerated transform + opacity only ──
 const barActionVariants = {
-  hidden: { opacity: 0, y: -8, scale: 0.97 },
+  hidden: { opacity: 0, y: -8, scale: 0.98 },
   visible: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: -8, scale: 0.97 },
+  exit: { opacity: 0, y: -8, scale: 0.98 },
 };
 
 // ── Shake animation for validation errors ──
@@ -101,7 +103,7 @@ interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
-// ── Pagination Component ──
+// ── Pagination Component (Apple Pager Style) ──
 function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void }) {
   const getPages = () => {
     const pages: (number | string)[] = [];
@@ -122,44 +124,49 @@ function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: nu
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-center gap-2 py-2 shrink-0">
+    <div className="flex items-center justify-center gap-1.5 py-3 shrink-0">
       <button
+        type="button"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors bg-white dark:bg-slate-800 active:scale-[0.97] duration-150"
+        className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all bg-white/80 dark:bg-slate-800/80 backdrop-blur-md active:scale-[0.96] shadow-2xs"
       >
-        <ChevronLeft className="w-4 h-4" /> Previous
+        <ChevronLeft className="w-3.5 h-3.5" /> Previous
       </button>
 
-      {getPages().map((page, i) =>
-        page === '...' ? (
-          <span key={`dots-${i}`} className="w-8 h-8 flex items-center justify-center text-sm text-slate-400 dark:text-slate-500">...</span>
-        ) : (
-          <button
-            key={page}
-            onClick={() => onPageChange(page as number)}
-            className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors active:scale-[0.97] duration-150 ${currentPage === page
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 bg-white dark:bg-slate-800'
-              }`}
-          >
-            {page}
-          </button>
-        )
-      )}
+      <div className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-md">
+        {getPages().map((page, i) =>
+          page === '...' ? (
+            <span key={`dots-${i}`} className="w-7 h-7 flex items-center justify-center text-xs text-slate-400 dark:text-slate-500">...</span>
+          ) : (
+            <button
+              key={page}
+              type="button"
+              onClick={() => onPageChange(page as number)}
+              className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-semibold transition-all active:scale-[0.94] ${currentPage === page
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+            >
+              {page}
+            </button>
+          )
+        )}
+      </div>
 
       <button
+        type="button"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors bg-white dark:bg-slate-800 active:scale-[0.97] duration-150"
+        className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all bg-white/80 dark:bg-slate-800/80 backdrop-blur-md active:scale-[0.96] shadow-2xs"
       >
-        Next <ChevronRight className="w-4 h-4" />
+        Next <ChevronRight className="w-3.5 h-3.5" />
       </button>
     </div>
   );
 }
 
-// ── Toast Item Component ──
+// ── Toast Item Component (Apple Floating Notification) ──
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
   useEffect(() => {
     const timer = setTimeout(() => onDismiss(toast.id), 3500);
@@ -172,27 +179,28 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
       ? <AlertOctagon className="w-4 h-4 text-red-500" />
       : <AlertTriangle className="w-4 h-4 text-blue-500" />;
 
-  const bgClass = toast.type === 'success'
-    ? 'bg-white dark:bg-slate-800 border-emerald-200 dark:border-emerald-800'
+  const borderTint = toast.type === 'success'
+    ? 'border-emerald-500/20'
     : toast.type === 'error'
-      ? 'bg-white dark:bg-slate-800 border-red-200 dark:border-red-800'
-      : 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800';
+      ? 'border-red-500/20'
+      : 'border-blue-500/20';
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 60, scale: 0.95 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 40, scale: 0.95 }}
-      transition={{ duration: 0.35, ease: EASE_OUT }}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg ${bgClass} min-w-[280px] max-w-[380px]`}
+      initial={{ opacity: 0, y: -16, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -10, scale: 0.96 }}
+      transition={APPLE_SPRING}
+      className={`flex items-center gap-3 px-4 py-3 rounded-2xl border ${borderTint} shadow-[0_10px_30px_rgba(0,0,0,0.12)] bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl min-w-[280px] max-w-[380px]`}
     >
       {icon}
-      <span className="text-sm font-medium text-slate-700 dark:text-slate-200 flex-1">{toast.message}</span>
+      <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 flex-1 leading-snug">{toast.message}</span>
       <button
+        type="button"
         onClick={() => onDismiss(toast.id)}
-        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors active:scale-90 duration-100"
+        className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-90"
       >
-        <X className="w-4 h-4" />
+        <X className="w-3.5 h-3.5" />
       </button>
     </motion.div>
   );
@@ -396,10 +404,14 @@ export default function IncidentReports() {
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
-      case 'High': return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
-      case 'Moderate': return 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800';
-      case 'Low': return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600';
-      default: return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600';
+      case 'High':
+        return 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20';
+      case 'Moderate':
+        return 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20';
+      case 'Low':
+        return 'bg-slate-500/10 text-slate-600 dark:text-slate-300 border-slate-500/20';
+      default:
+        return 'bg-slate-500/10 text-slate-600 dark:text-slate-300 border-slate-500/20';
     }
   };
 
@@ -415,11 +427,16 @@ export default function IncidentReports() {
 
   const getStatusColor = (status: ReportStatus) => {
     switch (status) {
-      case 'pending': return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
-      case 'under_review': return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800';
-      case 'verified': return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800';
-      case 'resolved': return 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600';
-      case 'rejected': return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
+      case 'pending':
+        return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20';
+      case 'under_review':
+        return 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20';
+      case 'verified':
+        return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20';
+      case 'resolved':
+        return 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20';
+      case 'rejected':
+        return 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20';
     }
   };
 
@@ -457,32 +474,51 @@ export default function IncidentReports() {
         </AnimatePresence>
       </div>
 
-      {/* Tabs — Skill: no animation on high-frequency tabs */}
-      <div className="flex items-center gap-2 shrink-0 flex-wrap">
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors active:scale-[0.97] duration-150 ${activeTab === tab.key
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+      {/* Tabs — Apple macOS Segmented Control */}
+      <div className="p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 inline-flex items-center gap-1 shrink-0 self-start shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`relative px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors duration-150 flex items-center gap-2 select-none active:scale-[0.98] ${
+                isActive
+                  ? 'text-slate-900 dark:text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
-          >
-            {tab.label}
-            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-              }`}>
-              {tab.count}
-            </span>
-          </button>
-        ))}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="activeTabPill"
+                  transition={APPLE_SLIDE_SPRING}
+                  className="absolute inset-0 bg-white dark:bg-slate-700/90 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] border border-black/[0.04] dark:border-white/10"
+                />
+              )}
+              <span className="relative z-10">{tab.label}</span>
+              <span
+                className={`relative z-10 text-[11px] font-bold px-2 py-0.5 rounded-full transition-colors ${
+                  isActive
+                    ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+                    : 'bg-slate-300/60 dark:bg-slate-700/60 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Filter Bar */}
-      <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-4 shrink-0">
+      {/* Filter Bar — Apple Frosted Glass Toolbar */}
+      <div className="relative z-30 backdrop-blur-xl bg-white/80 dark:bg-[#111827]/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-4 shrink-0 border-t border-t-white/80 dark:border-t-white/10">
         <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm shrink-0">
-            <Filter className="w-4 h-4" />
-            <span className="font-medium">Filter</span>
+          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 text-xs font-semibold shrink-0 uppercase tracking-wider">
+            <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
+              <Filter className="w-3.5 h-3.5" />
+            </div>
+            <span>Filters</span>
           </div>
 
           <FilterDropdown
@@ -505,18 +541,18 @@ export default function IncidentReports() {
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 lg:ml-auto w-full lg:w-auto">
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">From:</span>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">From:</span>
               <DatePicker value={fromDate} onChange={setFromDate} placeholder="Select Date" />
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">To:</span>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">To:</span>
               <DatePicker value={toDate} onChange={setToDate} placeholder="Select Date" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bulk Actions — Skill: transform + opacity only, no height */}
+      {/* Bulk Actions — Apple Floating Island */}
       <AnimatePresence mode="wait">
         {selectedIds.length > 0 && (
           <motion.div
@@ -525,33 +561,36 @@ export default function IncidentReports() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            transition={{ duration: 0.25, ease: EASE_OUT }}
-            className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 shrink-0"
+            transition={APPLE_SPRING}
+            className="relative z-20 flex items-center justify-between gap-3 bg-blue-50/90 dark:bg-blue-950/40 backdrop-blur-md border border-blue-200/80 dark:border-blue-800/60 rounded-2xl px-5 py-3 shrink-0 shadow-sm"
           >
-            <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
-              {selectedIds.length} selected
+            <span className="text-xs font-semibold text-blue-800 dark:text-blue-300">
+              {selectedIds.length} report{selectedIds.length > 1 ? 's' : ''} selected
             </span>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="flex items-center gap-2">
               {activeTab === 'pending' && (
                 <button
+                  type="button"
                   onClick={handleBulkStartReview}
-                  className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5 active:scale-[0.97] duration-150"
+                  className="px-3.5 py-1.5 text-xs font-semibold text-amber-700 bg-white dark:bg-slate-800 border border-amber-200/80 dark:border-amber-700/80 dark:text-amber-300 rounded-xl hover:bg-amber-50 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs"
                 >
                   <Eye className="w-3.5 h-3.5" /> Start Review
                 </button>
               )}
               {activeTab === 'verified' && (
                 <button
+                  type="button"
                   onClick={handleBulkResolve}
-                  className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5 active:scale-[0.97] duration-150"
+                  className="px-3.5 py-1.5 text-xs font-semibold text-emerald-700 bg-white dark:bg-slate-800 border border-emerald-200/80 dark:border-emerald-700/80 dark:text-emerald-300 rounded-xl hover:bg-emerald-50 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" /> Mark Resolved
                 </button>
               )}
               {activeTab === 'rejected' && (
                 <button
+                  type="button"
                   onClick={handleBulkRestore}
-                  className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5 active:scale-[0.97] duration-150"
+                  className="px-3.5 py-1.5 text-xs font-semibold text-blue-700 bg-white dark:bg-slate-800 border border-blue-200/80 dark:border-blue-700/80 dark:text-blue-300 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs"
                 >
                   <RotateCcw className="w-3.5 h-3.5" /> Restore to Pending
                 </button>
@@ -561,36 +600,36 @@ export default function IncidentReports() {
         )}
       </AnimatePresence>
 
-      {/* Table */}
-      <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] overflow-hidden flex flex-col flex-1 min-h-0">
+      {/* Table — Apple Pro Data Table */}
+      <div className="relative z-10 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col flex-1 min-h-0">
         <div className="overflow-auto flex-1">
           <table className="w-full min-w-[800px] text-sm text-left">
-            <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+            <thead className="bg-slate-50/90 dark:bg-slate-800/60 backdrop-blur-md border-b border-slate-200/70 dark:border-slate-800 sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-3 w-10">
+                <th className="px-4 py-3.5 w-10">
                   <input
                     type="checkbox"
                     checked={paginatedReports.length > 0 && paginatedReports.every(r => selectedIds.includes(r.id))}
                     onChange={toggleSelectAll}
-                    className="rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
+                    className="rounded-md border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer transition-all"
                   />
                 </th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">ID</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Barangay</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Type</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Urgency</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Source</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Time</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200 text-right">Action</th>
+                <th className="px-4 py-3.5 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">ID</th>
+                <th className="px-4 py-3.5 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Barangay</th>
+                <th className="px-4 py-3.5 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Type</th>
+                <th className="px-4 py-3.5 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Urgency</th>
+                <th className="px-4 py-3.5 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Status</th>
+                <th className="px-4 py-3.5 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Source</th>
+                <th className="px-4 py-3.5 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Time</th>
+                <th className="px-4 py-3.5 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
               {paginatedReports.length === 0 ? (
                 <tr className="h-full">
                   <td colSpan={9} className="h-full px-4 text-center text-slate-400 dark:text-slate-500 align-middle">
                     <div className="flex flex-col items-center justify-center py-20">
-                      <span className="text-sm">No reports found.</span>
+                      <span className="text-sm font-medium">No reports found.</span>
                     </div>
                   </td>
                 </tr>
@@ -598,54 +637,74 @@ export default function IncidentReports() {
                 paginatedReports.map((report, index) => (
                   <motion.tr
                     key={report.id}
-                    initial={{ opacity: 0, y: 8 }}
+                    initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{
-                      duration: 0.3,
+                      duration: 0.25,
                       ease: EASE_OUT,
-                      delay: index * 0.05,
+                      delay: Math.min(index * 0.025, 0.2),
                     }}
-                    className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors ${report.status === 'pending' ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''
-                      }`}
+                    className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors border-b border-slate-100 dark:border-slate-800/80 group ${
+                      selectedIds.includes(report.id)
+                        ? 'bg-blue-50/40 dark:bg-blue-900/15'
+                        : report.status === 'pending'
+                        ? 'bg-blue-50/20 dark:bg-blue-900/5'
+                        : ''
+                    }`}
                   >
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5">
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(report.id)}
                         onChange={() => toggleSelect(report.id)}
-                        className="rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
+                        className="rounded-md border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer transition-all"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2">
                         {report.status === 'pending' && (
-                          <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 animate-pulse" title="Pending" />
+                          <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 ring-4 ring-blue-500/20 animate-pulse" title="Pending" />
                         )}
-                        <span className="font-mono text-slate-600 dark:text-slate-400">#{report.id}</span>
+                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700">
+                          #{report.id}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200 whitespace-nowrap">{report.barangay}</td>
-                    <td className={`px-4 py-3 whitespace-nowrap font-medium ${getTypeColor(report.type)}`}>
-                      {report.type}
+                    <td className="px-4 py-3.5 text-slate-900 dark:text-slate-100 font-medium whitespace-nowrap">
+                      {report.barangay}
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(report.urgency)}`}>
+                    <td className={`px-4 py-3.5 whitespace-nowrap font-medium text-xs ${getTypeColor(report.type)}`}>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                        {report.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getUrgencyColor(report.urgency)}`}>
                         {report.urgency}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(report.status)}`}>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusColor(report.status)}`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
                         {getStatusLabel(report.status)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{report.source}</td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">{report.time}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5 text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">
+                        {report.source}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap font-mono">
+                      {report.time}
+                    </td>
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
                         {(report.status === 'pending' || report.status === 'under_review') && (
                           <button
+                            type="button"
                             onClick={() => openReview(report)}
-                            className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-lg transition-colors flex items-center gap-1 active:scale-[0.97] duration-150"
+                            className="px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs"
                           >
                             <ShieldCheck className="w-3.5 h-3.5" /> Review
                           </button>
@@ -654,14 +713,16 @@ export default function IncidentReports() {
                         {report.status === 'verified' && (
                           <>
                             <button
+                              type="button"
                               onClick={() => openReview(report)}
-                              className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center gap-1 active:scale-[0.97] duration-150"
+                              className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-slate-700 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs"
                             >
                               <Eye className="w-3.5 h-3.5" /> View
                             </button>
                             <button
+                              type="button"
                               onClick={() => navigate(`/geospatial?focus=${report.id}`)}
-                              className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/30 rounded-lg transition-colors flex items-center gap-1 active:scale-[0.97] duration-150"
+                              className="px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs"
                             >
                               <MapPinned className="w-3.5 h-3.5" /> Map
                             </button>
@@ -670,8 +731,9 @@ export default function IncidentReports() {
 
                         {(report.status === 'resolved' || report.status === 'rejected') && (
                           <button
+                            type="button"
                             onClick={() => openReview(report)}
-                            className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-1 active:scale-[0.97] duration-150"
+                            className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-slate-700 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs"
                           >
                             <Eye className="w-3.5 h-3.5" /> View
                           </button>
@@ -679,8 +741,9 @@ export default function IncidentReports() {
 
                         {report.status === 'rejected' && (
                           <button
+                            type="button"
                             onClick={() => handleRestore(report.id)}
-                            className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center gap-1 active:scale-[0.97] duration-150"
+                            className="px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs"
                           >
                             <RotateCcw className="w-3.5 h-3.5" /> Restore
                           </button>
@@ -701,7 +764,7 @@ export default function IncidentReports() {
         onPageChange={setCurrentPage}
       />
 
-      {/* Review & Verify Modal */}
+      {/* Review & Verify Modal — Apple macOS Pro Sheet */}
       <AnimatePresence>
         {reviewingReport && editForm && (
           <motion.div
@@ -711,7 +774,7 @@ export default function IncidentReports() {
             animate="visible"
             exit="exit"
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 bg-black/40 backdrop-blur-md"
             onClick={closeReview}
           >
             <motion.div
@@ -719,79 +782,83 @@ export default function IncidentReports() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              transition={{ duration: 0.25, ease: EASE_OUT }}
-              className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col"
+              transition={APPLE_SPRING}
+              className="bg-white/95 dark:bg-[#111827]/95 backdrop-blur-2xl rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] w-full max-w-3xl max-h-[88vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 bg-white dark:bg-[#111827] shrink-0 rounded-t-2xl z-10">
+              <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-100 dark:border-slate-800/80 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md shrink-0 rounded-t-3xl z-10">
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{reviewingReport.id}</span>
-                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(reviewingReport.status)}`}>
+                  <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700">
+                    #{reviewingReport.id}
+                  </span>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(reviewingReport.status)}`}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
                     {getStatusLabel(reviewingReport.status)}
                   </span>
                   {reviewingReport.possibleDuplicateOf && (
-                    <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
-                      <AlertTriangle className="w-3 h-3" /> Dup #{reviewingReport.possibleDuplicateOf}
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                      <AlertTriangle className="w-3 h-3" /> Duplicate #{reviewingReport.possibleDuplicateOf}
                     </span>
                   )}
                 </div>
                 <button
+                  type="button"
                   onClick={closeReview}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors active:scale-90 duration-100"
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all active:scale-90"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
               {/* Body */}
-              <div className="px-6 py-5 space-y-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 140px)' }}>
+              <div className="px-6 py-5 space-y-6 overflow-y-auto" style={{ maxHeight: 'calc(88vh - 140px)' }}>
                 <StaggerContainer className="space-y-6">
                   <StaggerItem>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {/* LEFT: Original Report */}
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          <FileText className="w-4 h-4" /> Original Report
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          <FileText className="w-3.5 h-3.5" /> Original Report
                         </div>
 
-                        <div className="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 border border-slate-100 dark:border-slate-700 space-y-3">
+                        <div className="bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl p-4.5 border border-slate-200/60 dark:border-slate-700/60 space-y-3.5">
                           <p className="text-sm text-slate-700 dark:text-slate-200 italic leading-relaxed">
                             &quot;{reviewingReport.originalText}&quot;
                           </p>
-                          <div className="pt-3 border-t border-slate-200 dark:border-slate-600 space-y-2">
-                            <div className="flex items-center gap-2 text-xs">
+                          <div className="pt-3 border-t border-slate-200/60 dark:border-slate-700/60 grid grid-cols-2 gap-2.5 text-xs">
+                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                               <User className="w-3.5 h-3.5 text-slate-400" />
-                              <span className="text-slate-600 dark:text-slate-300">{reviewingReport.reporter}</span>
+                              <span className="truncate">{reviewingReport.reporter}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs">
+                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                               <Phone className="w-3.5 h-3.5 text-slate-400" />
-                              <span className="text-slate-600 dark:text-slate-300">{reviewingReport.contact}</span>
+                              <span className="truncate">{reviewingReport.contact}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs">
+                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                               <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
-                              <span className="text-slate-600 dark:text-slate-300">{reviewingReport.source}</span>
+                              <span className="truncate">{reviewingReport.source}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs">
+                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                               <Clock className="w-3.5 h-3.5 text-slate-400" />
-                              <span className="text-slate-600 dark:text-slate-300">{reviewingReport.time}</span>
+                              <span className="truncate">{reviewingReport.time}</span>
                             </div>
                           </div>
                         </div>
 
                         {reviewingReport.verifiedBy && (
-                          <div className="bg-emerald-50 dark:bg-emerald-900/10 rounded-xl p-3 border border-emerald-200 dark:border-emerald-800">
-                            <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                              <CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />
+                          <div className="bg-emerald-500/10 rounded-xl p-3 border border-emerald-500/20">
+                            <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
                               Verified by {reviewingReport.verifiedBy} at {reviewingReport.verifiedAt}
                             </p>
                           </div>
                         )}
 
                         {reviewingReport.rejectionReason && (
-                          <div className="bg-red-50 dark:bg-red-900/10 rounded-xl p-3 border border-red-200 dark:border-red-800">
-                            <p className="text-xs text-red-700 dark:text-red-400 font-medium">
-                              <AlertOctagon className="w-3.5 h-3.5 inline mr-1" />
+                          <div className="bg-rose-500/10 rounded-xl p-3 border border-rose-500/20">
+                            <p className="text-xs text-rose-700 dark:text-rose-400 font-semibold flex items-center gap-1.5">
+                              <AlertOctagon className="w-3.5 h-3.5" />
                               Rejected: {getRejectionLabel(reviewingReport.rejectionReason)}
                             </p>
                           </div>
@@ -799,18 +866,18 @@ export default function IncidentReports() {
                       </div>
 
                       {/* RIGHT: Officer Edit Form */}
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          <ShieldCheck className="w-4 h-4" /> Officer Review
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          <ShieldCheck className="w-3.5 h-3.5" /> Officer Review
                         </div>
 
                         <div className="space-y-3">
                           <div>
-                            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
+                            <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
                             <select
                               value={editForm.barangay || ''}
                               onChange={e => setEditForm(prev => ({ ...prev, barangay: e.target.value }))}
-                              className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                              className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all"
                             >
                               {['Leynes', 'Poblacion', 'Cawit', 'San Isidro', 'Sampaloc', 'Banga', 'Banadero'].map(b => (
                                 <option key={b} value={b}>{b}</option>
@@ -820,11 +887,11 @@ export default function IncidentReports() {
 
                           <div className="grid grid-cols-2 gap-3">
                             <div>
-                              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Type</label>
+                              <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Type</label>
                               <select
                                 value={editForm.type || ''}
                                 onChange={e => setEditForm(prev => ({ ...prev, type: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all"
                               >
                                 {['Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure'].map(t => (
                                   <option key={t} value={t}>{t}</option>
@@ -832,11 +899,11 @@ export default function IncidentReports() {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Urgency</label>
+                              <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Urgency</label>
                               <select
                                 value={editForm.urgency || ''}
                                 onChange={e => setEditForm(prev => ({ ...prev, urgency: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all"
                               >
                                 {['High', 'Moderate', 'Low'].map(u => (
                                   <option key={u} value={u}>{u}</option>
@@ -846,12 +913,12 @@ export default function IncidentReports() {
                           </div>
 
                           <div>
-                            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Landmark</label>
+                            <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Landmark</label>
                             <input
                               type="text"
                               value={editForm.landmark || ''}
                               onChange={e => setEditForm(prev => ({ ...prev, landmark: e.target.value }))}
-                              className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                              className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all"
                               placeholder="e.g. Near 7-Eleven, in front of school..."
                             />
                           </div>
@@ -861,10 +928,10 @@ export default function IncidentReports() {
                             animate={coordError ? { x: [0, -6, 6, -6, 6, -3, 3, 0] } : { x: 0 }}
                             transition={{ duration: 0.4, ease: 'easeInOut' }}
                           >
-                            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                            <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">
                               Coordinates (lat, lng)
                               {coordError && (
-                                <span className="ml-2 text-red-500 font-normal">— invalid format</span>
+                                <span className="ml-2 text-rose-500 font-normal lowercase">— invalid format</span>
                               )}
                             </label>
                             <input
@@ -877,36 +944,26 @@ export default function IncidentReports() {
                                   setCoordError(false);
                                 }
                               }}
-                              className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono transition-colors ${coordError
-                                ? 'border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-900/10'
-                                : 'border-slate-200 dark:border-slate-600'
+                              className={`w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none font-mono transition-all ${coordError
+                                ? 'border-rose-400 dark:border-rose-600 bg-rose-50 dark:bg-rose-900/10'
+                                : 'border-slate-200 dark:border-slate-700'
                                 }`}
                               placeholder="14.0951, 121.0203"
                             />
                           </motion.div>
-
-                          <div>
-                            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Description</label>
-                            <textarea
-                              value={editForm.description || ''}
-                              onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                              rows={3}
-                              className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-                            />
-                          </div>
                         </div>
                       </div>
                     </div>
                   </StaggerItem>
 
-                  {/* Verification Checklist */}
+                  {/* Verification Checklist — Apple Interactive Setting Cards */}
                   {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
                     <StaggerItem>
-                      <div className="bg-slate-50 dark:bg-slate-700/20 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-                        <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
+                      <div className="bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl p-4.5 border border-slate-200/60 dark:border-slate-700/60">
+                        <h4 className="text-xs uppercase tracking-wider font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
                           <ShieldCheck className="w-4 h-4 text-blue-500" /> Verification Checklist
                         </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                           {[
                             { key: 'barangayCorrect', label: 'Barangay & coordinates verified' },
                             { key: 'typeAccurate', label: 'Incident type is accurate' },
@@ -914,14 +971,21 @@ export default function IncidentReports() {
                             { key: 'notDuplicate', label: 'Not a duplicate report' },
                             { key: 'urgencyAppropriate', label: 'Urgency level is appropriate' },
                           ].map((item) => (
-                            <label key={item.key} className="flex items-center gap-2.5 cursor-pointer group">
+                            <label
+                              key={item.key}
+                              className={`p-3 rounded-xl border transition-all flex items-center gap-3 cursor-pointer select-none active:scale-[0.98] ${
+                                checklist[item.key as keyof typeof checklist]
+                                  ? 'bg-blue-50/70 dark:bg-blue-900/25 border-blue-200 dark:border-blue-800/80 text-blue-950 dark:text-blue-200'
+                                  : 'bg-white/70 dark:bg-slate-800/40 border-slate-200/70 dark:border-slate-700/70 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800'
+                              }`}
+                            >
                               <input
                                 type="checkbox"
                                 checked={checklist[item.key as keyof typeof checklist]}
                                 onChange={(e) => setChecklist(prev => ({ ...prev, [item.key]: e.target.checked }))}
-                                className="rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                                className="rounded-md border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer"
                               />
-                              <span className="text-sm text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100 transition-colors">
+                              <span className="text-xs font-medium leading-snug">
                                 {item.label}
                               </span>
                             </label>
@@ -931,7 +995,7 @@ export default function IncidentReports() {
                     </StaggerItem>
                   )}
 
-                  {/* Rejection Panel — Skill: scaleY instead of height */}
+                  {/* Rejection Panel */}
                   <AnimatePresence>
                     {showRejectPanel && (
                       <motion.div
@@ -940,15 +1004,15 @@ export default function IncidentReports() {
                         exit={{ opacity: 0, scaleY: 0.95 }}
                         transition={{ duration: 0.2, ease: EASE_OUT }}
                         style={{ originY: 0 }}
-                        className="bg-red-50 dark:bg-red-900/10 rounded-xl p-4 border border-red-200 dark:border-red-800"
+                        className="bg-rose-500/10 rounded-2xl p-4.5 border border-rose-500/20 space-y-3"
                       >
-                        <label className="block text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">
                           Rejection Reason
                         </label>
                         <select
                           value={rejectReason}
                           onChange={e => setRejectReason(e.target.value)}
-                          className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-red-200 dark:border-red-700 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-red-500 outline-none mb-3"
+                          className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-rose-500 outline-none"
                         >
                           <option value="">Select a reason...</option>
                           <option value="spam_or_fake">Spam / Fake Report</option>
@@ -957,17 +1021,19 @@ export default function IncidentReports() {
                           <option value="not_disaster_related">Not Disaster-Related</option>
                           <option value="insufficient_info">Insufficient Information</option>
                         </select>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 pt-1">
                           <button
+                            type="button"
                             onClick={handleReject}
                             disabled={!rejectReason}
-                            className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors active:scale-[0.97] duration-150"
+                            className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all active:scale-[0.97]"
                           >
                             Confirm Reject
                           </button>
                           <button
+                            type="button"
                             onClick={() => setShowRejectPanel(false)}
-                            className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors active:scale-[0.97] duration-150"
+                            className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all active:scale-[0.97]"
                           >
                             Cancel
                           </button>
@@ -979,64 +1045,70 @@ export default function IncidentReports() {
               </div>
 
               {/* Footer Actions */}
-              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 shrink-0 rounded-b-2xl">
+              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-900/60 backdrop-blur-md shrink-0 rounded-b-3xl">
                 <div className="flex items-center gap-2">
                   {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
                     <>
                       <button
+                        type="button"
                         onClick={handleSaveDraft}
-                        className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors active:scale-[0.97] duration-150"
+                        className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl transition-all active:scale-[0.97]"
                       >
                         Save Draft
                       </button>
                       <button
+                        type="button"
                         onClick={() => setShowRejectPanel(true)}
-                        className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30 rounded-lg transition-colors flex items-center gap-1.5 active:scale-[0.97] duration-150"
+                        className="px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97]"
                       >
-                        <AlertOctagon className="w-4 h-4" /> Reject
+                        <AlertOctagon className="w-3.5 h-3.5" /> Reject
                       </button>
                     </>
                   )}
 
                   {reviewingReport.status === 'verified' && (
                     <button
+                      type="button"
                       onClick={handleResolve}
-                      className="px-4 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/30 rounded-lg transition-colors flex items-center gap-1.5 active:scale-[0.97] duration-150"
+                      className="px-4 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97]"
                     >
-                      <CheckCircle2 className="w-4 h-4" /> Mark Resolved
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Mark Resolved
                     </button>
                   )}
 
                   {reviewingReport.status === 'rejected' && (
                     <button
+                      type="button"
                       onClick={() => {
                         setReports(prev => prev.map(r => r.id === reviewingReport.id ? { ...r, status: 'pending', rejectionReason: null } : r));
                         showToast(`Report #${reviewingReport.id} restored to pending`, 'info');
                         closeReview();
                       }}
-                      className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center gap-1.5 active:scale-[0.97] duration-150"
+                      className="px-4 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97]"
                     >
-                      <RotateCcw className="w-4 h-4" /> Restore to Pending
+                      <RotateCcw className="w-3.5 h-3.5" /> Restore to Pending
                     </button>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={closeReview}
-                    className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors active:scale-[0.97] duration-150"
+                    className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl transition-all active:scale-[0.97]"
                   >
                     Close
                   </button>
 
                   {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
                     <button
+                      type="button"
                       onClick={handleVerify}
                       disabled={!allChecklistChecked}
                       title={!allChecklistChecked ? 'Complete the checklist first' : ''}
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm flex items-center gap-1.5 active:scale-[0.97] duration-150"
+                      className="px-5 py-2 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-[0_2px_8px_rgba(0,113,227,0.25)] flex items-center gap-1.5 active:scale-[0.97]"
                     >
-                      <Send className="w-4 h-4" /> Verify & Plot
+                      <Send className="w-3.5 h-3.5" /> Verify & Plot
                     </button>
                   )}
                 </div>

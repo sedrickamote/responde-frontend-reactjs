@@ -2,10 +2,10 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Eye, EyeOff, X,
+  X,
   ChevronLeft, ChevronRight, Filter, Navigation,
   Siren, HeartPulse, Droplets, HardHat, ShieldCheck,
-  FileText, User, Phone, Clock, Layers,
+  FileText, User, Phone, Clock, Layers, MapPin,
 } from 'lucide-react';
 import { StaggerContainer, StaggerItem } from '../components/Stagger';
 import { useTheme } from '../components/ThemeContent';
@@ -21,26 +21,21 @@ const INITIAL_LAYERS: MapLayerState = {
   boundaries: true,
 };
 
-const EASE_OUT = [0.23, 1, 0.32, 1] as const;
+// -- Apple Design Spring Physics --
+const APPLE_SPRING = { type: 'spring', stiffness: 400, damping: 32 } as const;
 
 // Type icons
 const TYPE_ICONS: Record<string, React.ReactNode> = {
-  'Search & Rescue': <Siren className="w-4 h-4" />,
-  'Medical': <HeartPulse className="w-4 h-4" />,
-  'Food & Water': <Droplets className="w-4 h-4" />,
-  'Infrastructure': <HardHat className="w-4 h-4" />,
+  'Search & Rescue': <Siren className="w-3.5 h-3.5" />,
+  'Medical': <HeartPulse className="w-3.5 h-3.5" />,
+  'Food & Water': <Droplets className="w-3.5 h-3.5" />,
+  'Infrastructure': <HardHat className="w-3.5 h-3.5" />,
 };
 
-const URGENCY_COLORS: Record<string, string> = {
-  'High': 'bg-red-500',
-  'Moderate': 'bg-yellow-500',
-  'Low': 'bg-green-500',
-};
-
-const URGENCY_TEXT: Record<string, string> = {
-  'High': 'text-red-400',
-  'Moderate': 'text-yellow-400',
-  'Low': 'text-green-400',
+const URGENCY_BADGES: Record<string, { bg: string; text: string; border: string; dot: string }> = {
+  'High': { bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400', border: 'border-red-500/20', dot: 'bg-red-500' },
+  'Moderate': { bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/20', dot: 'bg-amber-500' },
+  'Low': { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20', dot: 'bg-emerald-500' },
 };
 
 // Parse "lat, lng" → [lng, lat] for MapLibre
@@ -55,28 +50,32 @@ function parseCoords(coords: string): [number, number] | null {
 // ── Sub-components ──
 
 function IncidentListItem({ report, index, onClick }: { report: Report; index: number; onClick: () => void }) {
+  const badge = URGENCY_BADGES[report.urgency] || URGENCY_BADGES['Low'];
+
   return (
     <motion.button
-      initial={{ opacity: 0, x: -12 }}
+      initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.2, ease: EASE_OUT, delay: index * 0.03 }}
+      transition={{ ...APPLE_SPRING, delay: Math.min(index * 0.02, 0.2) }}
       onClick={onClick}
-      className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group active:scale-[0.98]"
-      style={{ transitionTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)' }}
+      className="w-full text-left p-3 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition-all group active:scale-[0.98] border border-transparent"
     >
       <div className="flex items-center gap-2">
-        <span className={`w-2 h-2 rounded-full shrink-0 ${URGENCY_COLORS[report.urgency] || 'bg-slate-400'}`} />
-        <span className="text-xs font-mono text-slate-500 dark:text-slate-400">#{report.id}</span>
-        <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate flex-1">
+        <span className={`w-2 h-2 rounded-full shrink-0 ${badge.dot} shadow-2xs ${report.urgency === 'High' ? 'animate-pulse' : ''}`} />
+        <span className="text-[11px] font-mono font-semibold text-slate-500 dark:text-slate-400">#{report.id}</span>
+        <span className="text-xs font-semibold text-slate-900 dark:text-white truncate flex-1">
           {report.barangay}
         </span>
+        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 tabular-nums shrink-0">{report.time}</span>
       </div>
-      <div className="flex items-center gap-2 mt-1 ml-4">
-        <span className="text-slate-400 dark:text-slate-500 scale-75 origin-left">
-          {TYPE_ICONS[report.type] || <Siren className="w-4 h-4" />}
+      <div className="flex items-center gap-2 mt-1.5 ml-4">
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-800/80 px-2 py-0.5 rounded-md border border-slate-200/40 dark:border-slate-700/40">
+          <span className="scale-90 text-slate-400 dark:text-slate-500">{TYPE_ICONS[report.type] || <Siren className="w-3.5 h-3.5" />}</span>
+          {report.type}
         </span>
-        <span className="text-[11px] text-slate-500 dark:text-slate-400">{report.type}</span>
-        <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto">{report.time}</span>
+        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${badge.bg} ${badge.text} ${badge.border} ml-auto`}>
+          {report.urgency}
+        </span>
       </div>
     </motion.button>
   );
@@ -102,38 +101,51 @@ function BarangayDetailCard({ name, reports, onClose, onViewList }: {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.96, y: 8 }}
+      initial={{ opacity: 0, scale: 0.95, y: 12 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.96, y: 8 }}
-      transition={{ duration: 0.2, ease: EASE_OUT }}
-      className="absolute top-4 right-4 z-30 w-[min(320px,calc(100vw-2rem))] max-w-[320px] max-h-[70vh] overflow-y-auto rounded-xl bg-white dark:bg-[#111827] shadow-lg border border-slate-200 dark:border-slate-700/60"
+      exit={{ opacity: 0, scale: 0.95, y: 12 }}
+      transition={APPLE_SPRING}
+      className="absolute top-4 right-4 z-30 w-[min(340px,calc(100vw-2rem))] max-w-[340px] max-h-[75vh] overflow-y-auto rounded-2xl backdrop-blur-2xl bg-white/95 dark:bg-[#111827]/95 shadow-[0_16px_50px_rgba(0,0,0,0.15)] border border-slate-200/80 dark:border-white/10 border-t border-t-white/80 dark:border-t-white/20"
     >
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
-        <div className="flex items-center gap-2">
-          <Navigation className="w-4 h-4 text-blue-500" />
-          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{name}</h3>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-[#111827]/60 backdrop-blur-md sticky top-0 z-10">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-[#0071E3] dark:text-blue-400 flex items-center justify-center border border-blue-500/15">
+            <Navigation className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">{name}</h3>
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Barangay Details</span>
+          </div>
         </div>
-        <button onClick={onClose} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors active:scale-90">
-          <X className="w-4 h-4 text-slate-400" />
+        <button
+          onClick={onClose}
+          className="w-7 h-7 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-90"
+        >
+          <X className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="px-5 py-4 space-y-4">
-        <div>
-          <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{reports.length}</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Total Incidents</p>
+      <div className="p-5 space-y-4">
+        <div className="bg-slate-50/80 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Incidents</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-0.5">{reports.length}</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-[#0071E3] flex items-center justify-center">
+            <Layers className="w-5 h-5" />
+          </div>
         </div>
 
         <div>
-          <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">By Type</p>
+          <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">By Category</p>
           <div className="space-y-1.5">
             {Object.entries(typeCounts).map(([type, count]) => (
-              <div key={type} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                  <span className="text-slate-400 dark:text-slate-500 scale-90">{TYPE_ICONS[type]}</span>
+              <div key={type} className="flex items-center justify-between text-xs px-3 py-2 rounded-xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-200/40 dark:border-slate-700/40">
+                <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium">
+                  <span className="text-slate-400 dark:text-slate-500">{TYPE_ICONS[type]}</span>
                   {type}
                 </span>
-                <span className="font-medium text-slate-700 dark:text-slate-200">{count}</span>
+                <span className="font-semibold text-slate-900 dark:text-white tabular-nums">{count}</span>
               </div>
             ))}
           </div>
@@ -142,21 +154,24 @@ function BarangayDetailCard({ name, reports, onClose, onViewList }: {
         <div>
           <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">By Urgency</p>
           <div className="space-y-1.5">
-            {Object.entries(urgencyCounts).map(([urgency, count]) => (
-              <div key={urgency} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${URGENCY_COLORS[urgency]}`} />
-                  <span className="text-slate-600 dark:text-slate-300">{urgency}</span>
-                </span>
-                <span className="font-medium text-slate-700 dark:text-slate-200">{count}</span>
-              </div>
-            ))}
+            {Object.entries(urgencyCounts).map(([urgency, count]) => {
+              const b = URGENCY_BADGES[urgency] || URGENCY_BADGES['Low'];
+              return (
+                <div key={urgency} className="flex items-center justify-between text-xs px-3 py-2 rounded-xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-200/40 dark:border-slate-700/40">
+                  <span className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${b.dot}`} />
+                    <span className="text-slate-700 dark:text-slate-300 font-medium">{urgency}</span>
+                  </span>
+                  <span className="font-semibold text-slate-900 dark:text-white tabular-nums">{count}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
         <button
           onClick={onViewList}
-          className="w-full px-4 py-2 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center justify-center gap-1.5 active:scale-[0.97]"
+          className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_2px_8px_rgba(0,113,227,0.25)] active:scale-[0.97]"
         >
           <FileText className="w-3.5 h-3.5" /> View in Incident Reports
         </button>
@@ -170,56 +185,72 @@ function IncidentDetailCard({ report, onClose, onViewInReports }: {
   onClose: () => void;
   onViewInReports: () => void;
 }) {
+  const badge = URGENCY_BADGES[report.urgency] || URGENCY_BADGES['Low'];
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.96, y: 8 }}
+      initial={{ opacity: 0, scale: 0.95, y: 12 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.96, y: 8 }}
-      transition={{ duration: 0.2, ease: EASE_OUT }}
-      className="absolute top-4 right-4 z-30 w-[min(320px,calc(100vw-2rem))] max-w-[320px] max-h-[70vh] overflow-y-auto rounded-xl bg-white dark:bg-[#111827] shadow-lg border border-slate-200 dark:border-slate-700/60"
+      exit={{ opacity: 0, scale: 0.95, y: 12 }}
+      transition={APPLE_SPRING}
+      className="absolute top-4 right-4 z-30 w-[min(340px,calc(100vw-2rem))] max-w-[340px] max-h-[75vh] overflow-y-auto rounded-2xl backdrop-blur-2xl bg-white/95 dark:bg-[#111827]/95 shadow-[0_16px_50px_rgba(0,0,0,0.15)] border border-slate-200/80 dark:border-white/10 border-t border-t-white/80 dark:border-t-white/20"
     >
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-[#111827]/60 backdrop-blur-md sticky top-0 z-10">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-[#0071E3] dark:text-blue-400 flex items-center justify-center border border-blue-500/15">
+            {TYPE_ICONS[report.type] || <Siren className="w-4 h-4" />}
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">{report.type}</h3>
+            <span className="text-[10px] font-mono text-slate-400">ID: #{report.id}</span>
+          </div>
+        </div>
         <div className="flex items-center gap-2">
-          <span className="text-slate-400 dark:text-slate-500 scale-90">{TYPE_ICONS[report.type]}</span>
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{report.type}</span>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 ${URGENCY_TEXT[report.urgency]} border border-slate-200 dark:border-slate-600`}>
+          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${badge.bg} ${badge.text} ${badge.border}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
             {report.urgency}
           </span>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-90"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
-        <button onClick={onClose} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors active:scale-90">
-          <X className="w-4 h-4 text-slate-400" />
-        </button>
       </div>
 
-      <div className="px-5 py-4 space-y-4">
-        <div>
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{report.barangay}</p>
-          <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-0.5">{report.coordinates}</p>
+      <div className="p-5 space-y-4">
+        <div className="bg-slate-50/80 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-200/60 dark:border-slate-700/60">
+          <p className="text-xs font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-blue-500" />
+            {report.barangay}
+          </p>
+          <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5 pl-5">{report.coordinates}</p>
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3 border border-slate-100 dark:border-slate-600">
-          <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">&quot;{report.description}&quot;</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-            — {report.reporter}, {report.time}
+        <div className="bg-slate-50/60 dark:bg-slate-800/40 rounded-2xl p-4 border border-slate-200/50 dark:border-slate-700/50">
+          <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic">&ldquo;{report.description}&rdquo;</p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 font-medium">
+            — {report.reporter}, <span className="tabular-nums">{report.time}</span>
           </p>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <User className="w-3.5 h-3.5" />
+        <div className="space-y-2 text-xs">
+          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+            <User className="w-3.5 h-3.5 text-slate-400" />
             <span>{report.reporter}</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <Phone className="w-3.5 h-3.5" />
-            <span>{report.contact}</span>
+          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+            <Phone className="w-3.5 h-3.5 text-slate-400" />
+            <span className="font-mono">{report.contact}</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <Clock className="w-3.5 h-3.5" />
-            <span>{report.time}</span>
+          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <span className="tabular-nums">{report.time}</span>
           </div>
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
               {report.status === 'verified' ? '✓ Verified' : report.status}
             </span>
           </div>
@@ -227,34 +258,32 @@ function IncidentDetailCard({ report, onClose, onViewInReports }: {
 
         <button
           onClick={onViewInReports}
-          className="w-full px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center justify-center gap-1.5 active:scale-[0.97]"
+          className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_2px_8px_rgba(0,113,227,0.25)] active:scale-[0.97]"
         >
-          <FileText className="w-3.5 h-3.5" /> Open in Reports
+          <FileText className="w-3.5 h-3.5" /> Open in Incident Reports
         </button>
       </div>
     </motion.div>
   );
 }
 
-// ── Layer Toggle Button ──
-function LayerToggle({ active, label, color, onClick }: {
+// ── Apple Segmented Layer Toggle ──
+function LayerToggle({ active, label, activeDot, onClick }: {
   active: boolean;
   label: string;
-  color: string;
+  activeDot: string;
   onClick: () => void;
 }) {
-  const activeClass = active
-    ? `${color} shadow-sm`
-    : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400';
-
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 active:scale-[0.97] border border-slate-200 dark:border-slate-600 ${activeClass}`}
-      style={{ transitionTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)' }}
+      className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold tracking-tight transition-all duration-200 active:scale-[0.96] ${active
+        ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm ring-1 ring-slate-950/5 dark:ring-white/10'
+        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/40'
+        }`}
     >
-      {active ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-      {label}
+      <span className={`w-2 h-2 rounded-full transition-all ${active ? activeDot : 'bg-slate-300 dark:bg-slate-600'}`} />
+      <span>{label}</span>
     </button>
   );
 }
@@ -363,10 +392,15 @@ export default function GeospatialMap() {
 
       {/* ── Toolbar Row ── */}
       <StaggerItem>
-        <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] px-5 py-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
-            {/* Filters */}
-            <div className="flex items-center gap-3 flex-wrap justify-start">
+        <div className="relative z-30 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] px-5 py-3 transition-all">
+          <div className="relative flex flex-col md:flex-row items-center justify-between gap-4">
+
+            {/* Left: Filter Controls Capsule */}
+            <div className="flex items-center gap-3 flex-wrap justify-start w-full md:w-auto relative z-20">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mr-1">
+                <Filter className="w-3.5 h-3.5" />
+                <span>Filters</span>
+              </div>
               <FilterDropdown
                 value={filterUrgency}
                 options={['All Urgency', 'High', 'Moderate', 'Low']}
@@ -380,31 +414,40 @@ export default function GeospatialMap() {
               />
             </div>
 
-            {/* Centered Layer Toggles */}
-            <div className="flex items-center justify-center gap-2">
-              <Layers className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
-              <LayerToggle
-                active={layers.choropleth}
-                label="Heatmap"
-                color="bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
-                onClick={() => toggleLayer('choropleth')}
-              />
-              <LayerToggle
-                active={layers.pins}
-                label="Pins"
-                color="bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
-                onClick={() => toggleLayer('pins')}
-              />
-              <LayerToggle
-                active={layers.boundaries}
-                label="Borders"
-                color="bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
-                onClick={() => toggleLayer('boundaries')}
-              />
+            {/* Center: Apple Segmented Layer Toggle Capsule (Heatmap, Pins, Borders) */}
+            <div className="md:absolute md:left-1/2 md:-translate-x-1/2 flex items-center justify-center relative z-10 w-full md:w-auto">
+              <div className="inline-flex items-center gap-1 p-1 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 shadow-inner">
+                <div className="flex items-center gap-1 px-2 py-1 text-slate-400 dark:text-slate-500">
+                  <Layers className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider hidden sm:inline">Layers</span>
+                </div>
+                <LayerToggle
+                  active={layers.choropleth}
+                  label="Heatmap"
+                  activeDot="bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)]"
+                  onClick={() => toggleLayer('choropleth')}
+                />
+                <LayerToggle
+                  active={layers.pins}
+                  label="Pins"
+                  activeDot="bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.7)]"
+                  onClick={() => toggleLayer('pins')}
+                />
+                <LayerToggle
+                  active={layers.boundaries}
+                  label="Borders"
+                  activeDot="bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.7)]"
+                  onClick={() => toggleLayer('boundaries')}
+                />
+              </div>
             </div>
 
-            {/* Right spacer to keep the center column perfectly aligned */}
-            <div className="hidden md:block" />
+            {/* Right: Plotted count chip for balanced symmetry */}
+            <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <span className="px-2.5 py-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 tabular-nums">
+                <strong className="text-slate-800 dark:text-slate-200">{pinReports.length}</strong> Plotted
+              </span>
+            </div>
           </div>
         </div>
       </StaggerItem>
@@ -413,45 +456,60 @@ export default function GeospatialMap() {
       <StaggerItem className="flex-1 min-h-0">
         <div className="grid grid-cols-12 gap-4 h-full">
 
-          {/* Left Incident List Panel */}
+          {/* Left Incident List Panel - macOS Sidebar Style */}
           <AnimatePresence mode="wait">
             {drawerOpen && (
               <motion.div
-                initial={{ opacity: 0, x: -12 }}
+                initial={{ opacity: 0, x: -16 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -12 }}
-                transition={{ duration: 0.2, ease: EASE_OUT }}
-                className="col-span-12 lg:col-span-3 bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden min-h-0"
+                exit={{ opacity: 0, x: -16 }}
+                transition={APPLE_SPRING}
+                className="col-span-12 lg:col-span-3 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden min-h-0"
               >
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-white/5 shrink-0 bg-slate-50/50 dark:bg-slate-900/30">
                   <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Incidents</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-medium">
+                    <Navigation className="w-4 h-4 text-[#0071E3]" />
+                    <span className="text-sm font-semibold tracking-tight text-slate-800 dark:text-slate-100">Live Incidents</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold tabular-nums">
                       {drawerReports.length}
                     </span>
                   </div>
                   <button
                     onClick={() => setDrawerOpen(false)}
-                    className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors active:scale-90"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors active:scale-90"
+                    title="Collapse sidebar"
                   >
-                    <ChevronLeft className="w-4 h-4 text-slate-400" />
+                    <ChevronLeft className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Legend */}
-                <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-50 dark:border-slate-700/50 shrink-0">
-                  <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Severity:</span>
-                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-slate-300 dark:bg-slate-600" /><span className="text-[10px] text-slate-400">None</span></div>
-                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-green-500" /><span className="text-[10px] text-slate-400">Low</span></div>
-                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-yellow-500" /><span className="text-[10px] text-slate-400">Moderate</span></div>
-                  <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-500" /><span className="text-[10px] text-slate-400">High</span></div>
+                {/* Apple HIG Severity Dot Legend */}
+                <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-100/60 dark:border-white/5 shrink-0 bg-white/40 dark:bg-[#111827]/40 text-[11px] text-slate-500 dark:text-slate-400">
+                  <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Priority:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                    <span>Low</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+                    <span>Mod</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-500 ring-2 ring-red-500/20 animate-pulse" />
+                    <span>High</span>
+                  </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
+                {/* Incident List */}
+                <div className="flex-1 overflow-y-auto px-2.5 py-2.5 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
                   {drawerReports.length === 0 ? (
-                    <div className="text-center py-12 text-xs text-slate-400 dark:text-slate-500">
-                      No incidents match filters
+                    <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-2">
+                        <MapPin className="w-5 h-5 opacity-60" />
+                      </div>
+                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">No matching incidents</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Try loosening the filters above</p>
                     </div>
                   ) : (
                     drawerReports.map((report, i) => (
@@ -468,50 +526,53 @@ export default function GeospatialMap() {
             )}
           </AnimatePresence>
 
-          {/* Map Container */}
-          <div className={`relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm ${drawerOpen ? 'col-span-12 lg:col-span-9' : 'col-span-12'}`}>
+          {/* Map Shell Container — White Card Shell with Framed Placeholder */}
+          <div className={`bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-3 sm:p-3.5 flex flex-col overflow-hidden min-h-[500px] lg:min-h-0 ${drawerOpen ? 'col-span-12 lg:col-span-9' : 'col-span-12'}`}>
+            <div className="relative flex-1 min-h-0 w-full rounded-xl overflow-hidden border border-slate-200/70 dark:border-white/10 shadow-inner bg-slate-100 dark:bg-slate-900">
 
-            {/* Drawer re-open button */}
-            {!drawerOpen && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.15, ease: EASE_OUT }}
-                onClick={() => setDrawerOpen(true)}
-                className="absolute left-3 top-3 z-20 p-2 rounded-lg bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors active:scale-[0.95]"
-                title="Show incident list"
-              >
-                <ChevronRight className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-              </motion.button>
-            )}
-
-            {/* Detail Cards (overlaid on map) */}
-            <AnimatePresence>
-              {selected?.type === 'barangay' && (
-                <BarangayDetailCard
-                  name={selected.name}
-                  reports={selectedBarangayReports}
-                  onClose={() => setSelected(null)}
-                  onViewList={() => navigate(`/incident-reports?barangay=${selected.name}`)}
-                />
+              {/* Drawer re-open button (Apple Floating Capsule) */}
+              {!drawerOpen && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={APPLE_SPRING}
+                  onClick={() => setDrawerOpen(true)}
+                  className="absolute left-3 top-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/95 dark:bg-[#111827]/95 backdrop-blur-xl shadow-md border border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-all active:scale-[0.95] text-xs font-semibold"
+                  title="Show incident list"
+                >
+                  <ChevronRight className="w-4 h-4 text-[#0071E3]" />
+                  <span>Show Incidents</span>
+                </motion.button>
               )}
-              {selected?.type === 'incident' && selectedReport && (
-                <IncidentDetailCard
-                  report={selectedReport}
-                  onClose={() => setSelected(null)}
-                  onViewInReports={() => navigate(`/incident-reports?focus=${selectedReport.id}`)}
-                />
-              )}
-            </AnimatePresence>
 
-            {/* Map */}
-            <MapContainer
-              theme={mapTheme}
-              layers={layers}
-              barangayCounts={barangayCounts}
-              pinReports={pinReports}
-              onSelectFeature={handleSelectFeature}
-            />
+              {/* Detail Cards (Inspector Sheets overlaid on map) */}
+              <AnimatePresence>
+                {selected?.type === 'barangay' && (
+                  <BarangayDetailCard
+                    name={selected.name}
+                    reports={selectedBarangayReports}
+                    onClose={() => setSelected(null)}
+                    onViewList={() => navigate(`/incident-reports?barangay=${selected.name}`)}
+                  />
+                )}
+                {selected?.type === 'incident' && selectedReport && (
+                  <IncidentDetailCard
+                    report={selectedReport}
+                    onClose={() => setSelected(null)}
+                    onViewInReports={() => navigate(`/incident-reports?focus=${selectedReport.id}`)}
+                  />
+                )}
+              </AnimatePresence>
+
+              {/* Map Canvas */}
+              <MapContainer
+                theme={mapTheme}
+                layers={layers}
+                barangayCounts={barangayCounts}
+                pinReports={pinReports}
+                onSelectFeature={handleSelectFeature}
+              />
+            </div>
           </div>
         </div>
       </StaggerItem>

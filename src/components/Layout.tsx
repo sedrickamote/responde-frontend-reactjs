@@ -13,6 +13,7 @@ import {
   type ToastNotification,
   type NotificationType,
 } from '../context/NotificationContext';
+import { useBotConversations } from '../context/BotConversationsContext';
 
 type FilterTab = 'all' | NotificationType;
 
@@ -36,6 +37,8 @@ export default function Layout() {
     clearAll,
     dismissToast,
   } = useNotifications();
+
+  const { incompleteCount } = useBotConversations();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -169,24 +172,32 @@ export default function Layout() {
                 title={isCollapsed ? item.label : undefined}
               >
                 <div className={`
-                  shrink-0 flex items-center justify-center transition-colors duration-200
+                  relative shrink-0 flex items-center justify-center transition-colors duration-200
                   ${active
                     ? 'text-blue-700 dark:text-blue-400'
                     : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'
                   }
                 `}>
                   <item.icon className="w-[22px] h-[22px]" strokeWidth={active ? 2.5 : 1.75} />
+                  {item.path === '/messenger-bot-logs' && incompleteCount > 0 && isCollapsed && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white dark:ring-[#111827] animate-pulse" />
+                  )}
                 </div>
                 <span className={`
                   text-[13px] transition-all duration-300 overflow-hidden whitespace-nowrap
                   ${active
                     ? 'text-blue-700 dark:text-blue-400 font-semibold'
-                    : 'text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white font-medium'
+                    : 'text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:hover:text-white font-medium'
                   }
                   ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'}
                 `}>
                   {item.label}
                 </span>
+                {item.path === '/messenger-bot-logs' && incompleteCount > 0 && !isCollapsed && (
+                  <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 tabular-nums">
+                    {incompleteCount}
+                  </span>
+                )}
               </Link>
             );
           })}

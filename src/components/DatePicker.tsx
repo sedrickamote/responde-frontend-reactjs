@@ -155,7 +155,7 @@ export default function DatePicker({ value, onChange, placeholder = 'Select date
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className={`relative ${isOpen ? 'z-50' : 'z-10'}`}>
       <button
         type="button"
         onClick={handleOpen}
