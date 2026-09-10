@@ -134,14 +134,14 @@ export default function Layout() {
           </span>
           <button
             onClick={() => setMobileOpen(false)}
-            className="ml-auto text-slate-400 hover:text-slate-600 lg:hidden"
+            className="ml-auto text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 lg:hidden"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* thin divider */}
-        <div className="mx-3 h-px bg-slate-100 dark:bg-slate-700/60 shrink-0" />
+        <div className="mx-3 h-px bg-slate-300 dark:bg-slate-700/60 shrink-0" />
 
         {/* Navigation */}
         <nav className="flex-1 py-4 px-2.5 space-y-4 overflow-y-auto">
@@ -158,7 +158,7 @@ export default function Layout() {
                   ${isCollapsed ? 'lg:justify-center lg:px-0' : 'gap-3.5 px-3'}
                   ${active
                     ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                    : 'hover:bg-slate-100/80 dark:hover:bg-slate-800/60'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                   }
                 `}
                 title={isCollapsed ? item.label : undefined}
@@ -174,6 +174,10 @@ export default function Layout() {
                 </div>
                 <span className={`
                   text-[13px] font-medium transition-all duration-300 overflow-hidden whitespace-nowrap
+                  ${active
+                    ? 'text-blue-600 dark:text-blue-400 font-semibold'
+                    : 'text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white'
+                  }
                   ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'}
                 `}>
                   {item.label}
@@ -219,198 +223,222 @@ export default function Layout() {
           ${collapsed ? 'lg:ml-[calc(16px+72px+16px)]' : 'lg:ml-[calc(16px+224px+16px)]'}
         `}
       >
-        <header className="relative z-[100] h-[70px] bg-white/70 dark:bg-[#0F1525]/70 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 flex items-center justify-between px-5">
-          <div className="flex items-center gap-4 flex-1 max-w-xl">
-            <button
-              onClick={() => {
-                if (window.innerWidth < 1024) {
-                  setMobileOpen(true);
-                } else {
-                  setCollapsed(!collapsed);
-                }
-              }}
-              className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search incidents, logs, or barangays..."
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-100/80 dark:bg-[#1A2235] border-0 rounded-xl text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* ── Notification Bell ── */}
-            <div ref={notifRef} className="relative">
+        {/* ─── FLOATING HEADER ─── */}
+        <div className="shrink-0 px-4 pt-4 z-[100] relative">
+          <header className="
+            h-[62px] flex items-center justify-between px-4
+            bg-white dark:bg-[#111827]
+            border border-slate-200 dark:border-slate-700/60
+            shadow-[0_4px_24px_rgba(0,0,0,0.07)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.40)]
+            rounded-2xl
+            backdrop-blur-md
+          ">
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
               <button
-                id="notification-bell-btn"
-                onClick={handleBellClick}
-                className="relative p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-                aria-label="Notifications"
+                onClick={() => {
+                  if (window.innerWidth < 1024) {
+                    setMobileOpen(true);
+                  } else {
+                    setCollapsed(!collapsed);
+                  }
+                }}
+                className="shrink-0 p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
               >
-                <Bell className="w-5 h-5" />
-                <AnimatePresence>
-                  {unreadCount > 0 && (
-                    <motion.span
-                      key="badge"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      exit={{ scale: 0 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                      className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-[#0F1525]"
-                    >
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
+                <Menu className="w-5 h-5" />
               </button>
+              {/* Search — floating pill inside the floating header */}
+              <div className="hidden sm:flex items-center relative flex-1 max-w-sm">
+                <div className="
+                w-full flex items-center gap-2 px-3
+                bg-slate-100 dark:bg-slate-800/70
+                border border-slate-200/80 dark:border-slate-700/50
+                shadow-[0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_2px_rgba(255,255,255,0.8)]
+                dark:shadow-[0_2px_10px_rgba(0,0,0,0.30)]
+                rounded-xl
+                transition-all duration-200
+                focus-within:border-blue-400/60 dark:focus-within:border-blue-500/50
+                focus-within:shadow-[0_4px_16px_rgba(59,130,246,0.14),inset_0_1px_2px_rgba(255,255,255,0.8)]
+                dark:focus-within:shadow-[0_4px_16px_rgba(59,130,246,0.22)]
+              ">
+                  <Search className="shrink-0 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search incidents, logs, or barangays..."
+                    className="w-full py-2 bg-transparent border-0 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
 
-              {/* ── Notification Dropdown ── */}
-              <AnimatePresence>
-                {notifOpen && (
-                  <motion.div
-                    id="notification-dropdown"
-                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute right-0 top-full mt-2 w-[360px] sm:w-[400px] bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl shadow-black/10 dark:shadow-black/40 z-[60] overflow-hidden flex flex-col"
-                  >
-                    {/* ── Header ── */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-2">
-                        <Bell className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                          Notifications
-                        </span>
-                        {notifications.length > 0 && (
-                          <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-medium rounded-full">
-                            {notifications.length}
+            <div className="flex items-center gap-4">
+              {/* ── Notification Bell ── */}
+              <div ref={notifRef} className="relative">
+                <button
+                  id="notification-bell-btn"
+                  onClick={handleBellClick}
+                  className="relative p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                  aria-label="Notifications"
+                >
+                  <Bell className="w-5 h-5" />
+                  <AnimatePresence>
+                    {unreadCount > 0 && (
+                      <motion.span
+                        key="badge"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        exit={{ scale: 0 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                        className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-[#0F1525]"
+                      >
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+
+                {/* ── Notification Dropdown ── */}
+                <AnimatePresence>
+                  {notifOpen && (
+                    <motion.div
+                      id="notification-dropdown"
+                      initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                      className="absolute right-0 top-full mt-2 w-[360px] sm:w-[400px] bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl shadow-black/10 dark:shadow-black/40 z-[60] overflow-hidden flex flex-col"
+                    >
+                      {/* ── Header ── */}
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            Notifications
                           </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {notifications.length > 0 && (
-                          <>
-                            <button
-                              onClick={markAllRead}
-                              className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                              title="Mark all as read"
-                            >
-                              <CheckCheck className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={clearAll}
-                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                              title="Clear all"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* ── Filter Tabs ── */}
-                    <div className="flex gap-1 px-3 pt-2.5 pb-1">
-                      {([
-                        { key: 'all', label: 'All', count: notifications.length },
-                        { key: 'scraper', label: 'Scraper', count: scraperUnread },
-                        { key: 'messenger', label: 'Messenger', count: messengerUnread },
-                      ] as { key: FilterTab; label: string; count: number }[]).map((tab) => (
-                        <button
-                          key={tab.key}
-                          onClick={() => setActiveTab(tab.key)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150
-                            ${activeTab === tab.key
-                              ? 'bg-blue-600 text-white shadow-sm'
-                              : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }
-                          `}
-                        >
-                          {tab.label}
-                          {tab.count > 0 && (
-                            <span className={`text-[10px] font-bold px-1 rounded-full ${activeTab === tab.key
-                              ? 'bg-white/20 text-white'
-                              : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                              }`}>
-                              {tab.count}
+                          {notifications.length > 0 && (
+                            <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-medium rounded-full">
+                              {notifications.length}
                             </span>
                           )}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* ── Notification List ── */}
-                    <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/60">
-                      <AnimatePresence initial={false}>
-                        {filteredNotifications.length === 0 ? (
-                          <motion.div
-                            key="empty"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400"
-                          >
-                            <BellOff className="w-8 h-8" />
-                            <p className="text-sm font-medium">No notifications yet</p>
-                            <p className="text-xs text-slate-300 dark:text-slate-600">
-                              New scraper &amp; messenger events will appear here in real-time
-                            </p>
-                          </motion.div>
-                        ) : (
-                          filteredNotifications.map((n) => (
-                            <NotificationRow
-                              key={n.id}
-                              notification={n}
-                              onClick={() => handleNotifClick(n)}
-                              onDelete={() => deleteNotification(n.id)}
-                            />
-                          ))
-                        )}
-                      </AnimatePresence>
-                    </div>
-
-                    {/* ── Footer ── */}
-                    {filteredNotifications.length > 0 && (
-                      <div className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                        <span className="text-xs text-slate-400">
-                          {filteredNotifications.length} notification
-                          {filteredNotifications.length !== 1 ? 's' : ''}
-                        </span>
-                        <button
-                          onClick={() => {
-                            setNotifOpen(false);
-                            navigate(activeTab === 'messenger' ? '/messenger-bot-logs' : '/scraper-feed');
-                          }}
-                          className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
-                        >
-                          View feed
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {notifications.length > 0 && (
+                            <>
+                              <button
+                                onClick={markAllRead}
+                                className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                title="Mark all as read"
+                              >
+                                <CheckCheck className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={clearAll}
+                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                title="Clear all"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
 
-            <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800">
-              <div className="text-right hidden sm:block">
-                <div className="text-sm font-mono font-semibold text-slate-700 dark:text-slate-200">{formattedTime}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">{formattedDate}</div>
+                      {/* ── Filter Tabs ── */}
+                      <div className="flex gap-1 px-3 pt-2.5 pb-1">
+                        {([
+                          { key: 'all', label: 'All', count: notifications.length },
+                          { key: 'scraper', label: 'Scraper', count: scraperUnread },
+                          { key: 'messenger', label: 'Messenger', count: messengerUnread },
+                        ] as { key: FilterTab; label: string; count: number }[]).map((tab) => (
+                          <button
+                            key={tab.key}
+                            onClick={() => setActiveTab(tab.key)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150
+                            ${activeTab === tab.key
+                                ? 'bg-blue-600 text-white shadow-sm'
+                                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                              }
+                          `}
+                          >
+                            {tab.label}
+                            {tab.count > 0 && (
+                              <span className={`text-[10px] font-bold px-1 rounded-full ${activeTab === tab.key
+                                ? 'bg-white/20 text-white'
+                                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                }`}>
+                                {tab.count}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* ── Notification List ── */}
+                      <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/60">
+                        <AnimatePresence initial={false}>
+                          {filteredNotifications.length === 0 ? (
+                            <motion.div
+                              key="empty"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400"
+                            >
+                              <BellOff className="w-8 h-8" />
+                              <p className="text-sm font-medium">No notifications yet</p>
+                              <p className="text-xs text-slate-300 dark:text-slate-600">
+                                New scraper &amp; messenger events will appear here in real-time
+                              </p>
+                            </motion.div>
+                          ) : (
+                            filteredNotifications.map((n) => (
+                              <NotificationRow
+                                key={n.id}
+                                notification={n}
+                                onClick={() => handleNotifClick(n)}
+                                onDelete={() => deleteNotification(n.id)}
+                              />
+                            ))
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* ── Footer ── */}
+                      {filteredNotifications.length > 0 && (
+                        <div className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                          <span className="text-xs text-slate-400">
+                            {filteredNotifications.length} notification
+                            {filteredNotifications.length !== 1 ? 's' : ''}
+                          </span>
+                          <button
+                            onClick={() => {
+                              setNotifOpen(false);
+                              navigate(activeTab === 'messenger' ? '/messenger-bot-logs' : '/scraper-feed');
+                            }}
+                            className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
+                          >
+                            View feed
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <div className="w-9 h-9 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center">
-                <UserCircle className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+
+              <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800">
+                <div className="text-right hidden sm:block">
+                  <div className="text-sm font-mono font-semibold text-slate-700 dark:text-slate-200">{formattedTime}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{formattedDate}</div>
+                </div>
+                <div className="w-9 h-9 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center">
+                  <UserCircle className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                </div>
               </div>
             </div>
-          </div>
-        </header>
+          </header>
+        </div>
 
-        <div className="flex-1 flex flex-col overflow-y-auto p-5 lg:p-6 bg-[linear-gradient(113deg,#ffffff_0%,#f1f5ff_26%,#e5ebff_52%,#e3eaff_100%)] dark:bg-none dark:bg-[#0B0F19]">
+        <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-4 lg:px-6 lg:pb-6 lg:pt-4">
           <PageTransition key={location.pathname}>
             <Outlet />
           </PageTransition>

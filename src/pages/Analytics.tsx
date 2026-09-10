@@ -84,7 +84,7 @@ const URGENCY_WEIGHT: Record<string, number> = { High: 3, Moderate: 2, Low: 1 };
 function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm ${className}`}
+      className={`bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] ${className}`}
     >
       {children}
     </div>

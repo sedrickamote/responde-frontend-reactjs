@@ -283,7 +283,7 @@ export default function MessengerBotLogs() {
       {/* Main content — visible once loaded with no error */}
       {!loading && !error && (
         <>
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
+          <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-4">
             <div className="flex flex-col xl:flex-row xl:items-center gap-3">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm shrink-0">
@@ -321,7 +321,7 @@ export default function MessengerBotLogs() {
 
           <div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-6 min-h-0">
             {/* LEFT: Conversation List — Staggered */}
-            <div className="lg:col-span-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden min-h-[300px] lg:min-h-0">
+            <div className="lg:col-span-5 bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden min-h-[300px] lg:min-h-0">
               <div className="p-4 border-b border-slate-100 dark:border-slate-700 shrink-0">
                 <h3 className="font-semibold text-slate-800 dark:text-slate-100">Recent Conversations</h3>
               </div>
@@ -376,7 +376,7 @@ export default function MessengerBotLogs() {
             </div>
 
             {/* RIGHT: Message Detail — Staggered */}
-            <div className="lg:col-span-7 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden min-h-[400px] lg:min-h-0">
+            <div className="lg:col-span-7 bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden min-h-[400px] lg:min-h-0">
               <AnimatePresence mode="wait">
                 {selectedConversation ? (
                   <motion.div

@@ -107,7 +107,7 @@ function BarangayDetailCard({ name, reports, onClose, onViewList }: {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96, y: 8 }}
       transition={{ duration: 0.2, ease: EASE_OUT }}
-      className="absolute top-4 right-4 z-30 w-[320px] max-h-[70vh] overflow-y-auto rounded-xl bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700"
+      className="absolute top-4 right-4 z-30 w-[min(320px,calc(100vw-2rem))] max-w-[320px] max-h-[70vh] overflow-y-auto rounded-xl bg-white dark:bg-[#111827] shadow-lg border border-slate-200 dark:border-slate-700/60"
     >
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
         <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ function IncidentDetailCard({ report, onClose, onViewInReports }: {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96, y: 8 }}
       transition={{ duration: 0.2, ease: EASE_OUT }}
-      className="absolute top-4 right-4 z-30 w-[320px] max-h-[70vh] overflow-y-auto rounded-xl bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700"
+      className="absolute top-4 right-4 z-30 w-[min(320px,calc(100vw-2rem))] max-w-[320px] max-h-[70vh] overflow-y-auto rounded-xl bg-white dark:bg-[#111827] shadow-lg border border-slate-200 dark:border-slate-700/60"
     >
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
         <div className="flex items-center gap-2">
@@ -385,7 +385,7 @@ export default function GeospatialMap() {
 
       {/* ── Toolbar Row ── */}
       <StaggerItem>
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm px-5 py-3">
+        <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] px-5 py-3">
           <div className="flex items-center gap-4 flex-wrap">
             {/* Title */}
             <div className="flex items-center gap-2 shrink-0">
@@ -483,7 +483,7 @@ export default function GeospatialMap() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -12 }}
                 transition={{ duration: 0.2, ease: EASE_OUT }}
-                className="col-span-12 lg:col-span-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden min-h-0"
+                className="col-span-12 lg:col-span-3 bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden min-h-0"
               >
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700 shrink-0">
                   <div className="flex items-center gap-2">
