@@ -449,7 +449,7 @@ export default function IncidentReports() {
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-6 relative">
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+      <div className="fixed top-4 right-4 z-[250] flex flex-col gap-2 pointer-events-none">
         <AnimatePresence>
           {toasts.map(toast => (
             <div key={toast.id} className="pointer-events-auto">
@@ -480,7 +480,7 @@ export default function IncidentReports() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4 shrink-0">
+      <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-4 shrink-0">
         <div className="flex flex-col lg:flex-row lg:items-center gap-3">
           <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm shrink-0">
             <Filter className="w-4 h-4" />
@@ -564,7 +564,7 @@ export default function IncidentReports() {
       </AnimatePresence>
 
       {/* Table */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+      <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] overflow-hidden flex flex-col flex-1 min-h-0">
         <div className="overflow-auto flex-1">
           <table className="w-full min-w-[800px] text-sm text-left">
             <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
@@ -713,7 +713,7 @@ export default function IncidentReports() {
             animate="visible"
             exit="exit"
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-sm"
             onClick={closeReview}
           >
             <motion.div
@@ -722,11 +722,11 @@ export default function IncidentReports() {
               animate="visible"
               exit="exit"
               transition={{ duration: 0.25, ease: EASE_OUT }}
-              className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+              className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 bg-white dark:bg-[#111827] shrink-0 rounded-t-2xl z-10">
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{reviewingReport.id}</span>
                   <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(reviewingReport.status)}`}>
@@ -747,7 +747,7 @@ export default function IncidentReports() {
               </div>
 
               {/* Body */}
-              <div className="px-6 py-5 space-y-6">
+              <div className="px-6 py-5 space-y-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 140px)' }}>
                 <StaggerContainer className="space-y-6">
                   <StaggerItem>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -892,7 +892,7 @@ export default function IncidentReports() {
                             <textarea
                               value={editForm.description || ''}
                               onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                              rows={4}
+                              rows={3}
                               className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
                             />
                           </div>
@@ -981,7 +981,7 @@ export default function IncidentReports() {
               </div>
 
               {/* Footer Actions */}
-              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 sticky bottom-0">
+              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 shrink-0 rounded-b-2xl">
                 <div className="flex items-center gap-2">
                   {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
                     <>

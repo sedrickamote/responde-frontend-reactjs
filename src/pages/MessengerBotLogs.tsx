@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Filter, Loader2, AlertCircle, X, CheckCircle2, RefreshCw } from "lucide-react";
+import { Filter, AlertCircle, X, CheckCircle2, RefreshCw } from "lucide-react";
 import DatePicker from "../components/DatePicker";
 import FilterDropdown from "../components/DropDown";
 import { StaggerContainer, StaggerItem } from "../components/Stagger";
 import { supabase } from "../lib/supabaseClient";
+import PageLoader from "../components/PageLoader";
 
 // -- Types --
 interface BotMessage { sender: "bot" | "user"; text: string; }
@@ -262,15 +263,10 @@ export default function MessengerBotLogs() {
         </AnimatePresence>
       </div>
 
-      {loading && (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-slate-400 dark:text-slate-500">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-            <span className="text-sm font-medium">Loading conversations from Supabase...</span>
-          </div>
-        </div>
-      )}
+      {/* Skeleton — shown on first load, replaced by real content */}
+      {loading && <PageLoader variant="messenger" />}
 
+      {/* Error state */}
       {!loading && error && (
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3 text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 max-w-md text-center">
@@ -284,9 +280,10 @@ export default function MessengerBotLogs() {
         </div>
       )}
 
+      {/* Main content — visible once loaded with no error */}
       {!loading && !error && (
         <>
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
+          <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-4">
             <div className="flex flex-col xl:flex-row xl:items-center gap-3">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm shrink-0">
@@ -324,7 +321,7 @@ export default function MessengerBotLogs() {
 
           <div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-6 min-h-0">
             {/* LEFT: Conversation List — Staggered */}
-            <div className="lg:col-span-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden min-h-[300px] lg:min-h-0">
+            <div className="lg:col-span-5 bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden min-h-[300px] lg:min-h-0">
               <div className="p-4 border-b border-slate-100 dark:border-slate-700 shrink-0">
                 <h3 className="font-semibold text-slate-800 dark:text-slate-100">Recent Conversations</h3>
               </div>
@@ -379,7 +376,7 @@ export default function MessengerBotLogs() {
             </div>
 
             {/* RIGHT: Message Detail — Staggered */}
-            <div className="lg:col-span-7 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden min-h-[400px] lg:min-h-0">
+            <div className="lg:col-span-7 bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden min-h-[400px] lg:min-h-0">
               <AnimatePresence mode="wait">
                 {selectedConversation ? (
                   <motion.div

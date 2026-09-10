@@ -29,7 +29,7 @@ function Card({ icon: Icon, title, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+    <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-6">
       <div className="flex items-center gap-2 mb-5">
         <Icon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
         <h3 className="font-semibold text-slate-800 dark:text-slate-100">{title}</h3>
@@ -202,7 +202,7 @@ export default function Settings() {
         </Card>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+      <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-6">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-slate-500 dark:text-slate-400" />

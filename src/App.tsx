@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ReportsProvider } from './context/ReportsContext'; // ← DID YOU ADD THIS?
+import { ReportsProvider } from './context/ReportsContext';
+import { NotificationProvider } from './context/NotificationContext';
+import Landing from './website/Landing-Page';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -13,22 +15,26 @@ import Settings from './pages/Settings';
 function App() {
   return (
     <BrowserRouter>
-      <ReportsProvider> {/* ← IS THIS HERE? */}
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" />} />
-          <Route path="/login" element={<Login />} />
+      <NotificationProvider>
+        <ReportsProvider>
+          <Routes>
+            {/* Public routes — no login required */}
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
 
-          <Route element={<Layout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/incident-reports" element={<IncidentReports />} />
-            <Route path="/messenger-bot-logs" element={<MessengerBotLogs />} />
-            <Route path="/scraper-feed" element={<ScraperFeed />} />
-            <Route path="/geospatial-map" element={<GeospatialMap />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
-        </Routes>
-      </ReportsProvider> {/* ← AND CLOSING HERE? */}
+            {/* Protected admin routes — wrapped in Layout */}
+            <Route element={<Layout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/incident-reports" element={<IncidentReports />} />
+              <Route path="/messenger-bot-logs" element={<MessengerBotLogs />} />
+              <Route path="/scraper-feed" element={<ScraperFeed />} />
+              <Route path="/geospatial-map" element={<GeospatialMap />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
+          </Routes>
+        </ReportsProvider>
+      </NotificationProvider>
     </BrowserRouter>
   );
 }

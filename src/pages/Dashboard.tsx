@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabaseClient';
 import MapContainer from '../components/MapContainer';
 import { useReports } from '../context/ReportsContext';
 import type { MapLayerState } from '../types/geospatial';
+import PageLoader from '../components/PageLoader';
 
 // ── Types ──
 interface BotMessage { sender: 'bot' | 'user'; text: string; }
@@ -318,21 +319,9 @@ export default function Dashboard() {
     }
   };
 
-  // ════════════════════════════════════════
-  //  FIX #1: Smooth loading — render ONLY a spinner while fetching.
-  //  This prevents StaggerContainer from mounting early and shaking
-  //  as empty states flip to populated lists.
-  // ════════════════════════════════════════
-  if (loading) {
-    return (
-      <div className="h-full w-full flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 animate-pulse">
-          Loading dashboard…
-        </p>
-      </div>
-    );
-  }
+  // Skeleton loading — show content-shaped shimmer while Supabase fetches.
+  // Early-return keeps the real content's flex layout 100% intact.
+  if (loading) return <PageLoader variant="dashboard" />;
 
   return (
     <>
@@ -351,33 +340,33 @@ export default function Dashboard() {
           FIX #2: Prevent horizontal scrollbar
           by adding overflow-x-hidden.
          ════════════════════════════════════════ */}
-      <StaggerContainer className="grid grid-cols-12 gap-6 h-full lg:grid-rows-[auto_1fr] overflow-x-hidden w-full">
+      <StaggerContainer className="grid grid-cols-12 gap-6 lg:h-full lg:grid-rows-[auto_1fr] overflow-x-hidden w-full">
 
         {/* ── 1. Stats Row ── */}
         <StaggerItem className="col-span-12">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4">
+            <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-xl">⚠️</div>
               <div>
                 <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{totalIncidents}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Incidents</p>
               </div>
             </div>
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4">
+            <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-xl">💬</div>
               <div>
                 <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{botConversations.length}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Bot Conversations</p>
               </div>
             </div>
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4">
+            <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center text-xl">🌐</div>
               <div>
                 <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{scraperItems.length}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Scraped Comments</p>
               </div>
             </div>
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4">
+            <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-green-50 dark:bg-green-900/30 flex items-center justify-center text-xl">⏱️</div>
               <div>
                 <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{avgResponse}</p>
@@ -390,7 +379,7 @@ export default function Dashboard() {
         {/* ── 2. Left Column ── */}
         <StaggerItem className="col-span-12 lg:col-span-6 flex flex-col gap-6 h-full lg:min-h-0">
           {/* Messenger Bot Activities */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex-1 flex flex-col lg:min-h-0 overflow-hidden">
+          <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex-1 flex flex-col lg:min-h-0 overflow-hidden">
             <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800 dark:text-slate-100">Messenger Bot Activities</h3>
             </div>
@@ -422,7 +411,7 @@ export default function Dashboard() {
           </div>
 
           {/* Scraper Activities */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex-1 flex flex-col lg:min-h-0 overflow-hidden">
+          <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex-1 flex flex-col lg:min-h-0 overflow-hidden">
             <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800 dark:text-slate-100">Scraper Activities</h3>
             </div>
@@ -455,7 +444,7 @@ export default function Dashboard() {
         </StaggerItem>
 
         {/* ── 3. Heat Map (Real MapContainer) ── */}
-        <StaggerItem className="col-span-12 lg:col-span-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col lg:min-h-0">
+        <StaggerItem className="col-span-12 lg:col-span-6 bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex flex-col lg:min-h-0">
           <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
             <h3 className="font-semibold text-slate-800 dark:text-slate-100">Talisay Heat Map</h3>
             <button
@@ -504,7 +493,7 @@ export default function Dashboard() {
             animate="visible"
             exit="exit"
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
             onClick={() => setActiveConv(null)}
           >
             <motion.div
@@ -513,7 +502,7 @@ export default function Dashboard() {
               animate="visible"
               exit="exit"
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-4xl h-[80vh] flex overflow-hidden"
+              className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-2xl w-full max-w-4xl h-[80vh] flex overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Left: Conversation List */}
@@ -646,7 +635,7 @@ export default function Dashboard() {
             animate="visible"
             exit="exit"
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
             onClick={() => setActiveScraper(null)}
           >
             <motion.div
@@ -655,7 +644,7 @@ export default function Dashboard() {
               animate="visible"
               exit="exit"
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg overflow-hidden"
+              className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-2xl w-full max-w-lg overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
