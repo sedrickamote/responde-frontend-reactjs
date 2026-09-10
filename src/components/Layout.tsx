@@ -91,7 +91,9 @@ export default function Layout() {
   };
 
   return (
-    <div className="relative h-screen bg-[linear-gradient(113deg,#ffffff_0%,#f1f5ff_26%,#e5ebff_52%,#e3eaff_100%)] dark:bg-none dark:bg-[#0B0F19] overflow-hidden flex">
+    <div className="relative h-screen bg-gradient-to-br from-slate-100 via-blue-50/50 to-indigo-50/40 dark:bg-none dark:bg-[#0B0F19] overflow-hidden flex">
+      {/* Ambient background glows for frosted glass refraction */}
+
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
@@ -100,17 +102,20 @@ export default function Layout() {
         />
       )}
 
-      {/* ─── SIDEBAR ─── */}
+      {/* ─── SIDEBAR (Frosted Glass) ─── */}
       <aside
         className={`
           fixed top-4 left-4 bottom-4 z-50
           ${mobileOpen ? 'w-60' : collapsed ? 'lg:w-[72px]' : 'lg:w-56'}
           w-60
-          bg-white dark:bg-[#111827]
+          backdrop-blur-xl backdrop-saturate-[180%]
+          bg-white/45 dark:bg-slate-900/60
           flex flex-col
           rounded-2xl
-          border border-slate-200 dark:border-slate-700/60
-          shadow-[0_8px_32px_rgba(0,0,0,0.10)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.40)]
+          border border-white/60 dark:border-white/10
+          border-r-white/80
+          shadow-[0_8px_32px_0_rgba(31,38,135,0.08),inset_0_1px_1px_0_rgba(255,255,255,0.9)]
+          dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4),inset_0_1px_1px_0_rgba(255,255,255,0.1)]
           transition-all duration-300 ease-in-out
           ${mobileOpen ? 'translate-x-0' : '-translate-x-[110%] lg:translate-x-0'}
         `}
@@ -141,10 +146,10 @@ export default function Layout() {
         </div>
 
         {/* thin divider */}
-        <div className="mx-3 h-px bg-slate-300 dark:bg-slate-700/60 shrink-0" />
+        <div className="mx-3 h-px bg-white/60 dark:bg-white/10 shrink-0 shadow-[0_1px_0_rgba(0,0,0,0.03)]" />
 
         {/* Navigation */}
-        <nav className="flex-1 py-4 px-2.5 space-y-4 overflow-y-auto">
+        <nav className="flex-1 py-4 px-2.5 space-y-1.5 overflow-y-auto">
           {navItems.map((item) => {
             const active = isActive(item.path);
             const isCollapsed = collapsed && !mobileOpen;
@@ -154,11 +159,11 @@ export default function Layout() {
                 to={item.path}
                 onClick={() => setMobileOpen(false)}
                 className={`
-                  group flex items-center h-10 rounded-xl transition-all duration-200
-                  ${isCollapsed ? 'lg:justify-center lg:px-0' : 'gap-3.5 px-3'}
+                  group flex items-center rounded-xl px-4 py-2.5 transition-all duration-200 active:scale-[0.98]
+                  ${isCollapsed ? 'lg:justify-center lg:px-0' : 'gap-3.5'}
                   ${active
-                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-white/80 dark:bg-white/20 shadow-sm border border-white/90 dark:border-white/10 font-semibold text-blue-700 dark:text-blue-300 backdrop-blur-sm'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white border border-transparent'
                   }
                 `}
                 title={isCollapsed ? item.label : undefined}
@@ -166,17 +171,17 @@ export default function Layout() {
                 <div className={`
                   shrink-0 flex items-center justify-center transition-colors duration-200
                   ${active
-                    ? 'text-blue-600 dark:text-blue-400'
+                    ? 'text-blue-700 dark:text-blue-400'
                     : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'
                   }
                 `}>
-                  <item.icon className="w-[20px] h-[20px]" strokeWidth={active ? 2.5 : 1.75} />
+                  <item.icon className="w-[22px] h-[22px]" strokeWidth={active ? 2.5 : 1.75} />
                 </div>
                 <span className={`
-                  text-[13px] font-medium transition-all duration-300 overflow-hidden whitespace-nowrap
+                  text-[13px] transition-all duration-300 overflow-hidden whitespace-nowrap
                   ${active
-                    ? 'text-blue-600 dark:text-blue-400 font-semibold'
-                    : 'text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white'
+                    ? 'text-blue-700 dark:text-blue-400 font-semibold'
+                    : 'text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white font-medium'
                   }
                   ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'}
                 `}>
@@ -188,21 +193,21 @@ export default function Layout() {
         </nav>
 
         {/* thin divider */}
-        <div className="mx-3 h-px bg-slate-100 dark:bg-slate-700/60 shrink-0" />
+        <div className="mx-3 h-px bg-white/60 dark:bg-white/10 shrink-0 shadow-[0_1px_0_rgba(0,0,0,0.03)]" />
 
         {/* Sign Out */}
         <div className="px-2.5 py-3 shrink-0">
           <button
             onClick={() => navigate('/login')}
             className={`
-              group flex items-center w-full h-10 rounded-xl transition-all duration-200
-              ${collapsed && !mobileOpen ? 'lg:justify-center lg:px-0' : 'gap-3.5 px-3'}
-              hover:bg-red-50 dark:hover:bg-red-900/20
+              group flex items-center w-full rounded-xl px-4 py-2.5 transition-all duration-200 active:scale-[0.98]
+              ${collapsed && !mobileOpen ? 'lg:justify-center lg:px-0' : 'gap-3.5'}
+              text-slate-600 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-white/10 hover:text-red-600 dark:hover:text-red-400 border border-transparent
             `}
             title={collapsed && !mobileOpen ? 'Sign Out' : undefined}
           >
             <div className="shrink-0 flex items-center justify-center text-slate-400 dark:text-slate-500 group-hover:text-red-500 transition-colors duration-200">
-              <LogOut className="w-[20px] h-[20px]" strokeWidth={1.75} />
+              <LogOut className="w-[22px] h-[22px]" strokeWidth={1.75} />
             </div>
             <span className={`
               text-[13px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-red-500
@@ -220,18 +225,20 @@ export default function Layout() {
       <main
         className={`
           flex-1 flex flex-col min-w-0 transition-all duration-300
-          ${collapsed ? 'lg:ml-[calc(16px+72px+16px)]' : 'lg:ml-[calc(16px+224px+16px)]'}
+          ${collapsed ? 'lg:ml-[calc(16px+72px+8px)]' : 'lg:ml-[calc(16px+225px+8px)]'}
         `}
       >
-        {/* ─── FLOATING HEADER ─── */}
-        <div className="shrink-0 px-4 pt-4 z-[100] relative">
+        {/* ─── FLOATING HEADER (Frosted Glass) ─── */}
+        <div className="shrink-0 px-2 pt-4 z-[100] relative">
           <header className="
-            h-[62px] flex items-center justify-between px-4
-            bg-white dark:bg-[#111827]
-            border border-slate-200 dark:border-slate-700/60
-            shadow-[0_4px_24px_rgba(0,0,0,0.07)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.40)]
-            rounded-2xl
-            backdrop-blur-md
+            h-[65px] flex items-center justify-between px-4
+            backdrop-blur-xl backdrop-saturate-[180%]
+            bg-white/45 dark:bg-slate-900/60
+            border border-white/60 dark:border-white/10
+            shadow-[0_8px_32px_0_rgba(31,38,135,0.08),inset_0_1px_1px_0_rgba(255,255,255,0.9)]
+            dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4),inset_0_1px_1px_0_rgba(255,255,255,0.1)]
+            rounded-2xl sm:rounded-3xl
+            transition-all duration-300
           ">
             <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
               <button
@@ -242,7 +249,7 @@ export default function Layout() {
                     setCollapsed(!collapsed);
                   }
                 }}
-                className="shrink-0 p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                className="shrink-0 p-2 text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10 rounded-xl transition-colors active:scale-95"
               >
                 <Menu className="w-5 h-5" />
               </button>
@@ -250,12 +257,12 @@ export default function Layout() {
               <div className="hidden sm:flex items-center relative flex-1 max-w-sm">
                 <div className="
                 w-full flex items-center gap-2 px-3
-                bg-slate-100 dark:bg-slate-800/70
-                border border-slate-200/80 dark:border-slate-700/50
-                shadow-[0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_2px_rgba(255,255,255,0.8)]
-                dark:shadow-[0_2px_10px_rgba(0,0,0,0.30)]
+                bg-white/50 dark:bg-slate-800/60
+                border border-white/60 dark:border-white/10
+                shadow-sm
                 rounded-xl
                 transition-all duration-200
+                focus-within:bg-white/80 dark:focus-within:bg-slate-800/90
                 focus-within:border-blue-400/60 dark:focus-within:border-blue-500/50
                 focus-within:shadow-[0_4px_16px_rgba(59,130,246,0.14),inset_0_1px_2px_rgba(255,255,255,0.8)]
                 dark:focus-within:shadow-[0_4px_16px_rgba(59,130,246,0.22)]
@@ -276,7 +283,7 @@ export default function Layout() {
                 <button
                   id="notification-bell-btn"
                   onClick={handleBellClick}
-                  className="relative p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                  className="relative p-2.5 text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10 rounded-xl transition-colors active:scale-95"
                   aria-label="Notifications"
                 >
                   <Bell className="w-5 h-5" />
@@ -305,7 +312,7 @@ export default function Layout() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -8, scale: 0.97 }}
                       transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                      className="absolute right-0 top-full mt-2 w-[360px] sm:w-[400px] bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl shadow-black/10 dark:shadow-black/40 z-[60] overflow-hidden flex flex-col"
+                      className="absolute right-0 top-full mt-2 w-[360px] sm:w-[400px] backdrop-blur-xl backdrop-saturate-[180%] bg-white/80 dark:bg-slate-900/85 rounded-2xl border border-white/70 dark:border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.12),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-black/50 z-[60] overflow-hidden flex flex-col"
                     >
                       {/* ── Header ── */}
                       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
@@ -425,12 +432,12 @@ export default function Layout() {
                 </AnimatePresence>
               </div>
 
-              <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3 pl-4 border-l border-white/60 dark:border-white/10">
                 <div className="text-right hidden sm:block">
                   <div className="text-sm font-mono font-semibold text-slate-700 dark:text-slate-200">{formattedTime}</div>
                   <div className="text-xs text-slate-500 dark:text-slate-400">{formattedDate}</div>
                 </div>
-                <div className="w-9 h-9 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center">
+                <div className="w-9 h-9 bg-white/70 dark:bg-slate-800/80 border border-white/80 dark:border-white/10 shadow-sm rounded-full flex items-center justify-center">
                   <UserCircle className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                 </div>
               </div>
