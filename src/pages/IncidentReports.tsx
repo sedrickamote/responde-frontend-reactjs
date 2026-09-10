@@ -202,7 +202,7 @@ export default function IncidentReports() {
   const navigate = useNavigate();
   const [reports, setReports] = useState<Report[]>(sampleReports);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<ReportStatus | 'all'>('all');
+  const [activeTab, setActiveTab] = useState<ReportStatus>('under_review');
   const [reviewingReport, setReviewingReport] = useState<Report | null>(null);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -243,8 +243,6 @@ export default function IncidentReports() {
   const itemsPerPage = 10;
 
   const tabs = [
-    { key: 'all' as const, label: 'All Reports', count: reports.length },
-    { key: 'pending' as const, label: 'Pending', count: reports.filter(r => r.status === 'pending').length },
     { key: 'under_review' as const, label: 'Under Review', count: reports.filter(r => r.status === 'under_review').length },
     { key: 'verified' as const, label: 'Verified', count: reports.filter(r => r.status === 'verified').length },
     { key: 'resolved' as const, label: 'Resolved', count: reports.filter(r => r.status === 'resolved').length },
@@ -383,7 +381,7 @@ export default function IncidentReports() {
   const allChecklistChecked = Object.values(checklist).every(Boolean);
 
   const filteredReports = reports.filter(r => {
-    if (activeTab !== 'all' && r.status !== activeTab) return false;
+    if (r.status !== activeTab) return false;
     if (filterBarangay !== 'All Barangays' && r.barangay !== filterBarangay) return false;
     if (filterType !== 'All Types' && r.type !== filterType) return false;
     if (filterUrgency !== 'All Urgency' && r.urgency !== filterUrgency) return false;
