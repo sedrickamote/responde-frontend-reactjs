@@ -10,6 +10,8 @@ import {
 import DatePicker from '../components/DatePicker';
 import FilterDropdown from '../components/DropDown';
 import { StaggerContainer, StaggerItem } from '../components/Stagger';
+import PageLoader from '../components/PageLoader';
+import PageTransition from '../components/Transition';
 
 // ── Status Type ──
 type ReportStatus = 'pending' | 'under_review' | 'verified' | 'rejected' | 'resolved';
@@ -64,8 +66,8 @@ const sampleReports: Report[] = [
 ];
 
 // ── Apple Design Spring Physics & Ease curves ──
-const APPLE_SPRING = { type: 'spring', stiffness: 400, damping: 32 } as const;
-const APPLE_SLIDE_SPRING = { type: 'spring', stiffness: 450, damping: 35 } as const;
+const APPLE_SPRING = { type: 'spring', stiffness: 340, damping: 34, mass: 0.8 } as const;
+const APPLE_SLIDE_SPRING = { type: 'spring', stiffness: 380, damping: 36, mass: 0.9 } as const;
 const EASE_OUT = [0.23, 1, 0.32, 1] as const;
 
 // ── Animation presets (Apple HIG & Emil Kowalski craft bar) ──
@@ -76,9 +78,9 @@ const backdropVariants = {
 };
 
 const modalVariants = {
-  hidden: { opacity: 0, scale: 0.96, y: 16 },
+  hidden: { opacity: 0, scale: 0.98, y: 10 },
   visible: { opacity: 1, scale: 1, y: 0 },
-  exit: { opacity: 0, scale: 0.96, y: 16 },
+  exit: { opacity: 0, scale: 0.98, y: 10 },
 };
 
 // ── Bulk bar: hardware-accelerated transform + opacity only ──
@@ -215,6 +217,14 @@ export default function IncidentReports() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 280);
+    return () => clearTimeout(timer);
+  }, []);
 
   // ── Toast State ──
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -461,21 +471,26 @@ export default function IncidentReports() {
     }
   };
 
-  return (
-    <div className="flex flex-col flex-1 min-h-0 gap-6 relative">
-      {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-[250] flex flex-col gap-2 pointer-events-none">
-        <AnimatePresence>
-          {toasts.map(toast => (
-            <div key={toast.id} className="pointer-events-auto">
-              <ToastItem toast={toast} onDismiss={dismissToast} />
-            </div>
-          ))}
-        </AnimatePresence>
-      </div>
+  if (loading) return <PageLoader variant="incidents" />;
 
-      {/* Tabs — Apple macOS Segmented Control */}
-      <div className="p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 inline-flex items-center gap-1 shrink-0 self-start shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]">
+  return (
+    <PageTransition>
+      <div className="flex flex-col flex-1 min-h-0 gap-6 relative">
+        {/* Toast Notifications */}
+        <div className="fixed top-4 right-4 z-[250] flex flex-col gap-2 pointer-events-none">
+          <AnimatePresence>
+            {toasts.map(toast => (
+              <div key={toast.id} className="pointer-events-auto">
+                <ToastItem toast={toast} onDismiss={dismissToast} />
+              </div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        <StaggerContainer className="flex flex-col flex-1 min-h-0 gap-6">
+          {/* Tabs — Apple macOS Segmented Control */}
+          <StaggerItem>
+            <div className="p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 inline-flex items-center gap-1 shrink-0 self-start shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
@@ -510,9 +525,12 @@ export default function IncidentReports() {
           );
         })}
       </div>
+      </StaggerItem>
 
-      {/* Filter Bar — Apple Frosted Glass Toolbar */}
-      <div className="relative z-30 backdrop-blur-xl bg-white/80 dark:bg-[#111827]/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-4 shrink-0 border-t border-t-white/80 dark:border-t-white/10">
+      {/* Filter Bar & Bulk Selection */}
+      <StaggerItem className="relative z-30 flex flex-col gap-3">
+        {/* Filter Bar — Apple Frosted Glass Toolbar */}
+        <div className="relative z-30 backdrop-blur-xl bg-white/80 dark:bg-[#111827]/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-4 shrink-0 border-t border-t-white/80 dark:border-t-white/10">
         <div className="flex flex-col lg:flex-row lg:items-center gap-3">
           <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 text-xs font-semibold shrink-0 uppercase tracking-wider">
             <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
@@ -599,9 +617,11 @@ export default function IncidentReports() {
           </motion.div>
         )}
       </AnimatePresence>
+      </StaggerItem>
 
       {/* Table — Apple Pro Data Table */}
-      <div className="relative z-10 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col flex-1 min-h-0">
+      <StaggerItem className="flex flex-col flex-1 min-h-0">
+        <div className="relative z-10 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col flex-1 min-h-0">
         <div className="overflow-auto flex-1">
           <table className="w-full min-w-[800px] text-sm text-left">
             <thead className="bg-slate-50/90 dark:bg-slate-800/60 backdrop-blur-md border-b border-slate-200/70 dark:border-slate-800 sticky top-0 z-10">
@@ -755,14 +775,18 @@ export default function IncidentReports() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
-      </div>
+      </StaggerItem>
 
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-      />
+      <StaggerItem>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      </StaggerItem>
+    </StaggerContainer>
 
       {/* Review & Verify Modal — Apple macOS Pro Sheet */}
       <AnimatePresence>
@@ -783,7 +807,7 @@ export default function IncidentReports() {
               animate="visible"
               exit="exit"
               transition={APPLE_SPRING}
-              className="bg-white/95 dark:bg-[#111827]/95 backdrop-blur-2xl rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] w-full max-w-3xl max-h-[88vh] overflow-hidden flex flex-col"
+              className="bg-white/95 dark:bg-[#111827]/95 backdrop-blur-2xl rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] w-full max-w-3xl max-h-[88vh] overflow-hidden flex flex-col transform-gpu will-change-transform"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -1118,5 +1142,6 @@ export default function IncidentReports() {
         )}
       </AnimatePresence>
     </div>
-  );
+  </PageTransition>
+);
 }

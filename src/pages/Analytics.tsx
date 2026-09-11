@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { motion, type Variants } from 'framer-motion';
@@ -42,6 +42,8 @@ import {
 import DatePicker from '../components/DatePicker';
 import FilterDropdown from '../components/DropDown';
 import { useReports } from '../context/ReportsContext';
+import PageLoader from '../components/PageLoader';
+import PageTransition from '../components/Transition';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 type AnalyticsReport = {
@@ -55,30 +57,30 @@ type AnalyticsReport = {
   verifiedAt?: string | null;
 };
 
-// ── Apple Design Physics & Stagger Variants ──────────────────────────────────
-const APPLE_SPRING = { type: 'spring', stiffness: 400, damping: 32 } as const;
+// ── Apple Design Physics & Stagger Variants (critically damped, zero wobble) ──
+const APPLE_SPRING = { type: 'spring', stiffness: 340, damping: 34, mass: 0.8 } as const;
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.06,
-      delayChildren: 0.04,
+      staggerChildren: 0.07,
+      delayChildren: 0.03,
     },
   },
 };
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 16, filter: 'blur(4px)' },
+  hidden: { opacity: 0, y: 14 },
   visible: {
     opacity: 1,
     y: 0,
-    filter: 'blur(0px)',
     transition: {
       type: 'spring',
-      stiffness: 400,
-      damping: 32,
+      stiffness: 340,
+      damping: 34,
+      mass: 0.8,
     },
   },
 };
@@ -270,6 +272,14 @@ export default function Analytics() {
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [sourceFilter, setSourceFilter] = useState('All Sources');
   const [volumeRange, setVolumeRange] = useState<'7d' | '30d' | '3m'>('7d');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 280);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Click-to-filter from charts
   const [activeBarangay, setActiveBarangay] = useState<string | null>(null);
@@ -464,13 +474,16 @@ export default function Analytics() {
     Boolean(activeType);
 
   // ── Render ────────────────────────────────────────────────────────────────
+  if (loading) return <PageLoader variant="analytics" />;
+
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="w-full space-y-6 pb-8"
-    >
+    <PageTransition>
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="w-full space-y-6 pb-8"
+      >
       {/* ── 1. PAGE HEADER & FILTER BAR (Frosted Glass Specular) ── */}
       <motion.div variants={itemVariants} className="relative z-50">
         <AppleCard className="p-5 md:p-6 space-y-5 relative z-50">
@@ -1176,5 +1189,6 @@ export default function Analytics() {
         </AppleCard>
       </motion.div>
     </motion.div>
-  );
+  </PageTransition>
+);
 }

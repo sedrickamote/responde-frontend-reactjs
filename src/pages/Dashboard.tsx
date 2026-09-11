@@ -11,7 +11,7 @@ import { useTheme } from '../components/ThemeContent';
 import { supabase } from '../lib/supabaseClient';
 import MapContainer from '../components/MapContainer';
 import { useReports } from '../context/ReportsContext';
-import { useBotConversations, type BotConversation, type BotMessage } from '../context/BotConversationsContext';
+import { useBotConversations, type BotConversation } from '../context/BotConversationsContext';
 import type { MapLayerState } from '../types/geospatial';
 import PageLoader from '../components/PageLoader';
 
@@ -96,8 +96,6 @@ function formatDisplayTime(timeStr: string): string {
 }
 
 // ── Helpers ──
-const INACTIVITY_GAP_MS = 60 * 60 * 1000;
-
 function formatTimestamp(ts: string | null): string {
   if (!ts) return '';
   const d = new Date(ts);
@@ -487,11 +485,10 @@ export default function Dashboard() {
                       key={convo.id}
                       type="button"
                       onClick={() => openConversation(convo)}
-                      className={`w-full flex items-center gap-3.5 p-3 rounded-xl transition-all duration-150 text-left relative group active:scale-[0.98] ${
-                        isIncomplete
-                          ? "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.14] border border-amber-500/15 dark:border-amber-500/20 text-slate-950 dark:text-white"
-                          : "hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent text-slate-700 dark:text-slate-300"
-                      }`}
+                      className={`w-full flex items-center gap-3.5 p-3 rounded-xl transition-all duration-150 text-left relative group active:scale-[0.98] ${isIncomplete
+                        ? "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.14] border border-amber-500/15 dark:border-amber-500/20 text-slate-950 dark:text-white"
+                        : "hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent text-slate-700 dark:text-slate-300"
+                        }`}
                     >
                       {/* Circular Avatar with status badge */}
                       <div className="relative shrink-0">
@@ -508,20 +505,18 @@ export default function Dashboard() {
                       {/* Content */}
                       <div className="flex-1 min-w-0 pr-1">
                         <h4
-                          className={`text-sm tracking-tight truncate transition-all duration-200 ${
-                            isIncomplete
-                              ? "font-bold text-slate-950 dark:text-white"
-                              : "font-medium text-slate-700 dark:text-slate-300"
-                          }`}
+                          className={`text-sm tracking-tight truncate transition-all duration-200 ${isIncomplete
+                            ? "font-bold text-slate-950 dark:text-white"
+                            : "font-medium text-slate-700 dark:text-slate-300"
+                            }`}
                         >
                           {convo.name}
                         </h4>
                         <p
-                          className={`text-xs truncate mt-0.5 leading-snug transition-all duration-200 ${
-                            isIncomplete
-                              ? "font-semibold text-slate-900 dark:text-slate-100"
-                              : "font-normal text-slate-500 dark:text-slate-400"
-                          }`}
+                          className={`text-xs truncate mt-0.5 leading-snug transition-all duration-200 ${isIncomplete
+                            ? "font-semibold text-slate-900 dark:text-slate-100"
+                            : "font-normal text-slate-500 dark:text-slate-400"
+                            }`}
                         >
                           {getLastMessage(convo)}
                         </p>
@@ -530,18 +525,16 @@ export default function Dashboard() {
                             {convo.type} · {convo.barangay}
                           </span>
                           <span
-                            className={`inline-flex items-center gap-1 text-[10px] font-medium rounded-md px-2 py-0.5 border transition-colors duration-200 ${
-                              isIncomplete
-                                ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200/50 dark:border-amber-800/50 font-semibold'
-                                : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/50'
-                            }`}
+                            className={`inline-flex items-center gap-1 text-[10px] font-medium rounded-md px-2 py-0.5 border transition-colors duration-200 ${isIncomplete
+                              ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200/50 dark:border-amber-800/50 font-semibold'
+                              : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/50'
+                              }`}
                           >
                             <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                isIncomplete
-                                  ? 'bg-amber-500 animate-pulse'
-                                  : 'bg-emerald-500'
-                              }`}
+                              className={`w-1.5 h-1.5 rounded-full ${isIncomplete
+                                ? 'bg-amber-500 animate-pulse'
+                                : 'bg-emerald-500'
+                                }`}
                             />
                             {convo.status}
                           </span>
@@ -552,11 +545,10 @@ export default function Dashboard() {
                       <div className="flex flex-col items-end justify-between self-stretch shrink-0 py-0.5 pl-1">
                         <div className="flex items-center gap-1.5">
                           <span
-                            className={`text-[11px] tabular-nums transition-colors duration-200 ${
-                              isIncomplete
-                                ? "font-semibold text-amber-600 dark:text-amber-400"
-                                : "font-normal text-slate-400 dark:text-slate-500"
-                            }`}
+                            className={`text-[11px] tabular-nums transition-colors duration-200 ${isIncomplete
+                              ? "font-semibold text-amber-600 dark:text-amber-400"
+                              : "font-normal text-slate-400 dark:text-slate-500"
+                              }`}
                           >
                             {formatDisplayTime(convo.time)}
                           </span>
@@ -723,13 +715,12 @@ export default function Dashboard() {
                         key={convo.id}
                         type="button"
                         onClick={() => handleModalSelectConv(convo.id)}
-                        className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all duration-150 text-left relative group active:scale-[0.98] ${
-                          isSelected
-                            ? "bg-blue-500/10 dark:bg-blue-500/20 shadow-xs border border-blue-500/25 dark:border-blue-500/30 text-slate-900 dark:text-white"
-                            : isIncomplete
+                        className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all duration-150 text-left relative group active:scale-[0.98] ${isSelected
+                          ? "bg-blue-500/10 dark:bg-blue-500/20 shadow-xs border border-blue-500/25 dark:border-blue-500/30 text-slate-900 dark:text-white"
+                          : isIncomplete
                             ? "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.14] border border-amber-500/15 dark:border-amber-500/20 text-slate-950 dark:text-white"
                             : "hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent text-slate-700 dark:text-slate-300"
-                        }`}
+                          }`}
                       >
                         {isSelected && (
                           <motion.div
@@ -751,23 +742,21 @@ export default function Dashboard() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
                             <h4
-                              className={`text-xs truncate transition-all duration-200 ${
-                                isIncomplete
-                                  ? "font-bold text-slate-950 dark:text-white"
-                                  : isSelected
+                              className={`text-xs truncate transition-all duration-200 ${isIncomplete
+                                ? "font-bold text-slate-950 dark:text-white"
+                                : isSelected
                                   ? "font-semibold text-slate-900 dark:text-white"
                                   : "font-medium text-slate-700 dark:text-slate-300"
-                              }`}
+                                }`}
                             >
                               {convo.name}
                             </h4>
                             <div className="flex items-center gap-1 shrink-0 ml-1">
                               <span
-                                className={`text-[10px] tabular-nums transition-colors duration-200 ${
-                                  isIncomplete
-                                    ? "font-semibold text-amber-600 dark:text-amber-400"
-                                    : "font-normal text-slate-400 dark:text-slate-500"
-                                }`}
+                                className={`text-[10px] tabular-nums transition-colors duration-200 ${isIncomplete
+                                  ? "font-semibold text-amber-600 dark:text-amber-400"
+                                  : "font-normal text-slate-400 dark:text-slate-500"
+                                  }`}
                               >
                                 {formatDisplayTime(convo.time)}
                               </span>
@@ -777,11 +766,10 @@ export default function Dashboard() {
                             </div>
                           </div>
                           <p
-                            className={`text-[11px] truncate mt-0.5 leading-snug transition-all duration-200 ${
-                              isIncomplete
-                                ? "font-semibold text-slate-900 dark:text-slate-100"
-                                : "font-normal text-slate-500 dark:text-slate-400"
-                            }`}
+                            className={`text-[11px] truncate mt-0.5 leading-snug transition-all duration-200 ${isIncomplete
+                              ? "font-semibold text-slate-900 dark:text-slate-100"
+                              : "font-normal text-slate-500 dark:text-slate-400"
+                              }`}
                           >
                             {getLastMessage(convo)}
                           </p>
@@ -836,11 +824,10 @@ export default function Dashboard() {
                           <button
                             type="button"
                             onClick={() => updateBotConversationStatus(selectedConversation.id, 'Incomplete')}
-                            className={`relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-tight transition-colors duration-200 select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
-                              selectedConversation.status === 'Incomplete'
-                                ? 'text-amber-600 dark:text-amber-400'
-                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                            }`}
+                            className={`relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-tight transition-colors duration-200 select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${selectedConversation.status === 'Incomplete'
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                              }`}
                             title="Mark conversation as Incomplete"
                           >
                             {selectedConversation.status === 'Incomplete' && (
@@ -858,11 +845,10 @@ export default function Dashboard() {
                           <button
                             type="button"
                             onClick={() => updateBotConversationStatus(selectedConversation.id, 'Complete')}
-                            className={`relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-tight transition-colors duration-200 select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-                              selectedConversation.status === 'Complete'
-                                ? 'text-emerald-700 dark:text-emerald-300'
-                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                            }`}
+                            className={`relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-tight transition-colors duration-200 select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${selectedConversation.status === 'Complete'
+                              ? 'text-emerald-700 dark:text-emerald-300'
+                              : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                              }`}
                             title="Mark conversation as Complete"
                           >
                             {selectedConversation.status === 'Complete' && (

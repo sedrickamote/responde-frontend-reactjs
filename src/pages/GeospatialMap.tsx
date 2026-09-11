@@ -12,6 +12,8 @@ import { useTheme } from '../components/ThemeContent';
 import FilterDropdown from '../components/DropDown';
 import MapContainer from '../components/MapContainer';
 import { useReports } from '../context/ReportsContext';
+import PageLoader from '../components/PageLoader';
+import PageTransition from '../components/Transition';
 import type { MapLayerState, SelectedFeature } from '../types/geospatial';
 import type { Report } from '../data/sample-reports';
 
@@ -21,8 +23,8 @@ const INITIAL_LAYERS: MapLayerState = {
   boundaries: true,
 };
 
-// -- Apple Design Spring Physics --
-const APPLE_SPRING = { type: 'spring', stiffness: 400, damping: 32 } as const;
+// -- Apple Design Spring Physics (critically damped, zero overshoot) --
+const APPLE_SPRING = { type: 'spring', stiffness: 340, damping: 34, mass: 0.8 } as const;
 
 // Type icons
 const TYPE_ICONS: Record<string, React.ReactNode> = {
@@ -101,11 +103,11 @@ function BarangayDetailCard({ name, reports, onClose, onViewList }: {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 12 }}
+      initial={{ opacity: 0, scale: 0.98, y: 10 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: 12 }}
+      exit={{ opacity: 0, scale: 0.98, y: 10 }}
       transition={APPLE_SPRING}
-      className="absolute top-4 right-4 z-30 w-[min(340px,calc(100vw-2rem))] max-w-[340px] max-h-[75vh] overflow-y-auto rounded-2xl backdrop-blur-2xl bg-white/95 dark:bg-[#111827]/95 shadow-[0_16px_50px_rgba(0,0,0,0.15)] border border-slate-200/80 dark:border-white/10 border-t border-t-white/80 dark:border-t-white/20"
+      className="absolute top-4 right-4 z-30 w-[min(340px,calc(100vw-2rem))] max-w-[340px] max-h-[75vh] overflow-y-auto rounded-2xl backdrop-blur-2xl bg-white/95 dark:bg-[#111827]/95 shadow-[0_16px_50px_rgba(0,0,0,0.15)] border border-slate-200/80 dark:border-white/10 border-t border-t-white/80 dark:border-t-white/20 transform-gpu will-change-transform"
     >
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-[#111827]/60 backdrop-blur-md sticky top-0 z-10">
         <div className="flex items-center gap-2.5">
@@ -189,11 +191,11 @@ function IncidentDetailCard({ report, onClose, onViewInReports }: {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 12 }}
+      initial={{ opacity: 0, scale: 0.98, y: 10 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: 12 }}
+      exit={{ opacity: 0, scale: 0.98, y: 10 }}
       transition={APPLE_SPRING}
-      className="absolute top-4 right-4 z-30 w-[min(340px,calc(100vw-2rem))] max-w-[340px] max-h-[75vh] overflow-y-auto rounded-2xl backdrop-blur-2xl bg-white/95 dark:bg-[#111827]/95 shadow-[0_16px_50px_rgba(0,0,0,0.15)] border border-slate-200/80 dark:border-white/10 border-t border-t-white/80 dark:border-t-white/20"
+      className="absolute top-4 right-4 z-30 w-[min(340px,calc(100vw-2rem))] max-w-[340px] max-h-[75vh] overflow-y-auto rounded-2xl backdrop-blur-2xl bg-white/95 dark:bg-[#111827]/95 shadow-[0_16px_50px_rgba(0,0,0,0.15)] border border-slate-200/80 dark:border-white/10 border-t border-t-white/80 dark:border-t-white/20 transform-gpu will-change-transform"
     >
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-[#111827]/60 backdrop-blur-md sticky top-0 z-10">
         <div className="flex items-center gap-2.5">
@@ -304,6 +306,14 @@ export default function GeospatialMap() {
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [filterUrgency, setFilterUrgency] = useState<string>('All Urgency');
   const [filterType, setFilterType] = useState<string>('All Types');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 280);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Compute barangay max urgency level (High=3, Moderate=2, Low=1) reflecting active filters
   const URGENCY_WEIGHTS: Record<string, number> = { High: 3, Moderate: 2, Low: 1 };
@@ -387,8 +397,11 @@ export default function GeospatialMap() {
       .filter((r) => filterType === 'All Types' || filterType === 'All' || r.type === filterType);
   }, [selected, getReportsByBarangay, filterUrgency, filterType]);
 
+  if (loading) return <PageLoader variant="geospatial" />;
+
   return (
-    <StaggerContainer className="flex flex-col flex-1 min-h-0 gap-4">
+    <PageTransition>
+      <StaggerContainer className="flex flex-col flex-1 min-h-0 gap-4">
 
       {/* ── Toolbar Row ── */}
       <StaggerItem>
@@ -464,7 +477,7 @@ export default function GeospatialMap() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -16 }}
                 transition={APPLE_SPRING}
-                className="col-span-12 lg:col-span-3 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden min-h-0"
+                className="col-span-12 lg:col-span-3 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden min-h-0 transform-gpu will-change-transform"
               >
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-white/5 shrink-0 bg-slate-50/50 dark:bg-slate-900/30">
@@ -576,6 +589,7 @@ export default function GeospatialMap() {
           </div>
         </div>
       </StaggerItem>
-    </StaggerContainer>
+      </StaggerContainer>
+    </PageTransition>
   );
 }

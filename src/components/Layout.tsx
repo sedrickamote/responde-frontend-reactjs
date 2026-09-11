@@ -68,7 +68,7 @@ export default function Layout() {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/incident-reports', label: 'Incident Reports', icon: FileText },
-    { path: '/messenger-bot-logs', label: 'Messenger Bot Logs', icon: MessageSquare },
+    { path: '/messenger-bot-logs', label: 'Messenger Logs', icon: MessageSquare },
     { path: '/scraper-feed', label: 'Scraper Feed', icon: Globe },
     { path: '/geospatial-map', label: 'Geospatial Map', icon: Map },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },

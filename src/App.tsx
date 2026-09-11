@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ReportsProvider } from './context/ReportsContext';
 import { NotificationProvider } from './context/NotificationContext';
@@ -6,12 +7,15 @@ import Landing from './website/Landing-Page';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
-import IncidentReports from './pages/IncidentReports';
-import MessengerBotLogs from './pages/MessengerBotLogs';
-import ScraperFeed from './pages/ScraperFeed';
-import GeospatialMap from './pages/GeospatialMap';
-import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import PageLoader from './components/PageLoader';
+
+// Lazy-loaded pages — downloaded only when the user navigates to them
+const IncidentReports = lazy(() => import('./pages/IncidentReports'));
+const MessengerBotLogs = lazy(() => import('./pages/MessengerBotLogs'));
+const ScraperFeed = lazy(() => import('./pages/ScraperFeed'));
+const GeospatialMap = lazy(() => import('./pages/GeospatialMap'));
+const Analytics = lazy(() => import('./pages/Analytics'));
 
 function App() {
   return (
@@ -27,11 +31,36 @@ function App() {
               {/* Protected admin routes — wrapped in Layout */}
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/incident-reports" element={<IncidentReports />} />
-                <Route path="/messenger-bot-logs" element={<MessengerBotLogs />} />
-                <Route path="/scraper-feed" element={<ScraperFeed />} />
-                <Route path="/geospatial-map" element={<GeospatialMap />} />
-                <Route path="/analytics" element={<Analytics />} />
+                <Route path="/incident-reports" element={
+                  <Suspense fallback={<PageLoader variant="incidents" />}>
+                    <IncidentReports />
+                  </Suspense>
+                } />
+                <Route path="/messenger-bot-logs" element={
+                  <Suspense fallback={<PageLoader variant="messenger" />}>
+                    <MessengerBotLogs />
+                  </Suspense>
+                } />
+                <Route path="/scraper-feed" element={
+                  <Suspense fallback={<PageLoader variant="scraper" />}>
+                    <ScraperFeed />
+                  </Suspense>
+                } />
+                <Route path="/geospatial-map" element={
+                  <Suspense fallback={<PageLoader variant="geospatial" />}>
+                    <GeospatialMap />
+                  </Suspense>
+                } />
+                <Route path="/geospatial" element={
+                  <Suspense fallback={<PageLoader variant="geospatial" />}>
+                    <GeospatialMap />
+                  </Suspense>
+                } />
+                <Route path="/analytics" element={
+                  <Suspense fallback={<PageLoader variant="analytics" />}>
+                    <Analytics />
+                  </Suspense>
+                } />
                 <Route path="/settings" element={<Settings />} />
               </Route>
             </Routes>
