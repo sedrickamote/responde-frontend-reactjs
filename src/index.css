@@ -2,10 +2,33 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+  /* Apple Typography Stack */
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-optical-sizing: auto;
+
+  /* Apple System Colors */
+  --apple-headline: #1D1D1F;
+  --apple-subhead: #424245;
+  --apple-body: #6E6E73;
+  --apple-caption: #86868B;
+  --apple-hairline: rgba(0, 0, 0, 0.08);
+
   /* Emil Kowalski Custom Easing Curves */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+body {
+  font-family: inherit;
+  color: var(--apple-headline);
+  background-color: #FFFFFF;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Tactile button press feedback */
@@ -15,10 +38,10 @@ button:not(:disabled), [role="button"] {
 
 /* Hide scrollbars everywhere but keep scrolling functional */
 * {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 *::-webkit-scrollbar {
-    display: none;
-}
+  display: none;
+}

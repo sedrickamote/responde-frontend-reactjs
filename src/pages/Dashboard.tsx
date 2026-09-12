@@ -211,7 +211,8 @@ export default function Dashboard() {
       const scraperRes = await supabase
         .from('fb_comments')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       // Process Scraper Posts
       const mappedScraper: ScraperItem[] = [];

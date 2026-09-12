@@ -261,7 +261,8 @@ export default function ScraperFeed() {
 
         const { data, error: sbError } = await supabase
           .from(tableName)
-          .select("*");
+          .select("*")
+          .limit(100);
 
         if (sbError) {
           console.error(`[ScraperFeed] Failed to fetch from "${tableName}":`, sbError.message);
@@ -275,7 +276,8 @@ export default function ScraperFeed() {
             for (const fbTable of fallbacks) {
               const { data: fbData, error: fbErr } = await supabase
                 .from(fbTable)
-                .select("*");
+                .select("*")
+                .limit(100);
 
               if (!fbErr) {
                 fallbackData = fbData;
