@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import gsap from 'gsap';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Info, Sparkles, LogIn, Menu, X, ChevronRight } from 'lucide-react';
 
@@ -24,6 +25,89 @@ export default function Nav() {
 
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
+
+  const navRef = useRef<HTMLElement>(null);
+  const logoRef = useRef<HTMLAnchorElement>(null);
+  const navLinksRef = useRef<(HTMLLIElement | null)[]>([]);
+  const signInRef = useRef<HTMLAnchorElement>(null);
+
+  // GSAP Stagger Entrance Animation on Page Load
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        delay: 0.3,
+      });
+
+      // 1. Base navbar container slides down into natural position
+      tl.fromTo(
+        navRef.current,
+        { opacity: 0, y: -20 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.5,
+          ease: 'power3.out',
+          clearProps: 'transform',
+        }
+      );
+
+      // Label marking the moment immediately after the navbar container settles
+      tl.addLabel('elements');
+
+      // 2. Logo/brand appears first
+      if (logoRef.current) {
+        tl.fromTo(
+          logoRef.current,
+          { opacity: 0, y: -10 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            ease: 'power3.out',
+            clearProps: 'transform',
+          },
+          'elements'
+        );
+      }
+
+      // 3. Nav links (Home, About, Features) appear one after another with 0.1s stagger
+      const links = navLinksRef.current.filter(Boolean);
+      links.forEach((link, idx) => {
+        tl.fromTo(
+          link,
+          { opacity: 0, y: -10 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            ease: 'power3.out',
+            clearProps: 'transform',
+          },
+          `elements+=${0.1 * (idx + 1)}`
+        );
+      });
+
+      // 4. Sign In button appears last with scale 0.8 to 1 combined with fade
+      if (signInRef.current) {
+        const signInDelay = 0.1 * (links.length + 1);
+        tl.fromTo(
+          signInRef.current,
+          { opacity: 0, y: -10, scale: 0.8 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.5,
+            ease: 'power3.out',
+            clearProps: 'transform',
+          },
+          `elements+=${signInDelay}`
+        );
+      }
+    }, navRef);
+
+    return () => ctx.revert();
+  }, []);
 
   // Handle scroll depth for dynamic island elevation
   useEffect(() => {
@@ -90,6 +174,7 @@ export default function Nav() {
   return (
     <header className="fixed top-3.5 sm:top-5 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
       <nav
+        ref={navRef}
         aria-label="Main navigation"
         className={`
           pointer-events-auto
@@ -110,6 +195,7 @@ export default function Nav() {
         <div className="flex items-center gap-1 sm:gap-2">
           {/* Logo & Brand Name */}
           <Link
+            ref={logoRef}
             to="/"
             onClick={() => {
               if (location.pathname === '/') {
@@ -135,14 +221,20 @@ export default function Nav() {
 
           {/* Left-Aligned Links: Home, About, Features with Apple Icons */}
           <ul className="hidden md:flex items-center gap-1">
-            {NAV_ITEMS.map((item) => {
+            {NAV_ITEMS.map((item, index) => {
               const isActive = activeSection === item.id;
               const isHovered = hoveredTab === item.id;
               const showPill = hoveredTab ? isHovered : isActive;
               const Icon = item.icon;
 
               return (
-                <li key={item.id} className="relative">
+                <li
+                  key={item.id}
+                  ref={(el) => {
+                    navLinksRef.current[index] = el;
+                  }}
+                  className="relative"
+                >
                   <a
                     href={location.pathname === '/' ? item.href : `/${item.href}`}
                     onClick={(e) => handleNavClick(e, item.href)}
@@ -182,6 +274,7 @@ export default function Nav() {
         <div className="flex items-center gap-2">
           {/* Apple-style Action Button */}
           <Link
+            ref={signInRef}
             to="/login"
             className="
               relative inline-flex items-center justify-center gap-1.5

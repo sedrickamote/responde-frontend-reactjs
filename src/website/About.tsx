@@ -1,3 +1,6 @@
+import { useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
   Activity,
   Bot,
@@ -9,9 +12,157 @@ import {
   Zap,
 } from 'lucide-react';
 
+gsap.registerPlugin(ScrollTrigger);
+
 export default function About() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  const row1Ref = useRef<HTMLDivElement>(null);
+  const row1ImageRef = useRef<HTMLDivElement>(null);
+  const row1TextRef = useRef<HTMLDivElement>(null);
+
+  const row2Ref = useRef<HTMLDivElement>(null);
+  const row2ImageRef = useRef<HTMLDivElement>(null);
+  const row2TextRef = useRef<HTMLDivElement>(null);
+
+  const row3Ref = useRef<HTMLDivElement>(null);
+  const row3ImageRef = useRef<HTMLDivElement>(null);
+  const row3TextRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Header entrance
+      if (headerRef.current) {
+        gsap.fromTo(
+          headerRef.current,
+          { opacity: 0, y: 40 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 1.2,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: headerRef.current,
+              start: 'top 85%',
+              once: true,
+            },
+          }
+        );
+      }
+
+      // Row 1: Image from left (-80), Text from right (+80)
+      if (row1Ref.current && row1ImageRef.current && row1TextRef.current) {
+        gsap.fromTo(
+          row1ImageRef.current,
+          { x: -80, opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 1.4,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: row1Ref.current,
+              start: 'top 85%',
+              once: true,
+            },
+          }
+        );
+
+        gsap.fromTo(
+          row1TextRef.current,
+          { x: 80, opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 1.4,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: row1Ref.current,
+              start: 'top 85%',
+              once: true,
+            },
+          }
+        );
+      }
+
+      // Row 2: Text from left (-80), Image from right (+80)
+      if (row2Ref.current && row2TextRef.current && row2ImageRef.current) {
+        gsap.fromTo(
+          row2TextRef.current,
+          { x: -80, opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 1.4,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: row2Ref.current,
+              start: 'top 85%',
+              once: true,
+            },
+          }
+        );
+
+        gsap.fromTo(
+          row2ImageRef.current,
+          { x: 80, opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 1.4,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: row2Ref.current,
+              start: 'top 85%',
+              once: true,
+            },
+          }
+        );
+      }
+
+      // Row 3: Image from left (-80), Text from right (+80)
+      if (row3Ref.current && row3ImageRef.current && row3TextRef.current) {
+        gsap.fromTo(
+          row3ImageRef.current,
+          { x: -80, opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 1.4,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: row3Ref.current,
+              start: 'top 85%',
+              once: true,
+            },
+          }
+        );
+
+        gsap.fromTo(
+          row3TextRef.current,
+          { x: 80, opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 1.4,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: row3Ref.current,
+              start: 'top 85%',
+              once: true,
+            },
+          }
+        );
+      }
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, []);
+
   return (
     <section
+      ref={sectionRef}
       id="about"
       className="relative pt-10 sm:pt-14 lg:pt-16 pb-24 sm:pb-32 px-6 bg-white border-b border-[#E5E5EA] text-[#1D1D1F] overflow-hidden"
     >
@@ -24,7 +175,7 @@ export default function About() {
 
       <div className="relative z-10 max-w-6xl mx-auto space-y-28 sm:space-y-36">
         {/* ── Top Section Header ── */}
-        <div className="text-center max-w-3xl mx-auto space-y-3 sm:space-y-4">
+        <div ref={headerRef} className="text-center max-w-3xl mx-auto space-y-3 sm:space-y-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold tracking-[0.14em] uppercase text-[#6E6E73] bg-[#F5F5F7] border border-[#E5E5EA] shadow-[0_1px_2px_rgba(0,0,0,0.02)] backdrop-blur-sm">
             <Compass className="w-3.5 h-3.5 text-[#6E6E73]" />
             <span>About</span>
@@ -41,9 +192,9 @@ export default function About() {
         </div>
 
         {/* ── Row 1: Image Left, Text Right ── */}
-        <div className="flex flex-col md:flex-row items-center gap-12 lg:gap-16">
+        <div ref={row1Ref} className="flex flex-col md:flex-row items-center gap-12 lg:gap-16">
           {/* Card Mockup */}
-          <div className="w-full md:w-1/2">
+          <div ref={row1ImageRef} className="w-full md:w-1/2">
             <div className="group relative rounded-[28px] p-2.5 sm:p-3 bg-gradient-to-b from-[#F5F5F7] via-[#FAFAFC] to-[#F5F5F7] border border-[#E5E5EA] shadow-[0_20px_45px_-12px_rgba(0,0,0,0.08),0_4px_16px_rgba(0,0,0,0.02)] hover:shadow-[0_28px_56px_-12px_rgba(0,0,0,0.12)] transition-all duration-500 ease-out">
               <div className="relative rounded-[20px] overflow-hidden bg-[#0c121e] border border-slate-800/80 text-slate-100 aspect-[16/11] sm:aspect-[4/3] flex flex-col">
                 {/* macOS Style Window Header */}
@@ -128,7 +279,7 @@ export default function About() {
           </div>
 
           {/* Text Content */}
-          <div className="w-full md:w-1/2 space-y-4 sm:space-y-5">
+          <div ref={row1TextRef} className="w-full md:w-1/2 space-y-4 sm:space-y-5">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold tracking-[0.12em] uppercase text-[#0071E3] bg-[#0071E3]/[0.08] border border-[#0071E3]/20">
               <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3]" />
               Overview
@@ -165,9 +316,9 @@ export default function About() {
         </div>
 
         {/* ── Row 2: Text Left, Image Right (flex-row-reverse) ── */}
-        <div className="flex flex-col md:flex-row-reverse items-center gap-12 lg:gap-16">
+        <div ref={row2Ref} className="flex flex-col md:flex-row-reverse items-center gap-12 lg:gap-16">
           {/* Card Mockup */}
-          <div className="w-full md:w-1/2">
+          <div ref={row2ImageRef} className="w-full md:w-1/2">
             <div className="group relative rounded-[28px] p-2.5 sm:p-3 bg-gradient-to-b from-[#F5F5F7] via-[#FAFAFC] to-[#F5F5F7] border border-[#E5E5EA] shadow-[0_20px_45px_-12px_rgba(0,0,0,0.08),0_4px_16px_rgba(0,0,0,0.02)] hover:shadow-[0_28px_56px_-12px_rgba(0,0,0,0.12)] transition-all duration-500 ease-out">
               <div className="relative rounded-[20px] overflow-hidden bg-[#0c121e] border border-slate-800/80 text-slate-100 aspect-[16/11] sm:aspect-[4/3] flex flex-col">
                 {/* macOS Style Window Header */}
@@ -252,7 +403,7 @@ export default function About() {
           </div>
 
           {/* Text Content */}
-          <div className="w-full md:w-1/2 space-y-4 sm:space-y-5">
+          <div ref={row2TextRef} className="w-full md:w-1/2 space-y-4 sm:space-y-5">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold tracking-[0.12em] uppercase text-[#0071E3] bg-[#0071E3]/[0.08] border border-[#0071E3]/20">
               <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3]" />
               Workflow
@@ -289,9 +440,9 @@ export default function About() {
         </div>
 
         {/* ── Row 3: Image Left, Text Right ── */}
-        <div className="flex flex-col md:flex-row items-center gap-12 lg:gap-16">
+        <div ref={row3Ref} className="flex flex-col md:flex-row items-center gap-12 lg:gap-16">
           {/* Card Mockup */}
-          <div className="w-full md:w-1/2">
+          <div ref={row3ImageRef} className="w-full md:w-1/2">
             <div className="group relative rounded-[28px] p-2.5 sm:p-3 bg-gradient-to-b from-[#F5F5F7] via-[#FAFAFC] to-[#F5F5F7] border border-[#E5E5EA] shadow-[0_20px_45px_-12px_rgba(0,0,0,0.08),0_4px_16px_rgba(0,0,0,0.02)] hover:shadow-[0_28px_56px_-12px_rgba(0,0,0,0.12)] transition-all duration-500 ease-out">
               <div className="relative rounded-[20px] overflow-hidden bg-[#0c121e] border border-slate-800/80 text-slate-100 aspect-[16/11] sm:aspect-[4/3] flex flex-col">
                 {/* macOS Style Window Header */}
@@ -353,7 +504,7 @@ export default function About() {
           </div>
 
           {/* Text Content */}
-          <div className="w-full md:w-1/2 space-y-4 sm:space-y-5">
+          <div ref={row3TextRef} className="w-full md:w-1/2 space-y-4 sm:space-y-5">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold tracking-[0.12em] uppercase text-[#10B981] bg-[#10B981]/[0.08] border border-[#10B981]/20">
               <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
               Impact

@@ -1,6 +1,37 @@
+import { useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { MapPin, Phone, Mail } from 'lucide-react';
 
+gsap.registerPlugin(ScrollTrigger);
+
 export default function Footer() {
+  const footerRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      if (!contentRef.current) return;
+      gsap.fromTo(
+        contentRef.current,
+        { opacity: 0, y: 50 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 1.3,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: footerRef.current,
+            start: 'top 85%',
+            once: true,
+          },
+        }
+      );
+    }, footerRef);
+
+    return () => ctx.revert();
+  }, []);
+
   const barangaysCol1 = [
     'Caloocan',
     'Leynes',
@@ -24,13 +55,17 @@ export default function Footer() {
 
   return (
     <footer
+      ref={footerRef}
       id="footer"
       className="relative w-full bg-[#080B11] text-[#A1A1A6] border-t border-white/[0.08] selection:bg-slate-700 selection:text-white select-none"
     >
       {/* ── Apple Ambient Subtle Gradient Horizon ── */}
       <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
 
-      <div className="relative max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pt-16 pb-12 sm:pt-20 sm:pb-16">
+      <div
+        ref={contentRef}
+        className="relative max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pt-16 pb-12 sm:pt-20 sm:pb-16"
+      >
         {/* ── Four Column Layout ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-14">
           {/* Column 1: Brand & Identity */}

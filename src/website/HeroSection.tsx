@@ -1,9 +1,42 @@
-import { motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import BlurText from '../components/BlurText';
 
+gsap.registerPlugin(ScrollTrigger);
+
 export default function HeroSection() {
+  const heroSectionRef = useRef<HTMLElement>(null);
+  const heroContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      if (!heroContentRef.current) return;
+      const elements = Array.from(heroContentRef.current.children);
+      gsap.fromTo(
+        elements,
+        { opacity: 0, y: 40 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: 'power3.out',
+          stagger: 0.15,
+          scrollTrigger: {
+            trigger: heroSectionRef.current,
+            start: 'top 80%',
+            once: true,
+          },
+        }
+      );
+    }, heroSectionRef);
+
+    return () => ctx.revert();
+  }, []);
+
   return (
     <section
+      ref={heroSectionRef}
       id="hero"
       className="relative min-h-screen flex flex-col justify-center items-center text-center px-6 pt-32 pb-20 bg-[#0B0F17] border-b border-white/[0.08] text-[#F5F5F7] overflow-hidden select-none"
     >
@@ -19,7 +52,7 @@ export default function HeroSection() {
       </div>
 
       {/* ── Hero Content ── */}
-      <div className="relative z-10 max-w-3xl mx-auto space-y-6">
+      <div ref={heroContentRef} className="relative z-10 max-w-3xl mx-auto space-y-6">
         {/* ── Headline with BlurText & Apple Optical Sizing ── */}
         <h1 className="text-4xl sm:text-6xl lg:text-[68px] font-semibold tracking-[-0.035em] text-[#F5F5F7] leading-[1.08] drop-shadow-[0_2px_14px_rgba(0,0,0,0.7)] flex flex-col items-center justify-center gap-1 sm:gap-2">
           <BlurText
@@ -52,19 +85,14 @@ export default function HeroSection() {
         />
 
         {/* ── Apple Action Button with Spring Feedback ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2, duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-          className="flex justify-center pt-3 sm:pt-4"
-        >
+        <div className="flex justify-center pt-3 sm:pt-4">
           <a
             href="#about"
             className="px-7 py-3 rounded-full bg-white/10 hover:bg-white/15 text-white font-medium text-sm sm:text-[14.5px] tracking-[-0.01em] border border-white/20 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_6px_22px_rgba(0,0,0,0.4)] transition-all active:scale-[0.98]"
           >
             Learn More
           </a>
-        </motion.div>
+        </div>
       </div>
     </section>
   );
