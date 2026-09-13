@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
+import SplitText from '../components/SplitText';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -126,16 +127,25 @@ export default function Features() {
 
     // Helper to build the sequential card deal timeline
     const buildTimeline = (config: {
-      xStep: number;
-      rotStep: number;
-      yStep: number;
+      scaleFactor?: number;
       baseY: number;
       transformOrigin: string;
       scrollPerCard: number;
     }) => {
-      const { xStep, rotStep, yStep, baseY, transformOrigin, scrollPerCard } = config;
+      const { scaleFactor = 1, baseY, transformOrigin, scrollPerCard } = config;
 
-      // Initial clean state for cards: off-screen below and transparent
+      // Fixed resting positions for each card in the messy table stack:
+      // Cards 0..3 are the cards underneath with organic tossed angles & offsets
+      // Card 4 is the front card on top (0deg, centered, level and fully readable)
+      const cardPositions = [
+        { rot: 15, x: 16, y: -12 },   // Card 0 (bottom of pile)
+        { rot: -5, x: -10, y: 14 },   // Card 1 (3rd behind)
+        { rot: 8, x: 20, y: 8 },      // Card 2 (2nd behind)
+        { rot: -12, x: -18, y: -10 }, // Card 3 (1st behind)
+        { rot: 0, x: 0, y: 0 },       // Card 4 (front card on top: 0deg, centered)
+      ];
+
+      // Initial clean state for all cards: off-screen below, zero rotation, zero offset
       cards.forEach((card, i) => {
         gsap.set(card, {
           x: 0,
@@ -148,6 +158,12 @@ export default function Features() {
         });
       });
 
+      const slideDuration = 1.0;
+      const settleDuration = 0.6;
+      const cycleDuration = slideDuration + settleDuration;
+      const totalTimelineDuration =
+        (cards.length - 1) * cycleDuration + slideDuration + 0.6;
+
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: sectionRef.current,
@@ -158,9 +174,11 @@ export default function Features() {
           anticipatePin: 1,
           invalidateOnRefresh: true,
           onUpdate: (self) => {
+            const currentTime = self.progress * totalTimelineDuration;
+            const rawIndex = Math.floor(currentTime / cycleDuration);
             const progressIndex = Math.min(
               cards.length - 1,
-              Math.floor(self.progress * cards.length)
+              Math.max(0, rawIndex)
             );
             setActiveIndex(progressIndex);
           },
@@ -170,65 +188,67 @@ export default function Features() {
       // Store reference to ScrollTrigger for programmatic pill navigation
       scrollTriggerInstanceRef.current = tl.scrollTrigger || null;
 
-      // Sequential entrance: each card enters upright at center, earlier cards fan out left
+      // ── Sequential Individual 2-Phase Animation per Card ──
+      // Card s slides up straight into view, then immediately settles into its messy angle & offset.
+      // The next card only starts after Card s finishes both phases.
+      // Card 5 (top card) slides up last and stays at 0deg rotation with no mess phase.
       for (let s = 0; s < cards.length; s++) {
-        const time = s;
+        const startTime = s * cycleDuration;
+        const pos = cardPositions[s];
+        const targetX = pos.x * scaleFactor;
+        const targetRot = pos.rot * scaleFactor;
+        const targetY = baseY + pos.y * scaleFactor;
+        const isLastCard = s === cards.length - 1;
 
-        // Card s enters from below into center position with vertical offset to guarantee gap
+        // Phase 1 for this card: Slide up straight into view (0deg rotation, 0 offset)
         tl.fromTo(
           cards[s],
           {
             yPercent: 135,
             opacity: 0,
             rotation: 0,
-            x: (s * xStep) / 2,
+            x: 0,
             y: baseY,
           },
           {
             yPercent: 0,
             opacity: 1,
             rotation: 0,
-            x: (s * xStep) / 2,
+            x: 0,
             y: baseY,
             ease: 'power2.out',
-            duration: 1,
+            duration: slideDuration,
           },
-          time
+          startTime
         );
 
-        // Earlier cards (j < s) fan out symmetrically to the left
-        for (let j = 0; j < s; j++) {
-          const stepsBehind = s - j;
-          const targetX = (s * xStep) / 2 - stepsBehind * xStep;
-          const targetRot = -stepsBehind * rotStep;
-          const targetY = baseY + stepsBehind * yStep;
-
+        // Phase 2 for this card: Immediately settles into its final messy rotation & offset
+        // (Skipped for the last card so it stays at 0deg rotation centered as the front card)
+        if (!isLastCard) {
           tl.to(
-            cards[j],
+            cards[s],
             {
               x: targetX,
               y: targetY,
               rotation: targetRot,
               ease: 'power2.out',
-              duration: 1,
+              duration: settleDuration,
             },
-            time
+            startTime + slideDuration
           );
         }
       }
 
-      // Small settle buffer at the end so all 5 fanned cards can be viewed
-      tl.to({}, { duration: 0.4 });
+      // Settle buffer so the final messy stack can be viewed comfortably before unpinning
+      tl.to({}, { duration: 0.6 });
     };
 
     // ── 1. Mobile Phones (< 640px) ──
     mm.add('(max-width: 639px)', () => {
       buildTimeline({
-        xStep: 11,
-        rotStep: 1.8,
-        yStep: 1.5,
+        scaleFactor: 0.75,
         baseY: -10,
-        transformOrigin: '75% 100%',
+        transformOrigin: '50% 50%',
         scrollPerCard: 360,
       });
     });
@@ -236,11 +256,9 @@ export default function Features() {
     // ── 2. Tablets (640px - 1023px) ──
     mm.add('(min-width: 640px) and (max-width: 1023px)', () => {
       buildTimeline({
-        xStep: 28,
-        rotStep: 3.0,
-        yStep: 2.2,
+        scaleFactor: 0.88,
         baseY: -18,
-        transformOrigin: '80% 100%',
+        transformOrigin: '50% 50%',
         scrollPerCard: 480,
       });
     });
@@ -248,11 +266,9 @@ export default function Features() {
     // ── 3. Desktop (>= 1024px) ──
     mm.add('(min-width: 1024px)', () => {
       buildTimeline({
-        xStep: 44,
-        rotStep: 4.2,
-        yStep: 2.8,
+        scaleFactor: 1,
         baseY: -26,
-        transformOrigin: '85% 100%',
+        transformOrigin: '50% 50%',
         scrollPerCard: 600,
       });
     });
@@ -268,8 +284,17 @@ export default function Features() {
     setInspectedIndex(index);
     const st = scrollTriggerInstanceRef.current;
     if (st) {
+      const cycleDuration = 1.6;
+      const slideDuration = 1.0;
+      const totalDuration =
+        (features.length - 1) * cycleDuration + slideDuration + 0.6;
+      const targetTime =
+        index === features.length - 1
+          ? totalDuration - 0.3
+          : index * cycleDuration + slideDuration;
+      const targetProgress = targetTime / totalDuration;
       const scrollTarget =
-        st.start + ((index + 0.5) / features.length) * (st.end - st.start);
+        st.start + targetProgress * (st.end - st.start);
       window.scrollTo({
         top: scrollTarget,
         behavior: 'smooth',
@@ -307,13 +332,31 @@ export default function Features() {
           <span>Features</span>
         </div>
 
-        <h2 className="text-xl sm:text-3xl lg:text-4xl font-semibold text-[#1D1D1F] tracking-[-0.03em] leading-tight">
-          Built for the Worst. Ready for Anything.
-        </h2>
+        <SplitText
+          text="Built for the Worst. Ready for Anything."
+          tag="h2"
+          splitType="words"
+          from={{ opacity: 0, y: 40 }}
+          to={{ opacity: 1, y: 0 }}
+          duration={0.8}
+          delay={80}
+          ease="power3.out"
+          textAlign="center"
+          className="text-xl sm:text-3xl lg:text-4xl font-semibold text-[#1D1D1F] tracking-[-0.03em] leading-tight"
+        />
 
-        <p className="text-[#6E6E73] text-xs sm:text-sm lg:text-base max-w-xl mx-auto font-normal leading-relaxed tracking-[-0.01em]">
-          From the first report to the final resolution — RESPONDE handles every step of disaster response automatically
-        </p>
+        <SplitText
+          text="From the first report to the final resolution — RESPONDE handles every step of disaster response automatically"
+          tag="p"
+          splitType="words"
+          from={{ opacity: 0, y: 20 }}
+          to={{ opacity: 1, y: 0 }}
+          duration={0.6}
+          delay={30}
+          ease="power3.out"
+          textAlign="center"
+          className="text-[#6E6E73] text-xs sm:text-sm lg:text-base max-w-xl mx-auto font-normal leading-relaxed tracking-[-0.01em]"
+        />
       </div>
 
       {/* ── 2. Middle Playing Card Fanned Deck Stage (With Generous Bottom Clearance) ── */}

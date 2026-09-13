@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Zap,
 } from 'lucide-react';
+import SplitText from '../components/SplitText';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -181,10 +182,18 @@ export default function About() {
             <span>About</span>
           </div>
 
-          <h2 className="text-3xl sm:text-5xl lg:text-[54px] font-semibold tracking-[-0.03em] text-[#1D1D1F] leading-[1.12]">
-            Not Just a System.
-            A Lifeline.
-          </h2>
+          <SplitText
+            text="Not Just a System. A Lifeline."
+            tag="h2"
+            splitType="words"
+            from={{ opacity: 0, y: 40 }}
+            to={{ opacity: 1, y: 0 }}
+            duration={0.8}
+            delay={80}
+            ease="power3.out"
+            textAlign="left"
+            className="text-3xl sm:text-5xl lg:text-[54px] font-semibold tracking-[-0.03em] text-[#1D1D1F] leading-[1.12]"
+          />
 
           <p className="text-base sm:text-lg lg:text-[19px] text-[#6E6E73] max-w-2xl mx-auto font-normal leading-relaxed tracking-[-0.01em]">
             Empowering citizens and responders with immediate coordination, automated mapping, and verified reporting.
@@ -285,13 +294,31 @@ export default function About() {
               Overview
             </div>
 
-            <h3 className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-[#1D1D1F] tracking-[-0.028em] leading-[1.2]">
-              What is RESPONDE?
-            </h3>
+            <SplitText
+              text="What is RESPONDE?"
+              tag="h3"
+              splitType="words"
+              from={{ opacity: 0, y: 30 }}
+              to={{ opacity: 1, y: 0 }}
+              duration={0.7}
+              delay={60}
+              ease="power3.out"
+              textAlign="left"
+              className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-[#1D1D1F] tracking-[-0.028em] leading-[1.2]"
+            />
 
-            <p className="text-[15px] sm:text-[16px] text-[#515154] leading-[1.65] font-normal tracking-[-0.008em]">
-              RESPONDE is a barangay-level disaster management and incident reporting system built for Talisay, Batangas. It bridges the gap between residents in distress and the response teams who protect them.
-            </p>
+            <SplitText
+              text="RESPONDE is a barangay-level disaster management and incident reporting system built for Talisay, Batangas. It bridges the gap between residents in distress and the response teams who protect them."
+              tag="p"
+              splitType="words"
+              from={{ opacity: 0, y: 20 }}
+              to={{ opacity: 1, y: 0 }}
+              duration={0.6}
+              delay={30}
+              ease="power3.out"
+              textAlign="left"
+              className="text-[15px] sm:text-[16px] text-[#515154] leading-[1.65] font-normal tracking-[-0.008em]"
+            />
 
             {/* Apple-style Micro Highlights */}
             <div className="pt-2 space-y-2.5">
@@ -409,13 +436,31 @@ export default function About() {
               Workflow
             </div>
 
-            <h3 className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-[#1D1D1F] tracking-[-0.028em] leading-[1.2]">
-              How Does It Work?
-            </h3>
+            <SplitText
+              text="How Does It Work?"
+              tag="h3"
+              splitType="words"
+              from={{ opacity: 0, y: 30 }}
+              to={{ opacity: 1, y: 0 }}
+              duration={0.7}
+              delay={60}
+              ease="power3.out"
+              textAlign="left"
+              className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-[#1D1D1F] tracking-[-0.028em] leading-[1.2]"
+            />
 
-            <p className="text-[15px] sm:text-[16px] text-[#515154] leading-[1.65] font-normal tracking-[-0.008em]">
-              Residents report incidents through a Messenger Bot or community scrapers. Officers verify each report, plot it on a live geo-map, and coordinate immediate dispatch to the right barangay.
-            </p>
+            <SplitText
+              text="Residents report incidents through a Messenger Bot or community scrapers. Officers verify each report, plot it on a live geo-map, and coordinate immediate dispatch to the right barangay."
+              tag="p"
+              splitType="words"
+              from={{ opacity: 0, y: 20 }}
+              to={{ opacity: 1, y: 0 }}
+              duration={0.6}
+              delay={30}
+              ease="power3.out"
+              textAlign="left"
+              className="text-[15px] sm:text-[16px] text-[#515154] leading-[1.65] font-normal tracking-[-0.008em]"
+            />
 
             {/* Apple-style Micro Highlights */}
             <div className="pt-2 space-y-2.5">
@@ -510,13 +555,31 @@ export default function About() {
               Impact
             </div>
 
-            <h3 className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-[#1D1D1F] tracking-[-0.028em] leading-[1.2]">
-              Why It Matters?
-            </h3>
+            <SplitText
+              text="Why It Matters?"
+              tag="h3"
+              splitType="words"
+              from={{ opacity: 0, y: 30 }}
+              to={{ opacity: 1, y: 0 }}
+              duration={0.7}
+              delay={60}
+              ease="power3.out"
+              textAlign="left"
+              className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-[#1D1D1F] tracking-[-0.028em] leading-[1.2]"
+            />
 
-            <p className="text-[15px] sm:text-[16px] text-[#515154] leading-[1.65] font-normal tracking-[-0.008em]">
-              Before RESPONDE, emergency coordination in Talisay relied on manual calls and delayed communication. Now every barangay has a direct line to help — because no family should face disaster alone.
-            </p>
+            <SplitText
+              text="Before RESPONDE, emergency coordination in Talisay relied on manual calls and delayed communication. Now every barangay has a direct line to help — because no family should face disaster alone."
+              tag="p"
+              splitType="words"
+              from={{ opacity: 0, y: 20 }}
+              to={{ opacity: 1, y: 0 }}
+              duration={0.6}
+              delay={30}
+              ease="power3.out"
+              textAlign="left"
+              className="text-[15px] sm:text-[16px] text-[#515154] leading-[1.65] font-normal tracking-[-0.008em]"
+            />
 
             {/* Apple-style Micro Highlights */}
             <div className="pt-2 space-y-2.5">

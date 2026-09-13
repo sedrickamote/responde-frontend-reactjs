@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
     "@supabase/supabase-js": "^2.112.4",
     "boneyard-js": "^1.10.0",
     "framer-motion": "^13.1.1",
