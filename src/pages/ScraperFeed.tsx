@@ -10,6 +10,7 @@ import FilterDropdown from "../components/DropDown";
 import { StaggerContainer, StaggerItem } from "../components/Stagger";
 import { supabase } from "../lib/supabaseClient";
 import PageLoader from "../components/PageLoader";
+import { TALISAY_BARANGAYS } from "../data/talisay-barangays";
 
 interface ScrapedPost {
   id: string;
@@ -497,12 +498,7 @@ export default function ScraperFeed() {
 
                 <FilterDropdown
                   value={filterBarangay}
-                  options={[
-                    "All Barangays", "Leynes", "Poblacion", "Sampaloc",
-                    "Cawit", "Banga", "San Isidro", "Miranda", "Aya",
-                    "Tranca", "Tumaway", "Caloocan", "Buco", "Balas",
-                    "Quiling", "Laurel", "Sta. Maria", "Ayala",
-                  ]}
+                  options={["All Barangays", ...TALISAY_BARANGAYS]}
                   onChange={(val) => { setFilterBarangay(val); setSelectedId(""); }}
                 />
 
@@ -556,7 +552,14 @@ export default function ScraperFeed() {
                 </span>
               </div>
 
-              <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-1">
+              {/* Scrollable Post List with Apple-grade Edge Fade */}
+              <div
+                className="flex-1 overflow-y-auto min-h-0 p-2 pb-10 space-y-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800"
+                style={{
+                  maskImage: 'linear-gradient(to bottom, black calc(100% - 56px), transparent 100%)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 56px), transparent 100%)',
+                }}
+              >
                 {filteredPosts.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 px-4 text-slate-400 dark:text-slate-500 text-sm gap-3">
                     <Radio className="w-8 h-8 stroke-[1.5] text-slate-300 dark:text-slate-600" />
@@ -710,8 +713,14 @@ export default function ScraperFeed() {
                       </div>
                     </div>
 
-                    {/* Body */}
-                    <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-5 bg-slate-50/40 dark:bg-[#0B0F17]/40">
+                    {/* Body with Apple-grade Edge Fade */}
+                    <div
+                      className="flex-1 overflow-y-auto min-h-0 p-6 pb-12 space-y-5 bg-slate-50/40 dark:bg-[#0B0F17]/40 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800"
+                      style={{
+                        maskImage: 'linear-gradient(to bottom, black calc(100% - 48px), transparent 100%)',
+                        WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 48px), transparent 100%)',
+                      }}
+                    >
                       <StaggerContainer className="space-y-5">
                         {/* Original Post Card */}
                         <StaggerItem>
