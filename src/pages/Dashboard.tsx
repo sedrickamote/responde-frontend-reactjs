@@ -1,27 +1,28 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowRight, ExternalLink, MapPin, Clock, User, AlertCircle, CheckCircle, HelpCircle, Loader2 } from 'lucide-react';
+import {
+  X, ArrowRight, ExternalLink, MapPin, Clock, User,
+  AlertCircle, CheckCircle, HelpCircle, AlertTriangle,
+  MessageSquare, Radio, Zap, Sparkles, Bot, ChevronRight
+} from 'lucide-react';
 import { StaggerContainer, StaggerItem } from '../components/Stagger';
 import { useTheme } from '../components/ThemeContent';
 import { supabase } from '../lib/supabaseClient';
 import MapContainer from '../components/MapContainer';
 import { useReports } from '../context/ReportsContext';
+import { useBotConversations, type BotConversation } from '../context/BotConversationsContext';
 import type { MapLayerState } from '../types/geospatial';
 import PageLoader from '../components/PageLoader';
 
 // ── Types ──
-interface BotMessage { sender: 'bot' | 'user'; text: string; }
-interface BotConversation {
-  id: string; psid: string; name: string; barangay: string; type: string;
-  status: 'Unread' | 'Complete'; time: string; messages: BotMessage[];
-}
 interface ScraperItem {
   id: string; text: string; barangay: string; type: string;
   urgency: 'High' | 'Moderate' | 'Low'; source: string; time: string;
   status: 'Pending Review' | 'Verified' | 'False Alarm';
   reporter: string; confidence: number;
 }
+
 
 // ── Toast Type ──
 interface Toast {
@@ -30,9 +31,71 @@ interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
-// ── Helpers ──
-const INACTIVITY_GAP_MS = 60 * 60 * 1000;
+// ── Apple Design Physics ──
+const APPLE_SPRING = { type: 'spring', stiffness: 400, damping: 32 } as const;
 
+// ── Exact Avatar Palette & Name Map from MessengerBotLogs ──
+const AVATAR_PALETTE = [
+  "bg-[#1877F2]", // Sedrick Opulencia (Blue)
+  "bg-[#E53935]", // Maria Delos Santos (Red)
+  "bg-[#00897B]", // Joshua Reyes (Teal)
+  "bg-[#1E88E5]", // Angeline Cruz (Blue)
+  "bg-[#039BE5]", // Ferdinand Lim (Sky Blue)
+  "bg-[#E53935]", // Divina Aquino (Red)
+  "bg-[#43A047]", // 7th (Green)
+  "bg-[#5E35B1]", // Purple
+  "bg-[#FB8C00]", // Orange
+];
+
+const NAME_COLOR_MAP: Record<string, string> = {
+  "Sedrick Opulencia": "bg-[#1877F2]",
+  "Maria Delos Santos": "bg-[#E53935]",
+  "Joshua Reyes": "bg-[#00897B]",
+  "Angeline Cruz": "bg-[#1E88E5]",
+  "Ferdinand Lim": "bg-[#039BE5]",
+  "Divina Aquino": "bg-[#E53935]",
+  "Kenneth Bautista": "bg-[#43A047]",
+};
+
+function getAvatarColor(name: string, index?: number): string {
+  if (name && NAME_COLOR_MAP[name]) {
+    return NAME_COLOR_MAP[name];
+  }
+  if (typeof index === "number" && index >= 0) {
+    return AVATAR_PALETTE[index % AVATAR_PALETTE.length];
+  }
+  let hash = 0;
+  for (let i = 0; i < (name || "").length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+
+function getInitials(name: string): string {
+  if (!name) return "U";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
+function getLastMessage(convo: BotConversation): string {
+  if (!convo.messages || convo.messages.length === 0) return "No messages yet";
+  const userMsg = [...convo.messages].reverse().find((m) => m.sender === "user");
+  return userMsg ? userMsg.text : convo.messages[convo.messages.length - 1].text;
+}
+
+function formatDisplayTime(timeStr: string): string {
+  if (!timeStr) return "";
+  if (timeStr.includes(" ")) {
+    const parts = timeStr.split(" ");
+    return parts[parts.length - 1];
+  }
+  return timeStr;
+}
+
+// ── Helpers ──
 function formatTimestamp(ts: string | null): string {
   if (!ts) return '';
   const d = new Date(ts);
@@ -60,26 +123,7 @@ function inferUrgency(incidentType: string, text: string): ScraperItem['urgency'
   return 'Low';
 }
 
-// ── Animation presets ──
-const backdropVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1 },
-  exit: { opacity: 0 },
-};
-
-const modalVariants = {
-  hidden: { opacity: 0, scale: 0.95, y: 20 },
-  visible: { opacity: 1, scale: 1, y: 0 },
-  exit: { opacity: 0, scale: 0.95, y: 20 },
-};
-
-const contentVariants = {
-  hidden: { opacity: 0, x: 20 },
-  visible: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -20 },
-};
-
-// ── Toast Item Component ──
+// ── Toast Item Component (Apple Notification Banner) ──
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
   useEffect(() => {
     const timer = setTimeout(() => onDismiss(toast.id), 3500);
@@ -87,32 +131,26 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
   }, [toast.id, onDismiss]);
 
   const icon = toast.type === 'success'
-    ? <CheckCircle className="w-4 h-4 text-emerald-500" />
+    ? <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
     : toast.type === 'error'
-      ? <AlertCircle className="w-4 h-4 text-red-500" />
-      : <Loader2 className="w-4 h-4 text-blue-500" />;
-
-  const bgClass = toast.type === 'success'
-    ? 'bg-white dark:bg-slate-800 border-emerald-200 dark:border-emerald-800'
-    : toast.type === 'error'
-      ? 'bg-white dark:bg-slate-800 border-red-200 dark:border-red-800'
-      : 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800';
+      ? <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+      : <Sparkles className="w-4 h-4 text-[#0071E3] shrink-0" />;
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 60, scale: 0.95 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 40, scale: 0.95 }}
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg ${bgClass} min-w-[280px] max-w-[380px]`}
+      initial={{ opacity: 0, y: -16, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+      transition={APPLE_SPRING}
+      className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.12)] bg-white/90 dark:bg-[#182234]/90 backdrop-blur-2xl min-w-[280px] max-w-[380px]"
     >
       {icon}
-      <span className="text-sm font-medium text-slate-700 dark:text-slate-200 flex-1">{toast.message}</span>
+      <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 flex-1">{toast.message}</span>
       <button
         onClick={() => onDismiss(toast.id)}
-        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50"
       >
-        <X className="w-4 h-4" />
+        <X className="w-3.5 h-3.5" />
       </button>
     </motion.div>
   );
@@ -123,17 +161,22 @@ export default function Dashboard() {
   const { theme } = useTheme();
   const { reports } = useReports();
 
-  // Data states
-  const [botConversations, setBotConversations] = useState<BotConversation[]>([]);
+  // Global Bot Conversations Context (synchronized with MessengerBotLogs & localStorage)
+  const {
+    conversations: botConversations,
+    updateConversationStatus: setContextStatus,
+    incompleteCount,
+  } = useBotConversations();
+
   const [scraperItems, setScraperItems] = useState<ScraperItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modal states
   const [activeConv, setActiveConv] = useState<BotConversation | null>(null);
-  const [selectedConvId, setSelectedConvId] = useState<string>('');
+  const [selectedConvId, setSelectedConvId] = useState<string>('conv_1');
   const [activeScraper, setActiveScraper] = useState<ScraperItem | null>(null);
 
-  // ── Toast State ──
+  // Toast State
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [toastIdCounter, setToastIdCounter] = useState(0);
   const showToast = (message: string, type: Toast['type'] = 'info') => {
@@ -145,68 +188,33 @@ export default function Dashboard() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // ── Ref to prevent Strict Mode duplicate toasts ──
+  // Ref to prevent Strict Mode duplicate toasts
   const hasShownInitialToast = useRef(false);
 
-  // ── Fetch from Supabase ──
+  const updateBotConversationStatus = (id: string, newStatus: 'Incomplete' | 'Complete', silent = false) => {
+    setContextStatus(id, newStatus);
+    if (!silent) {
+      const target = botConversations.find((c) => c.id === id);
+      const name = target?.name || 'Conversation';
+      showToast(
+        `Marked ${name} as ${newStatus}`,
+        newStatus === 'Complete' ? 'success' : 'info'
+      );
+    }
+  };
+
+  // Fetch Scraper posts from Supabase (Bot conversations are fetched & maintained via BotConversationsContext)
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
 
-      const [convRes, scraperRes] = await Promise.all([
-        supabase.from('conversations').select('*').order('timestamp', { ascending: true }),
-        supabase.from('fb_comments').select('*').order('created_at', { ascending: false }),
-      ]);
+      const scraperRes = await supabase
+        .from('fb_comments')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-      // ── Process Conversations (group by PSID session) ──
-      type Session = { id: string; psid: string; senderName: string; lastTime: number; messages: BotMessage[] };
-      const sessions: Session[] = [];
-      const psidToLastIdx = new Map<string, number>();
-
-      if (!convRes.error && convRes.data) {
-        for (const row of convRes.data) {
-          const psid = String(row.sender_psid || row.id || 'unknown');
-          const rowTime = new Date(row.timestamp).getTime();
-          const lastIdx = psidToLastIdx.get(psid);
-
-          let session: Session;
-          if (lastIdx === undefined || rowTime - sessions[lastIdx].lastTime > INACTIVITY_GAP_MS) {
-            session = {
-              id: `${psid}_${rowTime}`,
-              psid,
-              senderName: row.sender_name || 'Unknown User',
-              lastTime: rowTime,
-              messages: [],
-            };
-            sessions.push(session);
-            psidToLastIdx.set(psid, sessions.length - 1);
-          } else {
-            session = sessions[lastIdx];
-            session.lastTime = rowTime;
-            if (session.senderName === 'Unknown User' && row.sender_name && row.sender_name !== 'Unknown User') {
-              session.senderName = row.sender_name;
-            }
-          }
-
-          if (row.user_message) session.messages.push({ sender: 'user', text: row.user_message });
-          if (row.ai_reply) session.messages.push({ sender: 'bot', text: row.ai_reply });
-        }
-      }
-
-      const mappedConvs: BotConversation[] = sessions
-        .sort((a, b) => b.lastTime - a.lastTime)
-        .map(session => ({
-          id: session.id,
-          psid: session.psid,
-          name: session.senderName !== 'Unknown User' ? session.senderName : `PSID: ${session.psid.slice(-6)}`,
-          barangay: 'General',
-          type: 'Emergency',
-          status: 'Complete',
-          time: formatTimestamp(new Date(session.lastTime).toISOString()),
-          messages: session.messages,
-        }));
-
-      // ── Process Scraper Posts ──
+      // Process Scraper Posts
       const mappedScraper: ScraperItem[] = [];
       if (!scraperRes.error && scraperRes.data) {
         for (const row of scraperRes.data) {
@@ -226,35 +234,30 @@ export default function Dashboard() {
         }
       }
 
-      setBotConversations(mappedConvs);
       setScraperItems(mappedScraper);
       setLoading(false);
 
-      // Toast feedback
       if (!hasShownInitialToast.current) {
         hasShownInitialToast.current = true;
-        const total = mappedConvs.length + mappedScraper.length;
+        const total = botConversations.length + mappedScraper.length;
         if (total > 0) {
-          showToast(`${total} items loaded — ${mappedConvs.length} bot, ${mappedScraper.length} scraper`, 'success');
+          showToast(`${total} items loaded — ${botConversations.length} bot, ${mappedScraper.length} scraper`, 'success');
         }
       }
 
-      if (convRes.error) {
-        showToast(`Bot data error: ${convRes.error.message}`, 'error');
-      }
       if (scraperRes.error) {
         showToast(`Scraper data error: ${scraperRes.error.message}`, 'error');
       }
     };
 
     fetchData();
-  }, []);
+  }, [botConversations.length]);
 
   // Stats
   const totalIncidents = botConversations.length + scraperItems.length;
   const avgResponse = 0;
 
-  // ── Dashboard Map Data ──
+  // Dashboard Map Data
   const URGENCY_WEIGHTS: Record<string, number> = { High: 3, Moderate: 2, Low: 1 };
 
   const dashboardMapLayers: MapLayerState = { choropleth: true, pins: true, boundaries: true };
@@ -280,16 +283,39 @@ export default function Dashboard() {
   const openConversation = (conv: BotConversation) => {
     setSelectedConvId(conv.id);
     setActiveConv(conv);
+    if (conv.status === 'Incomplete') {
+      updateBotConversationStatus(conv.id, 'Complete', true);
+    }
   };
 
-  const selectedConversation = botConversations.find(c => c.id === selectedConvId) || activeConv;
+  const handleModalSelectConv = (id: string) => {
+    setSelectedConvId(id);
+    const target = botConversations.find((c) => c.id === id);
+    if (target && target.status === 'Incomplete') {
+      updateBotConversationStatus(id, 'Complete', true);
+    }
+  };
+
+  const selectedConversation = botConversations.find(c => c.id === selectedConvId) || botConversations[0] || activeConv;
+
+  const modalSelectedIndex = selectedConversation
+    ? botConversations.findIndex((c) => c.id === selectedConversation.id)
+    : -1;
+
+  const modalSelectedColor = selectedConversation
+    ? getAvatarColor(selectedConversation.name, modalSelectedIndex !== -1 ? modalSelectedIndex : undefined)
+    : "bg-[#1877F2]";
+
+  const modalSelectedInitials = selectedConversation
+    ? getInitials(selectedConversation.name)
+    : "U";
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
-      case 'High': return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
-      case 'Moderate': return 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800';
-      case 'Low': return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600';
-      default: return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600';
+      case 'High': return 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20';
+      case 'Moderate': return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+      case 'Low': return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+      default: return 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20';
     }
   };
 
@@ -313,14 +339,12 @@ export default function Dashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Verified': return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800';
-      case 'False Alarm': return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800';
-      default: return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
+      case 'Verified': return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+      case 'False Alarm': return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+      default: return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
     }
   };
 
-  // Skeleton loading — show content-shaped shimmer while Supabase fetches.
-  // Early-return keeps the real content's flex layout 100% intact.
   if (loading) return <PageLoader variant="dashboard" />;
 
   return (
@@ -336,41 +360,77 @@ export default function Dashboard() {
         </AnimatePresence>
       </div>
 
-      {/* ════════════════════════════════════════
-          FIX #2: Prevent horizontal scrollbar
-          by adding overflow-x-hidden.
-         ════════════════════════════════════════ */}
       <StaggerContainer className="grid grid-cols-12 gap-6 lg:h-full lg:grid-rows-[auto_1fr] overflow-x-hidden w-full">
 
-        {/* ── 1. Stats Row ── */}
+        {/* ── 1. Stats Row — Apple System Metric Cards ── */}
         <StaggerItem className="col-span-12">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-xl">⚠️</div>
-              <div>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{totalIncidents}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Incidents</p>
+            {/* Total Incidents */}
+            <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Total Incidents</p>
+                <p className="text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">{totalIncidents}</p>
+                <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  <span>Active pipeline</span>
+                </div>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-[0_0_16px_rgba(244,63,94,0.15)] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
               </div>
             </div>
-            <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-xl">💬</div>
-              <div>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{botConversations.length}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Bot Conversations</p>
+
+            {/* Bot Conversations */}
+            <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Bot Conversations</p>
+                <p className="text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">{botConversations.length}</p>
+                <div className="flex items-center gap-1.5 text-[11px] font-medium">
+                  {incompleteCount > 0 ? (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      <span className="text-amber-600 dark:text-amber-400 font-semibold">{incompleteCount} incomplete</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span className="text-emerald-600 dark:text-emerald-400">All complete</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-[#0071E3]/10 text-[#0071E3] dark:text-sky-400 border border-[#0071E3]/20 shadow-[0_0_16px_rgba(0,113,227,0.15)] flex items-center justify-center shrink-0">
+                <MessageSquare className="w-6 h-6" />
               </div>
             </div>
-            <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center text-xl">🌐</div>
-              <div>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{scraperItems.length}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Scraped Comments</p>
+
+            {/* Scraped Comments */}
+            <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Scraped Comments</p>
+                <p className="text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">{scraperItems.length}</p>
+                <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <span>Social streams</span>
+                </div>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-[0_0_16px_rgba(245,158,11,0.15)] flex items-center justify-center shrink-0">
+                <Radio className="w-6 h-6" />
               </div>
             </div>
-            <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-green-50 dark:bg-green-900/30 flex items-center justify-center text-xl">⏱️</div>
-              <div>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{avgResponse}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Avg Response Time</p>
+
+            {/* Avg Response Time */}
+            <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Avg Response Time</p>
+                <p className="text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">{avgResponse}s</p>
+                <div className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span>Instant latency</span>
+                </div>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-[0_0_16px_rgba(16,185,129,0.15)] flex items-center justify-center shrink-0">
+                <Zap className="w-6 h-6" />
               </div>
             </div>
           </div>
@@ -378,63 +438,178 @@ export default function Dashboard() {
 
         {/* ── 2. Left Column ── */}
         <StaggerItem className="col-span-12 lg:col-span-6 flex flex-col gap-6 h-full lg:min-h-0">
-          {/* Messenger Bot Activities */}
-          <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex-1 flex flex-col lg:min-h-0 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-              <h3 className="font-semibold text-slate-800 dark:text-slate-100">Messenger Bot Activities</h3>
+          {/* Messenger Bot Activities — exact match with MessengerBotLogs style */}
+          <div className="bg-white/85 dark:bg-[#111827]/85 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 flex flex-col lg:min-h-0 overflow-hidden">
+            {/* Header Row */}
+            <div className="px-5 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0 bg-white/60 dark:bg-[#111827]/60 backdrop-blur-md">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/15">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <h3 className="font-semibold text-slate-900 dark:text-white text-base tracking-tight">
+                  Messenger Bot Activities
+                </h3>
+              </div>
+              <div className="flex items-center gap-2.5">
+                {incompleteCount > 0 && (
+                  <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-semibold rounded-full px-2.5 py-0.5 tabular-nums flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    {incompleteCount} incomplete
+                  </span>
+                )}
+                <span className="bg-blue-500/10 text-[#0071E3] dark:text-blue-400 border border-blue-500/20 text-xs font-semibold rounded-full px-2.5 py-0.5 tabular-nums">
+                  {botConversations.length} total
+                </span>
+                <button
+                  onClick={() => navigate('/messenger-bot-logs')}
+                  className="flex items-center gap-1 text-xs font-semibold text-[#0071E3] hover:text-[#0077ED] transition-colors active:scale-[0.97]"
+                >
+                  View Logs <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-            <div className="p-2 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+
+            {/* Scrollable Conversation List */}
+            <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
               {botConversations.length === 0 ? (
-                <div className="flex items-center justify-center py-10 text-slate-400 dark:text-slate-500 text-sm">No conversations yet.</div>
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500 text-xs gap-2">
+                  <MessageSquare className="w-8 h-8 stroke-[1.5] text-slate-300 dark:text-slate-600" />
+                  <span>No conversations yet.</span>
+                </div>
               ) : (
-                botConversations.map((conv) => (
-                  <button
-                    key={conv.id}
-                    onClick={() => openConversation(conv)}
-                    className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-lg transition-colors text-left"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-xs text-slate-600 dark:text-slate-300 shrink-0">
-                      {conv.name?.charAt(0).toUpperCase() || 'U'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">{conv.name}</p>
-                    </div>
-                    <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{conv.type}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded ${conv.status === 'Unread'
-                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                      : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                      }`}>{conv.status}</span>
-                  </button>
-                ))
+                botConversations.map((convo, index) => {
+                  const isIncomplete = convo.status === "Incomplete";
+                  const avatarColor = getAvatarColor(convo.name, index);
+                  const initials = getInitials(convo.name);
+                  return (
+                    <button
+                      key={convo.id}
+                      type="button"
+                      onClick={() => openConversation(convo)}
+                      className={`w-full flex items-center gap-3.5 p-3 rounded-xl transition-all duration-150 text-left relative group active:scale-[0.98] ${isIncomplete
+                        ? "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.14] border border-amber-500/15 dark:border-amber-500/20 text-slate-950 dark:text-white"
+                        : "hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent text-slate-700 dark:text-slate-300"
+                        }`}
+                    >
+                      {/* Circular Avatar with status badge */}
+                      <div className="relative shrink-0">
+                        <div
+                          className={`w-11 h-11 rounded-full ${avatarColor} flex items-center justify-center font-bold text-xs text-white shadow-sm ring-2 ring-white/80 dark:ring-slate-800`}
+                        >
+                          {initials}
+                        </div>
+                        {isIncomplete && (
+                          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-amber-500 border-2 border-white dark:border-slate-800 rounded-full shadow-xs" />
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 pr-1">
+                        <h4
+                          className={`text-sm tracking-tight truncate transition-all duration-200 ${isIncomplete
+                            ? "font-bold text-slate-950 dark:text-white"
+                            : "font-medium text-slate-700 dark:text-slate-300"
+                            }`}
+                        >
+                          {convo.name}
+                        </h4>
+                        <p
+                          className={`text-xs truncate mt-0.5 leading-snug transition-all duration-200 ${isIncomplete
+                            ? "font-semibold text-slate-900 dark:text-slate-100"
+                            : "font-normal text-slate-500 dark:text-slate-400"
+                            }`}
+                        >
+                          {getLastMessage(convo)}
+                        </p>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="inline-flex items-center text-[10px] font-medium bg-slate-100/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-400 rounded-md px-2 py-0.5 border border-slate-200/50 dark:border-slate-700/50">
+                            {convo.type} · {convo.barangay}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 text-[10px] font-medium rounded-md px-2 py-0.5 border transition-colors duration-200 ${isIncomplete
+                              ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200/50 dark:border-amber-800/50 font-semibold'
+                              : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/50'
+                              }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${isIncomplete
+                                ? 'bg-amber-500 animate-pulse'
+                                : 'bg-emerald-500'
+                                }`}
+                            />
+                            {convo.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Timestamp & Right Chevron with Incomplete Dot */}
+                      <div className="flex flex-col items-end justify-between self-stretch shrink-0 py-0.5 pl-1">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`text-[11px] tabular-nums transition-colors duration-200 ${isIncomplete
+                              ? "font-semibold text-amber-600 dark:text-amber-400"
+                              : "font-normal text-slate-400 dark:text-slate-500"
+                              }`}
+                          >
+                            {formatDisplayTime(convo.time)}
+                          </span>
+                          {isIncomplete && (
+                            <span
+                              className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] shrink-0"
+                              title="Incomplete conversation"
+                            />
+                          )}
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all duration-150" />
+                      </div>
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>
 
           {/* Scraper Activities */}
-          <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex-1 flex flex-col lg:min-h-0 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-              <h3 className="font-semibold text-slate-800 dark:text-slate-100">Scraper Activities</h3>
+          <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] flex-1 flex flex-col lg:min-h-0 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/30">
+              <div className="flex items-center gap-2">
+                <Radio className="w-4 h-4 text-amber-500" />
+                <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100 tracking-tight">Scraper Activities</h3>
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold tabular-nums">
+                  {scraperItems.length}
+                </span>
+              </div>
+              <button
+                onClick={() => navigate('/scraper-feed')}
+                className="flex items-center gap-1 text-xs font-semibold text-[#0071E3] hover:text-[#0077ED] transition-colors active:scale-[0.97]"
+              >
+                View Feed <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <div className="p-4 space-y-3 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            <div className="p-3.5 space-y-2.5 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
               {scraperItems.length === 0 ? (
-                <div className="flex items-center justify-center py-10 text-slate-400 dark:text-slate-500 text-sm">No scraped posts yet.</div>
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400 dark:text-slate-500 text-xs">
+                  No scraped posts yet.
+                </div>
               ) : (
                 scraperItems.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => setActiveScraper(item)}
-                    className="w-full text-left p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group"
+                    className="w-full text-left p-3.5 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-white/5 hover:bg-slate-100/80 dark:hover:bg-slate-800/70 hover:shadow-xs transition-all duration-150 group active:scale-[0.98]"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 flex-1">{item.text}</p>
-                      <ExternalLink className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <p className="text-xs text-slate-700 dark:text-slate-200 line-clamp-2 leading-relaxed flex-1 font-medium">
+                        &ldquo;{item.text}&rdquo;
+                      </p>
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getStatusColor(item.status)} flex items-center gap-1`}>
+                    <div className="flex items-center gap-2 mt-2.5">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border flex items-center gap-1 ${getStatusColor(item.status)}`}>
                         {getStatusIcon(item.status)}{item.status}
                       </span>
-                      <span className={`text-[10px] font-medium ${getTypeColor(item.type)}`}>{item.type}</span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto">{item.time}</span>
+                      <span className={`text-[11px] font-semibold ${getTypeColor(item.type)}`}>{item.type}</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto tabular-nums font-medium">{item.time}</span>
                     </div>
                   </button>
                 ))
@@ -443,13 +618,16 @@ export default function Dashboard() {
           </div>
         </StaggerItem>
 
-        {/* ── 3. Heat Map (Real MapContainer) ── */}
-        <StaggerItem className="col-span-12 lg:col-span-6 bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex flex-col lg:min-h-0">
-          <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-            <h3 className="font-semibold text-slate-800 dark:text-slate-100">Talisay Heat Map</h3>
+        {/* ── 3. Talisay Heat Map (Real MapContainer) ── */}
+        <StaggerItem className="col-span-12 lg:col-span-6 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] flex flex-col lg:min-h-0 overflow-hidden">
+          <div className="p-4 sm:px-5 sm:py-3.5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/30">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-[#0071E3]" />
+              <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100 tracking-tight">Talisay Incident Map</h3>
+            </div>
             <button
               onClick={() => navigate('/geospatial-map')}
-              className="flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+              className="flex items-center gap-1 text-xs font-semibold text-[#0071E3] hover:text-[#0077ED] transition-colors active:scale-[0.97]"
             >
               View Full Map <ArrowRight className="w-3.5 h-3.5" />
             </button>
@@ -463,18 +641,21 @@ export default function Dashboard() {
               onSelectFeature={() => { }}
             />
           </div>
-          <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700 flex justify-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">High</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Moderate</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Low</span>
+          <div className="px-4 py-3 border-t border-slate-100 dark:border-white/5 flex justify-center bg-slate-50/30 dark:bg-slate-900/20">
+            <div className="inline-flex items-center gap-4 px-4 py-1.5 rounded-full bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md border border-slate-200/60 dark:border-white/5 text-xs text-slate-600 dark:text-slate-300">
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Severity:</span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                <span className="text-[11px] font-medium">Low</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
+                <span className="text-[11px] font-medium">Moderate</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-red-500 ring-2 ring-red-500/20 animate-pulse" />
+                <span className="text-[11px] font-medium">High</span>
+              </div>
             </div>
           </div>
         </StaggerItem>
@@ -482,137 +663,261 @@ export default function Dashboard() {
       </StaggerContainer>
 
       {/* ════════════════════════════════════════
-          CONVERSATION MODAL — Staggered
+          CONVERSATION MODAL — Exact Match with MessengerBotLogs Chat Layout
          ════════════════════════════════════════ */}
       <AnimatePresence>
         {activeConv && selectedConversation && (
           <motion.div
             key="conv-modal-backdrop"
-            variants={backdropVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 dark:bg-black/70 backdrop-blur-xl"
             onClick={() => setActiveConv(null)}
           >
             <motion.div
-              variants={modalVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-2xl w-full max-w-4xl h-[80vh] flex overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={APPLE_SPRING}
+              className="bg-white/95 dark:bg-[#111827]/95 backdrop-blur-2xl rounded-3xl border border-white/40 dark:border-white/10 shadow-[0_24px_70px_rgba(0,0,0,0.25)] w-full max-w-4xl h-[80vh] flex overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Left: Conversation List */}
-              <div className="w-80 border-r border-slate-100 dark:border-slate-700 flex flex-col shrink-0 h-full">
-                <div className="p-4 border-b border-slate-100 dark:border-slate-700">
-                  <h3 className="font-semibold text-slate-800 dark:text-slate-100">Recent Conversations</h3>
+              <div className="w-80 border-r border-slate-200/60 dark:border-slate-800/60 flex flex-col shrink-0 h-full bg-slate-50/40 dark:bg-[#111827]/40">
+                <div className="px-5 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/15">
+                      <MessageSquare className="w-3.5 h-3.5" />
+                    </div>
+                    <h3 className="font-semibold text-sm text-slate-900 dark:text-white tracking-tight">Conversations</h3>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {incompleteCount > 0 && (
+                      <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[11px] font-semibold rounded-full px-2 py-0.5 tabular-nums flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                        {incompleteCount}
+                      </span>
+                    )}
+                    <span className="bg-blue-500/10 text-[#0071E3] dark:text-blue-400 border border-blue-500/20 text-[11px] font-semibold rounded-full px-2 py-0.5 tabular-nums">
+                      {botConversations.length}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex-1 overflow-y-auto min-h-0">
-                  {botConversations.map((conv) => (
-                    <button
-                      key={conv.id}
-                      onClick={() => setSelectedConvId(conv.id)}
-                      className={`w-full flex items-center gap-3 p-4 text-left transition-colors border-l-4 ${selectedConvId === conv.id
-                        ? 'bg-slate-50 dark:bg-slate-700/40 border-l-blue-500'
-                        : 'border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                        }`}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 shrink-0 text-sm">
-                        {conv.name?.charAt(0).toUpperCase() || 'U'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{conv.name}</p>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0 ml-2">{conv.time}</span>
+                <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+                  {botConversations.map((convo, index) => {
+                    const isSelected = selectedConvId === convo.id;
+                    const isIncomplete = convo.status === "Incomplete";
+                    const avatarColor = getAvatarColor(convo.name, index);
+                    const initials = getInitials(convo.name);
+                    return (
+                      <button
+                        key={convo.id}
+                        type="button"
+                        onClick={() => handleModalSelectConv(convo.id)}
+                        className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all duration-150 text-left relative group active:scale-[0.98] ${isSelected
+                          ? "bg-blue-500/10 dark:bg-blue-500/20 shadow-xs border border-blue-500/25 dark:border-blue-500/30 text-slate-900 dark:text-white"
+                          : isIncomplete
+                            ? "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.14] border border-amber-500/15 dark:border-amber-500/20 text-slate-950 dark:text-white"
+                            : "hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent text-slate-700 dark:text-slate-300"
+                          }`}
+                      >
+                        {isSelected && (
+                          <motion.div
+                            layoutId="modalActiveConvoIndicator"
+                            className="absolute left-1 top-2.5 bottom-2.5 w-1 bg-[#0071E3] rounded-full"
+                            transition={APPLE_SPRING}
+                          />
+                        )}
+                        <div className="relative shrink-0">
+                          <div
+                            className={`w-9 h-9 rounded-full ${avatarColor} flex items-center justify-center font-bold text-xs text-white shadow-sm ring-2 ring-white/80 dark:ring-slate-800`}
+                          >
+                            {initials}
+                          </div>
+                          {isIncomplete && (
+                            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-500 border-2 border-white dark:border-slate-800 rounded-full shadow-xs" />
+                          )}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400">{conv.type}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${conv.status === 'Unread'
-                            ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                            : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                            }`}>{conv.status}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h4
+                              className={`text-xs truncate transition-all duration-200 ${isIncomplete
+                                ? "font-bold text-slate-950 dark:text-white"
+                                : isSelected
+                                  ? "font-semibold text-slate-900 dark:text-white"
+                                  : "font-medium text-slate-700 dark:text-slate-300"
+                                }`}
+                            >
+                              {convo.name}
+                            </h4>
+                            <div className="flex items-center gap-1 shrink-0 ml-1">
+                              <span
+                                className={`text-[10px] tabular-nums transition-colors duration-200 ${isIncomplete
+                                  ? "font-semibold text-amber-600 dark:text-amber-400"
+                                  : "font-normal text-slate-400 dark:text-slate-500"
+                                  }`}
+                              >
+                                {formatDisplayTime(convo.time)}
+                              </span>
+                              {isIncomplete && (
+                                <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)] shrink-0" />
+                              )}
+                            </div>
+                          </div>
+                          <p
+                            className={`text-[11px] truncate mt-0.5 leading-snug transition-all duration-200 ${isIncomplete
+                              ? "font-semibold text-slate-900 dark:text-slate-100"
+                              : "font-normal text-slate-500 dark:text-slate-400"
+                              }`}
+                          >
+                            {getLastMessage(convo)}
+                          </p>
                         </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Right: Chat View — Staggered */}
+              {/* Right: Chat View — Exact MessengerBotLogs Message Detail */}
               <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={selectedConvId}
-                    variants={contentVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    transition={{ duration: 0.2, ease: 'easeInOut' }}
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -12 }}
+                    transition={APPLE_SPRING}
                     className="flex-1 flex flex-col min-w-0 h-full"
                   >
                     {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-700">
+                    <div className="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0 bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 text-sm">
-                          {selectedConversation.name?.charAt(0).toUpperCase() || 'U'}
+                        <div
+                          className={`w-10 h-10 rounded-full ${modalSelectedColor} flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-sm ring-2 ring-white/80 dark:ring-slate-800`}
+                        >
+                          {modalSelectedInitials}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{selectedConversation.name}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{selectedConversation.barangay} • {selectedConversation.type}</p>
+                          <h3 className="font-semibold text-slate-900 dark:text-white text-base tracking-tight">
+                            {selectedConversation.name}
+                          </h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+                            <span>{selectedConversation.barangay}</span>
+                            <span className="text-slate-300 dark:text-slate-600">•</span>
+                            <span>{selectedConversation.type}</span>
+                            <span className="text-slate-300 dark:text-slate-600">•</span>
+                            <span className="font-mono text-[11px] text-slate-400 dark:text-slate-500">PSID: {selectedConversation.psid}</span>
+                          </p>
                         </div>
                       </div>
+
                       <div className="flex items-center gap-3">
-                        {selectedConversation.status === 'Unread' && (
-                          <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium border border-blue-100 dark:border-blue-800">
-                            Unread
-                          </span>
-                        )}
+                        {/* Apple Segmented 1-Click Status Switcher Capsule */}
+                        <div
+                          role="group"
+                          aria-label="Conversation Status"
+                          className="inline-flex items-center p-1 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-md rounded-full border border-slate-200/70 dark:border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]"
+                        >
+                          {/* Incomplete Option */}
+                          <button
+                            type="button"
+                            onClick={() => updateBotConversationStatus(selectedConversation.id, 'Incomplete')}
+                            className={`relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-tight transition-colors duration-200 select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${selectedConversation.status === 'Incomplete'
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                              }`}
+                            title="Mark conversation as Incomplete"
+                          >
+                            {selectedConversation.status === 'Incomplete' && (
+                              <motion.div
+                                layoutId="modalActiveStatusCapsule"
+                                transition={APPLE_SPRING}
+                                className="absolute inset-0 bg-white dark:bg-slate-700/90 rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10"
+                              />
+                            )}
+                            <span className="relative z-10 w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            <span className="relative z-10">Incomplete</span>
+                          </button>
+
+                          {/* Complete Option */}
+                          <button
+                            type="button"
+                            onClick={() => updateBotConversationStatus(selectedConversation.id, 'Complete')}
+                            className={`relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-tight transition-colors duration-200 select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${selectedConversation.status === 'Complete'
+                              ? 'text-emerald-700 dark:text-emerald-300'
+                              : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                              }`}
+                            title="Mark conversation as Complete"
+                          >
+                            {selectedConversation.status === 'Complete' && (
+                              <motion.div
+                                layoutId="modalActiveStatusCapsule"
+                                transition={APPLE_SPRING}
+                                className="absolute inset-0 bg-white dark:bg-slate-700/90 rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10"
+                              />
+                            )}
+                            <CheckCircle className="relative z-10 w-3.5 h-3.5 text-emerald-500" />
+                            <span className="relative z-10">Complete</span>
+                          </button>
+                        </div>
+
                         <button
                           onClick={() => setActiveConv(null)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                          className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors active:scale-90"
                         >
                           <X className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
 
-                    {/* Messages — Staggered */}
-                    <div className="flex-1 overflow-y-auto min-h-0 p-5 bg-slate-50/50 dark:bg-slate-900/30">
-                      <StaggerContainer className="space-y-4">
-                        {selectedConversation.messages.map((msg, i) =>
-                          msg.sender === 'bot' ? (
-                            <StaggerItem key={i}>
-                              <div className="flex items-start gap-2.5 justify-end">
-                                <div className="bg-blue-600 rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[75%]">
-                                  <p className="text-sm text-white leading-relaxed">{msg.text}</p>
-                                </div>
-                                <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-[10px] font-bold text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">B</div>
+                    {/* Messages — Apple Messages Thread */}
+                    <div className="flex-1 overflow-y-auto min-h-0 p-6 bg-slate-50/40 dark:bg-[#0B0F17]/40 space-y-4">
+                      {selectedConversation.messages.map((msg, idx) =>
+                        msg.sender === "bot" ? (
+                          <div key={idx} className="flex items-end gap-2 justify-end">
+                            <div className="flex flex-col items-end max-w-[82%] sm:max-w-[74%]">
+                              <div className="bg-[#0071E3] text-white rounded-[20px] rounded-br-[4px] px-4 py-2.5 shadow-[0_2px_10px_rgba(0,113,227,0.22)]">
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                               </div>
-                            </StaggerItem>
-                          ) : (
-                            <StaggerItem key={i}>
-                              <div className="flex items-start gap-2.5">
-                                <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-300 shrink-0 mt-0.5">U</div>
-                                <div className="bg-white dark:bg-slate-700 border border-slate-100 dark:border-slate-600 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[75%]">
-                                  <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{msg.text}</p>
-                                </div>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 mr-1 font-medium flex items-center gap-1">
+                                <Bot className="w-3 h-3 text-[#0071E3]" />
+                                Responde Bot
+                              </span>
+                            </div>
+                            <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-[11px] font-bold text-[#0071E3] dark:text-blue-400 shrink-0 mb-4 ring-1 ring-blue-500/20 shadow-2xs">
+                              <Bot className="w-3.5 h-3.5 text-[#0071E3]" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div key={idx} className="flex items-end gap-2 justify-start">
+                            <div
+                              className={`w-7 h-7 rounded-full ${modalSelectedColor} flex items-center justify-center text-[10px] font-bold text-white shrink-0 mb-4 shadow-xs ring-1 ring-black/5`}
+                            >
+                              {modalSelectedInitials}
+                            </div>
+                            <div className="flex flex-col items-start max-w-[82%] sm:max-w-[74%]">
+                              <div className="bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 text-slate-800 dark:text-slate-100 rounded-[20px] rounded-bl-[4px] px-4 py-2.5 shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                               </div>
-                            </StaggerItem>
-                          )
-                        )}
-                      </StaggerContainer>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 ml-1 font-medium">
+                                {selectedConversation.name}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      )}
                     </div>
 
                     {/* Footer */}
-                    <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex justify-end">
+                    <div className="p-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-[#111827]/80 flex justify-end">
                       <button
                         onClick={() => { setActiveConv(null); showToast('Navigating to Messenger Bot Logs', 'info'); navigate('/messenger-bot-logs'); }}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-[#0071E3] hover:bg-[#0077ED] text-white text-xs font-semibold rounded-xl transition-all shadow-[0_2px_8px_rgba(0,113,227,0.25)] active:scale-[0.97]"
                       >
-                        Go to MessengerBot<ArrowRight className="w-4 h-4" />
+                        Open in Messenger Bot Logs<ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </motion.div>
@@ -624,112 +929,108 @@ export default function Dashboard() {
       </AnimatePresence>
 
       {/* ════════════════════════════════════════
-          SCRAPER MODAL — Staggered
+          SCRAPER MODAL — Apple Inspector Sheet
          ════════════════════════════════════════ */}
       <AnimatePresence>
         {activeScraper && (
           <motion.div
             key="scraper-modal-backdrop"
-            variants={backdropVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 dark:bg-black/70 backdrop-blur-xl"
             onClick={() => setActiveScraper(null)}
           >
             <motion.div
-              variants={modalVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-2xl w-full max-w-lg overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={APPLE_SPRING}
+              className="bg-white/95 dark:bg-[#111827]/95 backdrop-blur-2xl rounded-3xl border border-white/40 dark:border-white/10 shadow-[0_24px_70px_rgba(0,0,0,0.25)] w-full max-w-lg overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/30">
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm text-slate-500 dark:text-slate-400">#{activeScraper.id.slice(-10)}</span>
+                  <span className="font-mono text-xs font-semibold text-slate-400 dark:text-slate-500">#{activeScraper.id.slice(-10)}</span>
                   <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(activeScraper.urgency)}`}>
-                    {activeScraper.urgency}
+                    {activeScraper.urgency} Priority
                   </span>
                 </div>
-                <button onClick={() => setActiveScraper(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                <button
+                  onClick={() => setActiveScraper(null)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors active:scale-90"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Body — Staggered */}
-              <div className="px-6 py-5">
-                <StaggerContainer className="space-y-5">
-                  <StaggerItem>
-                    <div>
-                      <h3 className={`text-lg font-bold ${getTypeColor(activeScraper.type)}`}>{activeScraper.type}</h3>
-                      <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{activeScraper.barangay}, Talisay</p>
-                    </div>
-                  </StaggerItem>
+              {/* Body */}
+              <div className="px-6 py-5 space-y-5">
+                <div>
+                  <h3 className={`text-lg font-bold tracking-tight ${getTypeColor(activeScraper.type)}`}>{activeScraper.type}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5 font-medium">{activeScraper.barangay}, Talisay</p>
+                </div>
 
-                  <StaggerItem>
-                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
-                      <p className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed">&ldquo;{activeScraper.text}&rdquo;</p>
-                    </div>
-                  </StaggerItem>
+                <div className="bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl p-4 border border-slate-100 dark:border-white/5">
+                  <p className="text-slate-700 dark:text-slate-200 text-xs leading-relaxed italic">&ldquo;{activeScraper.text}&rdquo;</p>
+                </div>
 
-                  <StaggerItem>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex items-start gap-2.5">
-                        <User className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Original Poster</p>
-                          <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{activeScraper.reporter}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2.5">
-                        <Clock className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Scraped At</p>
-                          <p className="text-sm text-slate-700 dark:text-slate-200">{activeScraper.time}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2.5">
-                        <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">Source</p>
-                          <p className="text-sm text-slate-700 dark:text-slate-200">{activeScraper.source}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2.5">
-                        <AlertCircle className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">NLP Confidence</p>
-                          <p className="text-sm text-slate-700 dark:text-slate-200 font-mono">{activeScraper.confidence > 0 ? `${(activeScraper.confidence * 100).toFixed(0)}%` : 'N/A'}</p>
-                        </div>
-                      </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl bg-slate-50/60 dark:bg-slate-800/30 border border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-[10px] uppercase font-semibold tracking-wider">
+                      <User className="w-3.5 h-3.5" />
+                      <span>Original Poster</span>
                     </div>
-                  </StaggerItem>
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-1 truncate">{activeScraper.reporter}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50/60 dark:bg-slate-800/30 border border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-[10px] uppercase font-semibold tracking-wider">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Scraped At</span>
+                    </div>
+                    <p className="text-xs font-medium text-slate-800 dark:text-slate-200 mt-1 tabular-nums truncate">{activeScraper.time}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50/60 dark:bg-slate-800/30 border border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-[10px] uppercase font-semibold tracking-wider">
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span>Source</span>
+                    </div>
+                    <p className="text-xs font-medium text-slate-800 dark:text-slate-200 mt-1 truncate">{activeScraper.source}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50/60 dark:bg-slate-800/30 border border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-[10px] uppercase font-semibold tracking-wider">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>NLP Confidence</span>
+                    </div>
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-1 tabular-nums">
+                      {activeScraper.confidence > 0 ? `${(activeScraper.confidence * 100).toFixed(0)}%` : 'N/A'}
+                    </p>
+                  </div>
+                </div>
 
-                  <StaggerItem>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500 dark:text-slate-400">Status:</span>
-                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border ${getStatusColor(activeScraper.status)}`}>
-                        {getStatusIcon(activeScraper.status)}{activeScraper.status}
-                      </span>
-                    </div>
-                  </StaggerItem>
-                </StaggerContainer>
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Status:</span>
+                  <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-medium border ${getStatusColor(activeScraper.status)}`}>
+                    {getStatusIcon(activeScraper.status)}{activeScraper.status}
+                  </span>
+                </div>
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
-                <button onClick={() => setActiveScraper(null)} className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/30">
+                <button
+                  onClick={() => setActiveScraper(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors active:scale-95"
+                >
                   Close
                 </button>
                 <button
                   onClick={() => { setActiveScraper(null); showToast('Navigating to Scraper Feed', 'info'); navigate('/scraper-feed'); }}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] rounded-xl transition-all shadow-[0_2px_8px_rgba(0,113,227,0.25)] active:scale-[0.97]"
                 >
-                  Go to Scraper Feed<ArrowRight className="w-4 h-4" />
+                  Go to Scraper Feed<ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </motion.div>

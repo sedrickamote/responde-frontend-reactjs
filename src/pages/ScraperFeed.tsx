@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Filter, Globe, MessageCircle, AlertTriangle, MapPin, Clock,
   CheckCircle, XCircle, Brain, Users, ExternalLink,
-  Loader2,
+  Loader2, Radio, X,
 } from "lucide-react";
 import DatePicker from "../components/DatePicker";
 import FilterDropdown from "../components/DropDown";
@@ -38,16 +38,28 @@ interface Toast {
   type: "success" | "error" | "info";
 }
 
-// -- Animation presets --
-const contentVariants = {
-  hidden: { opacity: 0, x: 20 },
-  visible: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -20 },
+// -- Apple Design Spring Physics & Motion --
+const APPLE_SPRING = { type: "spring", stiffness: 400, damping: 32 } as const;
+
+const contentVariants: Variants = {
+  hidden: { opacity: 0, x: 12, scale: 0.99 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+    transition: APPLE_SPRING,
+  },
+  exit: {
+    opacity: 0,
+    x: -8,
+    scale: 0.99,
+    transition: { duration: 0.15, ease: "easeOut" },
+  },
 };
 
 export const INACTIVITY_GAP_MS = 60 * 60 * 1000;
 
-// -- Toast Item Component --
+// -- Apple Notification Toast Component --
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
   useEffect(() => {
     const timer = setTimeout(() => onDismiss(toast.id), 3500);
@@ -55,32 +67,36 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
   }, [toast.id, onDismiss]);
 
   const icon = toast.type === "success"
-    ? <CheckCircle className="w-4 h-4 text-emerald-500" />
+    ? <CheckCircle className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
     : toast.type === "error"
-      ? <AlertTriangle className="w-4 h-4 text-red-500" />
-      : <Loader2 className="w-4 h-4 text-blue-500" />;
+      ? <AlertTriangle className="w-4 h-4 text-red-500 dark:text-red-400" />
+      : <Loader2 className="w-4 h-4 text-[#0071E3] dark:text-blue-400 animate-spin" />;
 
-  const bgClass = toast.type === "success"
-    ? "bg-white dark:bg-slate-800 border-emerald-200 dark:border-emerald-800"
+  const badgeBg = toast.type === "success"
+    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-500/20"
     : toast.type === "error"
-      ? "bg-white dark:bg-slate-800 border-red-200 dark:border-red-800"
-      : "bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800";
+      ? "bg-red-50 dark:bg-red-950/40 text-red-600 border border-red-500/20"
+      : "bg-blue-50 dark:bg-blue-950/40 text-[#0071E3] border border-blue-500/20";
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 60, scale: 0.95 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 40, scale: 0.95 }}
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg ${bgClass} min-w-[280px] max-w-[380px]`}
+      initial={{ opacity: 0, y: -20, scale: 0.94 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -16, scale: 0.94 }}
+      transition={{ type: "spring", stiffness: 420, damping: 30 }}
+      className="flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-[#1C2433]/90 border border-slate-200/80 dark:border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.12)] border-t border-t-white/80 dark:border-t-white/20 min-w-[300px] max-w-[400px]"
     >
-      {icon}
-      <span className="text-sm font-medium text-slate-700 dark:text-slate-200 flex-1">{toast.message}</span>
+      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${badgeBg}`}>
+        {icon}
+      </div>
+      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex-1 leading-snug">
+        {toast.message}
+      </span>
       <button
         onClick={() => onDismiss(toast.id)}
-        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+        className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-[0.92] transition-all"
       >
-        <XCircle className="w-4 h-4" />
+        <X className="w-3.5 h-3.5" />
       </button>
     </motion.div>
   );
@@ -245,7 +261,8 @@ export default function ScraperFeed() {
 
         const { data, error: sbError } = await supabase
           .from(tableName)
-          .select("*");
+          .select("*")
+          .limit(100);
 
         if (sbError) {
           console.error(`[ScraperFeed] Failed to fetch from "${tableName}":`, sbError.message);
@@ -259,7 +276,8 @@ export default function ScraperFeed() {
             for (const fbTable of fallbacks) {
               const { data: fbData, error: fbErr } = await supabase
                 .from(fbTable)
-                .select("*");
+                .select("*")
+                .limit(100);
 
               if (!fbErr) {
                 fallbackData = fbData;
@@ -337,36 +355,106 @@ export default function ScraperFeed() {
 
   const selectedPost = filteredPosts.find((p) => p.id === selectedId) || filteredPosts[0];
 
-  const getUrgencyColor = (urgency: string) => {
+  const AVATAR_PALETTE = [
+    "bg-[#1877F2]", // Blue
+    "bg-[#E53935]", // Red
+    "bg-[#00897B]", // Teal
+    "bg-[#1E88E5]", // Sky
+    "bg-[#43A047]", // Green
+    "bg-[#5E35B1]", // Purple
+    "bg-[#FB8C00]", // Orange
+  ];
+
+  const getAvatarColor = (name: string): string => {
+    let hash = 0;
+    for (let i = 0; i < (name || "").length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+  };
+
+  const renderUrgencyBadge = (urgency: string) => {
     switch (urgency) {
-      case "High": return "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800";
-      case "Moderate": return "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800";
-      case "Low": return "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600";
-      default: return "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600";
+      case "High":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            High
+          </span>
+        );
+      case "Moderate":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Moderate
+          </span>
+        );
+      case "Low":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+            Low
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
+            {urgency}
+          </span>
+        );
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const renderStatusBadge = (status: string) => {
     switch (status) {
-      case "New": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      case "Verified": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-      case "Flagged": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
-      case "Resolved": return "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400";
-      default: return "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400";
+      case "New":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-[#0071E3] dark:text-blue-400 border border-blue-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-pulse" />
+            New
+          </span>
+        );
+      case "Verified":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Verified
+          </span>
+        );
+      case "Flagged":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+            Flagged
+          </span>
+        );
+      case "Resolved":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+            Resolved
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
+            {status}
+          </span>
+        );
     }
   };
 
   const getSourceIcon = (source: string) => {
     switch (source) {
-      case "Facebook Page": return <ExternalLink className="w-3.5 h-3.5" />;
-      case "Facebook Comment": return <MessageCircle className="w-3.5 h-3.5" />;
-      case "Group Post": return <Users className="w-3.5 h-3.5" />;
-      default: return <Globe className="w-3.5 h-3.5" />;
+      case "Facebook Page": return <ExternalLink className="w-3 h-3 text-blue-500" />;
+      case "Facebook Comment": return <MessageCircle className="w-3 h-3 text-[#0071E3]" />;
+      case "Group Post": return <Users className="w-3 h-3 text-emerald-500" />;
+      default: return <Globe className="w-3 h-3 text-slate-500" />;
     }
   };
 
   return (
-    <div className="space-y-5 h-full flex flex-col relative">
+    <div className="space-y-6 h-full flex flex-col relative">
       {/* Toast Notifications — Top Right */}
       <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
         <AnimatePresence>
@@ -377,7 +465,6 @@ export default function ScraperFeed() {
           ))}
         </AnimatePresence>
       </div>
-
 
       {/* Skeleton — shown on first load, replaced by real content */}
       {loading && <PageLoader variant="scraper" />}
@@ -399,13 +486,13 @@ export default function ScraperFeed() {
       {/* Main Content */}
       {!loading && !error && (
         <>
-          {/* Filters Bar */}
-          <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-4">
+          {/* Filters Bar — Frosted Glass with Specular Edge */}
+          <div className="relative z-30 backdrop-blur-xl bg-white/80 dark:bg-[#111827]/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_4px_24px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)] border-t border-t-white/80 dark:border-t-white/10 p-4 transition-all">
             <div className="flex flex-col xl:flex-row xl:items-center gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm shrink-0">
-                  <Filter className="w-4 h-4" />
-                  <span className="font-medium">Filters:</span>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0 border border-slate-200/50 dark:border-slate-700/50">
+                  <Filter className="w-3.5 h-3.5 text-[#0071E3]" />
+                  <span>Filters</span>
                 </div>
 
                 <FilterDropdown
@@ -440,11 +527,11 @@ export default function ScraperFeed() {
 
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 xl:ml-auto w-full xl:w-auto">
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">From:</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">From:</span>
                   <DatePicker value={fromDate} onChange={setFromDate} placeholder="Select Date" />
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">To:</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">To:</span>
                   <DatePicker value={toDate} onChange={setToDate} placeholder="Select Date" />
                 </div>
               </div>
@@ -452,18 +539,30 @@ export default function ScraperFeed() {
           </div>
 
           {/* Two Column Layout */}
-          <div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-5 min-h-0">
-            {/* LEFT: Post List — Staggered */}
-            <div className="lg:col-span-5 bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden min-h-[300px] lg:min-h-0">
-              <div className="p-4 border-b border-slate-100 dark:border-slate-700">
-                <h3 className="font-semibold text-slate-800 dark:text-slate-100">Scraped Posts</h3>
+          <div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-6 min-h-0">
+            {/* LEFT: Post List — macOS Feed Sidebar Style */}
+            <div className="lg:col-span-5 bg-white/85 dark:bg-[#111827]/85 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex flex-col overflow-hidden min-h-[340px] lg:min-h-0">
+              <div className="px-5 py-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0 bg-white/60 dark:bg-[#111827]/60 backdrop-blur-md">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/15">
+                    <Radio className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-semibold text-slate-900 dark:text-white text-base tracking-tight">
+                    Scraped Posts
+                  </h3>
+                </div>
+                <span className="bg-blue-500/10 text-[#0071E3] dark:text-blue-400 border border-blue-500/20 text-xs font-semibold rounded-full px-2.5 py-0.5 tabular-nums">
+                  {filteredPosts.length} posts
+                </span>
               </div>
-              <div className="flex-1 overflow-y-auto">
+
+              <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-1">
                 {filteredPosts.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 px-4 text-slate-400 dark:text-slate-500 text-sm gap-3">
-                    <span className="font-medium text-slate-500 dark:text-slate-400">No scraped posts found.</span>
+                    <Radio className="w-8 h-8 stroke-[1.5] text-slate-300 dark:text-slate-600" />
+                    <span className="font-medium text-slate-600 dark:text-slate-400">No scraped posts found.</span>
                     <div className="w-full text-xs bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 text-left font-mono mt-2 space-y-2">
-                      <p className="font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-850 pb-1.5 mb-1.5 uppercase tracking-wider text-[10px]">
+                      <p className="font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800 pb-1.5 mb-1.5 uppercase tracking-wider text-[10px]">
                         Database Query Diagnostics
                       </p>
                       <p>
@@ -492,64 +591,82 @@ export default function ScraperFeed() {
                     </div>
                   </div>
                 ) : (
-                  <StaggerContainer>
-                    {filteredPosts.map((post) => (
-                      <StaggerItem key={post.id} className="w-full">
-                        <button
-                          onClick={() => setSelectedId(post.id)}
-                          className={`w-full text-left p-4 border-b border-slate-50 dark:border-slate-700/50 transition-all ${selectedId === post.id
-                            ? "bg-blue-50/50 dark:bg-blue-900/20 border-l-4 border-l-blue-500"
-                            : "border-l-4 border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-700/30"
+                  <StaggerContainer className="space-y-1">
+                    {filteredPosts.map((post) => {
+                      const isSelected = selectedId === post.id;
+                      return (
+                        <StaggerItem key={post.id} className="w-full">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedId(post.id)}
+                            className={`w-full text-left p-3 rounded-xl transition-all duration-150 relative group active:scale-[0.98] ${
+                              isSelected
+                                ? "bg-blue-500/10 dark:bg-blue-500/20 shadow-xs border border-blue-500/25 dark:border-blue-500/30 text-slate-900 dark:text-white"
+                                : "hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent text-slate-700 dark:text-slate-300"
                             }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-sm text-slate-600 dark:text-slate-300 shrink-0">
-                              {post.avatar}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
-                                  {post.author}
-                                </span>
-                                <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                                  {post.timestamp}
-                                </span>
+                          >
+                            {/* Sliding active indicator bar */}
+                            {isSelected && (
+                              <motion.div
+                                layoutId="activePostIndicator"
+                                className="absolute left-1 top-2.5 bottom-2.5 w-1 bg-[#0071E3] rounded-full"
+                                transition={APPLE_SPRING}
+                              />
+                            )}
+
+                            <div className="flex items-start gap-3 pl-1">
+                              <div
+                                className={`w-9 h-9 rounded-full ${getAvatarColor(
+                                  post.author
+                                )} flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-sm ring-2 ring-white/80 dark:ring-slate-800`}
+                              >
+                                {post.avatar || (post.author ? post.author.charAt(0).toUpperCase() : "U")}
                               </div>
-                              <div className="flex items-center gap-1.5 mb-1.5">
-                                <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
-                                  {getSourceIcon(post.source)}
-                                  {post.source}
-                                </span>
-                              </div>
-                              <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-2">
-                                {post.rawText}
-                              </p>
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium border ${getUrgencyColor(post.urgency)}`}>
-                                  {post.urgency}
-                                </span>
-                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(post.status)}`}>
-                                  {post.status}
-                                </span>
-                                {post.confidence > 0 && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500">
-                                    <Brain className="w-3 h-3" />
-                                    {post.confidence}%
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-0.5">
+                                  <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                                    {post.author}
                                   </span>
-                                )}
+                                  <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 tabular-nums whitespace-nowrap ml-2">
+                                    {post.timestamp}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-800/80 px-2 py-0.5 rounded-md border border-slate-200/40 dark:border-slate-700/40">
+                                    {getSourceIcon(post.source)}
+                                    {post.source}
+                                  </span>
+                                  <span className="text-slate-300 dark:text-slate-600 text-[10px]">•</span>
+                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                    {post.barangay}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mb-2 leading-relaxed">
+                                  {post.rawText}
+                                </p>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {renderUrgencyBadge(post.urgency)}
+                                  {renderStatusBadge(post.status)}
+                                  {post.confidence > 0 && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-purple-600 dark:text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full">
+                                      <Brain className="w-3 h-3" />
+                                      {post.confidence}%
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </button>
-                      </StaggerItem>
-                    ))}
+                          </button>
+                        </StaggerItem>
+                      );
+                    })}
                   </StaggerContainer>
                 )}
               </div>
             </div>
 
-            {/* RIGHT: Post Detail — Staggered */}
-            <div className="lg:col-span-7 bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex flex-col overflow-hidden min-h-[400px] lg:min-h-0">
+            {/* RIGHT: Post Detail — macOS Inspector Style */}
+            <div className="lg:col-span-7 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex flex-col overflow-hidden min-h-[440px] lg:min-h-0">
               <AnimatePresence mode="wait">
                 {selectedPost ? (
                   <motion.div
@@ -558,85 +675,94 @@ export default function ScraperFeed() {
                     initial="hidden"
                     animate="visible"
                     exit="exit"
-                    transition={{ duration: 0.2, ease: "easeInOut" }}
                     className="flex flex-col h-full"
                   >
-                    <div className="p-5 border-b border-slate-100 dark:border-slate-700 shrink-0">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300">
-                            {selectedPost.avatar}
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-slate-800 dark:text-slate-100">{selectedPost.author}</h3>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                                {getSourceIcon(selectedPost.source)}
-                                {selectedPost.source}
-                              </span>
-                              <span className="text-slate-300 dark:text-slate-600">•</span>
-                              <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {selectedPost.timestamp}
-                              </span>
-                            </div>
+                    {/* Header */}
+                    <div className="px-6 py-4.5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-start justify-between shrink-0 bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-full ${getAvatarColor(
+                            selectedPost.author
+                          )} flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-sm ring-2 ring-white/80 dark:ring-slate-800`}
+                        >
+                          {selectedPost.avatar || (selectedPost.author ? selectedPost.author.charAt(0).toUpperCase() : "U")}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-slate-900 dark:text-white text-base tracking-tight">
+                            {selectedPost.author}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                              {getSourceIcon(selectedPost.source)}
+                              {selectedPost.source}
+                            </span>
+                            <span className="text-slate-300 dark:text-slate-600">•</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              <span className="tabular-nums">{selectedPost.timestamp}</span>
+                            </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap justify-end">
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getUrgencyColor(selectedPost.urgency)}`}>
-                            {selectedPost.urgency}
-                          </span>
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedPost.status)}`}>
-                            {selectedPost.status}
-                          </span>
-                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        {renderUrgencyBadge(selectedPost.urgency)}
+                        {renderStatusBadge(selectedPost.status)}
                       </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto">
-                      <StaggerContainer className="space-y-0">
-                        {/* Original Post */}
+                    {/* Body */}
+                    <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-5 bg-slate-50/40 dark:bg-[#0B0F17]/40">
+                      <StaggerContainer className="space-y-5">
+                        {/* Original Post Card */}
                         <StaggerItem>
-                          <div className="p-5 border-b border-slate-100 dark:border-slate-700">
-                            <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                              Original Post
+                          <div>
+                            <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2.5">
+                              Original Scraped Post
                             </h4>
-                            <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
-                              &ldquo;{selectedPost.rawText}&rdquo;
-                            </p>
+                            <div className="bg-white dark:bg-slate-800/80 rounded-2xl p-5 border border-slate-200/70 dark:border-slate-700/70 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                              <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed italic">
+                                &ldquo;{selectedPost.rawText}&rdquo;
+                              </p>
+                            </div>
                           </div>
                         </StaggerItem>
 
                         {/* NLP Extraction */}
                         <StaggerItem>
-                          <div className="p-5 border-b border-slate-100 dark:border-slate-700">
+                          <div>
                             <div className="flex items-center gap-2 mb-3">
-                              <Brain className="w-4 h-4 text-blue-500" />
-                              <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                NLP Extraction
+                              <div className="w-7 h-7 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-500/20">
+                                <Brain className="w-4 h-4" />
+                              </div>
+                              <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                                NLP AI Extraction
                               </h4>
                               {selectedPost.confidence > 0 && (
-                                <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">
+                                <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 border border-purple-500/20 rounded-full px-2.5 py-0.5 ml-auto">
                                   Confidence: {selectedPost.confidence}%
                                 </span>
                               )}
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
-                                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
-                                  <MapPin className="w-3.5 h-3.5" />
-                                  Location
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                              <div className="bg-white dark:bg-slate-800/80 rounded-xl p-4 border border-slate-200/70 dark:border-slate-700/70 shadow-2xs">
+                                <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+                                  <div className="w-6 h-6 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                                    <MapPin className="w-3.5 h-3.5" />
+                                  </div>
+                                  <span>Detected Location</span>
                                 </div>
-                                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 pl-8">
                                   {selectedPost.extractedEntities.location}
                                 </p>
                               </div>
-                              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
-                                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
-                                  <AlertTriangle className="w-3.5 h-3.5" />
-                                  Incident Type
+                              <div className="bg-white dark:bg-slate-800/80 rounded-xl p-4 border border-slate-200/70 dark:border-slate-700/70 shadow-2xs">
+                                <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+                                  <div className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                                    <AlertTriangle className="w-3.5 h-3.5" />
+                                  </div>
+                                  <span>Incident Category</span>
                                 </div>
-                                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 pl-8">
                                   {selectedPost.type}
                                 </p>
                               </div>
@@ -646,30 +772,32 @@ export default function ScraperFeed() {
                       </StaggerContainer>
                     </div>
 
-                    <div className="p-5 shrink-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <button
-                          onClick={() => handleUpdateStatus(selectedPost.id, "Verified")}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          Verify
-                        </button>
-                        <button
-                          onClick={() => handleUpdateStatus(selectedPost.id, "Flagged")}
-                          className="px-4 py-2 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                        >
-                          <AlertTriangle className="w-4 h-4" />
-                          Flag
-                        </button>
-                        <button
-                          onClick={() => handleUpdateStatus(selectedPost.id, "Resolved")}
-                          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ml-auto"
-                        >
-                          <XCircle className="w-4 h-4" />
-                          Dismiss
-                        </button>
-                      </div>
+                    {/* Action Bar */}
+                    <div className="px-6 py-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-[#111827]/60 backdrop-blur-md shrink-0 flex items-center gap-2.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateStatus(selectedPost.id, "Verified")}
+                        className="px-4 py-2.5 bg-[#0071E3] hover:bg-[#0077ED] text-white text-xs font-semibold rounded-xl shadow-[0_2px_8px_rgba(0,113,227,0.25)] flex items-center gap-2 active:scale-[0.97] transition-all"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Verify
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateStatus(selectedPost.id, "Flagged")}
+                        className="px-4 py-2.5 bg-orange-500/10 hover:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/20 text-xs font-semibold rounded-xl flex items-center gap-2 active:scale-[0.97] transition-all"
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        Flag
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateStatus(selectedPost.id, "Resolved")}
+                        className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 text-xs font-semibold rounded-xl flex items-center gap-2 ml-auto active:scale-[0.97] transition-all"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        Dismiss
+                      </button>
                     </div>
                   </motion.div>
                 ) : (
@@ -679,10 +807,17 @@ export default function ScraperFeed() {
                     initial="hidden"
                     animate="visible"
                     exit="exit"
-                    transition={{ duration: 0.2, ease: "easeInOut" }}
-                    className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500"
+                    className="flex-1 flex flex-col items-center justify-center p-8 text-center"
                   >
-                    Select a post to view details
+                    <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-3 shadow-inner">
+                      <Radio className="w-8 h-8 stroke-[1.5]" />
+                    </div>
+                    <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-base">
+                      No Post Selected
+                    </h4>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 max-w-[260px] mt-1">
+                      Select a scraped post from the feed stream to inspect NLP extraction and verify incidents.
+                    </p>
                   </motion.div>
                 )}
               </AnimatePresence>

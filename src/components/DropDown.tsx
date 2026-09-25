@@ -52,7 +52,7 @@ export default function FilterDropdown({ value, options, onChange }: FilterDropd
   };
 
   return (
-    <div className="relative">
+    <div className={`relative ${isOpen ? 'z-50' : 'z-10'}`}>
       <button
         ref={toggleRef}
         onClick={handleToggle}
@@ -70,7 +70,7 @@ export default function FilterDropdown({ value, options, onChange }: FilterDropd
       {isOpen && (
         <div
           ref={menuRef}
-          className="absolute left-0 mt-2 py-1.5 min-w-full w-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg shadow-lg z-50 overflow-hidden"
+          className="absolute left-0 mt-2 py-1.5 min-w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl shadow-xl z-50 overflow-hidden"
           role="listbox"
         >
           {options.map((option) => (
