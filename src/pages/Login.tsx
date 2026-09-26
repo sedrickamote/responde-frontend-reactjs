@@ -1,35 +1,59 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { useAuth, AuthError } from '../context/AuthContext';
 
 export default function Login() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
+  const { login, loginWithGoogle } = useAuth();
+
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    if (!username.trim() || !password.trim()) {
-      setErrorMessage('Please enter both username and password.');
+
+    if (!identifier.trim() || !password.trim()) {
+      setErrorMessage('Please enter both email/username and password.');
       return;
     }
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate('/dashboard');
-    }, 800);
-  };
 
-  // const handleGoogleSuccess = () => {
-  //   navigate('/dashboard');
-  // };
-  // const handleGoogleError = () => {
-  //   setErrorMessage('Google sign-in failed. Please try again.');
-  // };
+    setIsLoading(true);
+    try {
+      await login(identifier.trim(), password);
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      if (err instanceof AuthError) {
+        const { reason, remaining, locked_until } = err.detail;
+
+        if (reason === 'account_locked') {
+          const until = locked_until
+            ? new Date(locked_until).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            : 'later';
+          setErrorMessage(`Account locked after too many failed attempts. Try again after ${until}.`);
+        } else if (reason === 'user_not_found') {
+          setErrorMessage('No account found with that email or username.');
+        } else if (reason === 'wrong_password' || reason === 'invalid_credentials') {
+          const attemptsLeft = typeof remaining === 'number' ? remaining : null;
+          setErrorMessage(
+            attemptsLeft !== null && attemptsLeft <= 2
+              ? `Incorrect password. ${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} remaining before lockout.`
+              : 'Incorrect password. Please try again.'
+          );
+        } else {
+          setErrorMessage(err.message || 'Login failed. Please try again.');
+        }
+      } else {
+        setErrorMessage('Unable to connect to the server. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <main className="h-screen h-[100dvh] w-full flex items-center justify-center bg-slate-50/80 p-3 sm:p-4 md:p-6 overflow-hidden select-none">
@@ -49,7 +73,7 @@ export default function Login() {
                 Talisay MDRRMO Command Center
               </p>
               <p className="text-slate-400 text-xs mt-0.5 sm:mt-1 max-w-xs">
-                Disaster Intake & Geospatial Analytics System
+                Disaster Intake &amp; Geospatial Analytics System
               </p>
             </div>
 
@@ -63,15 +87,17 @@ export default function Login() {
             <form onSubmit={handleSubmit} className="space-y-2.5 sm:space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                  Email
+                  Email or Username
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   <input
+                    id="login-identifier"
                     type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
                     placeholder="e.g. mddrmo@gmail.com"
+                    autoComplete="username"
                     className="w-full pl-9 pr-4 py-2 sm:py-2.5 bg-slate-50/80 border border-slate-300 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-xs sm:text-sm min-h-[38px] sm:min-h-[40px]"
                   />
                 </div>
@@ -84,10 +110,12 @@ export default function Login() {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   <input
+                    id="login-password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
+                    autoComplete="current-password"
                     className="w-full pl-9 pr-9 py-2 sm:py-2.5 bg-slate-50/80 border border-slate-300 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-xs sm:text-sm min-h-[38px] sm:min-h-[40px]"
                   />
                   <button
@@ -111,6 +139,7 @@ export default function Login() {
               </div>
 
               <button
+                id="login-submit"
                 type="submit"
                 disabled={isLoading}
                 className="w-full py-2.5 sm:py-3 px-4 bg-gradient-to-r from-blue-700 to-blue-900 hover:from-blue-600 hover:to-blue-800 text-white font-semibold rounded-xl shadow-md shadow-blue-700/20 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all transform active:scale-[0.99] disabled:opacity-50 text-xs sm:text-sm min-h-[40px] sm:min-h-[42px]"
@@ -133,8 +162,9 @@ export default function Login() {
 
             {/* ── Google Sign In ── */}
             <button
+              id="login-google"
               type="button"
-              onClick={() => alert('Google Sign-In — coming soon')}
+              onClick={loginWithGoogle}
               className="w-full py-2 sm:py-2.5 px-4 flex items-center justify-center gap-2.5 bg-white border border-slate-300 hover:bg-slate-50/80 rounded-xl text-xs sm:text-sm font-medium text-slate-700 transition-colors min-h-[38px] sm:min-h-[40px]"
             >
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">

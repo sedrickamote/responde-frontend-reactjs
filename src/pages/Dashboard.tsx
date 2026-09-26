@@ -498,11 +498,10 @@ export default function Dashboard() {
                       key={convo.id}
                       type="button"
                       onClick={() => openConversation(convo)}
-                      className={`w-full ${index >= 3 ? 'hidden md:flex' : 'flex'} items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-xl transition-all duration-150 text-left relative group active:scale-[0.985] ${
-                        isIncomplete
+                      className={`w-full ${index >= 3 ? 'hidden md:flex' : 'flex'} items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-xl transition-all duration-150 text-left relative group active:scale-[0.985] ${isIncomplete
                           ? "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.13] border border-amber-500/20 dark:border-amber-500/30"
                           : "hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border border-transparent hover:border-slate-200/50 dark:hover:border-white/[0.05]"
-                      }`}
+                        }`}
                     >
                       {/* Circular Avatar with soft depth */}
                       <div className="relative shrink-0">
@@ -520,11 +519,10 @@ export default function Dashboard() {
                             {convo.name}
                           </h4>
                           <span
-                            className={`text-[10px] sm:text-[11px] tabular-nums font-medium shrink-0 ${
-                              isIncomplete
+                            className={`text-[10px] sm:text-[11px] tabular-nums font-medium shrink-0 ${isIncomplete
                                 ? "text-amber-600 dark:text-amber-400 font-semibold"
                                 : "text-slate-400 dark:text-slate-500"
-                            }`}
+                              }`}
                           >
                             {formatDisplayTime(convo.time)}
                           </span>
@@ -537,16 +535,14 @@ export default function Dashboard() {
                             {convo.type} · {convo.barangay}
                           </span>
                           <span
-                            className={`inline-flex items-center gap-1 text-[10px] font-medium rounded-md px-1.5 sm:px-2 py-0.5 border ${
-                              isIncomplete
+                            className={`inline-flex items-center gap-1 text-[10px] font-medium rounded-md px-1.5 sm:px-2 py-0.5 border ${isIncomplete
                                 ? "bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/20 font-semibold"
                                 : "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
-                            }`}
+                              }`}
                           >
                             <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                isIncomplete ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
-                              }`}
+                              className={`w-1.5 h-1.5 rounded-full ${isIncomplete ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                                }`}
                             />
                             {convo.status}
                           </span>
