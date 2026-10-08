@@ -16,6 +16,7 @@ import PageLoader from '../components/PageLoader';
 import PageTransition from '../components/Transition';
 import type { MapLayerState, SelectedFeature } from '../types/geospatial';
 import type { Report } from '../data/sample-reports';
+import { getBarangayMeta } from '../data/talisay-barangays';
 
 const INITIAL_LAYERS: MapLayerState = {
   choropleth: true,
@@ -90,6 +91,8 @@ function BarangayDetailCard({ name, reports, onClose, onViewList }: {
   onClose: () => void;
   onViewList: () => void;
 }) {
+  const meta = useMemo(() => getBarangayMeta(name), [name]);
+
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     reports.forEach((r) => { counts[r.type] = (counts[r.type] || 0) + 1; });
@@ -141,6 +144,19 @@ function BarangayDetailCard({ name, reports, onClose, onViewList }: {
             <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
+
+        {meta && (
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-xl p-2.5 border border-slate-200/50 dark:border-slate-700/50">
+              <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">PSGC Code</p>
+              <p className="font-mono font-medium text-slate-800 dark:text-slate-200 mt-0.5">{meta.psgc}</p>
+            </div>
+            <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-xl p-2.5 border border-slate-200/50 dark:border-slate-700/50">
+              <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Land Area</p>
+              <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">{meta.area_km2} km²</p>
+            </div>
+          </div>
+        )}
 
         <div>
           <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">By Category</p>
@@ -498,11 +514,11 @@ export default function GeospatialMap() {
         {/* ── Toolbar Row ── */}
         <div className="shrink-0">
           <div className="relative z-30 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] px-3 sm:px-5 py-2.5 sm:py-3 transition-all">
-            <div className="relative flex flex-col md:flex-row items-center justify-between gap-2.5 sm:gap-4">
+            <div className="relative flex flex-col sm:flex-row flex-wrap xl:flex-nowrap items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
 
               {/* Left: Filter Controls Capsule */}
-              <div className="grid grid-cols-2 gap-2 w-full md:w-auto md:flex md:items-center md:gap-2.5 relative z-20">
-                <div className="hidden md:flex items-center gap-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mr-1">
+              <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center sm:gap-2.5 relative z-20">
+                <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mr-1">
                   <Filter className="w-3.5 h-3.5" />
                   <span>Filters</span>
                 </div>
@@ -519,8 +535,8 @@ export default function GeospatialMap() {
                 />
               </div>
 
-              {/* Center: Apple Segmented Layer Toggle Capsule (Heatmap, Pins, Borders) */}
-              <div className="w-full md:w-auto flex items-center justify-between md:justify-center md:absolute md:left-1/2 md:-translate-x-1/2 relative z-10">
+              {/* Center / Right: Apple Segmented Layer Toggle Capsule (Heatmap, Pins, Borders) */}
+              <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end xl:justify-center xl:absolute xl:left-1/2 xl:-translate-x-1/2 relative z-10">
                 <div className="inline-flex items-center gap-0.5 sm:gap-1 p-1 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 shadow-inner">
                   <div className="flex items-center gap-1 px-1.5 sm:px-2 py-1 text-slate-400 dark:text-slate-500">
                     <Layers className="w-3.5 h-3.5" />
@@ -546,16 +562,16 @@ export default function GeospatialMap() {
                   />
                 </div>
 
-                {/* Plotted chip on mobile — right aligned with layers */}
-                <div className="flex md:hidden items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  <span className="px-2 py-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 tabular-nums">
+                {/* Plotted chip on mobile & tablet (< xl) */}
+                <div className="flex xl:hidden items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 ml-2">
+                  <span className="px-2 py-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 tabular-nums whitespace-nowrap">
                     <strong className="text-slate-800 dark:text-slate-200 font-bold">{pinReports.length}</strong> Plotted
                   </span>
                 </div>
               </div>
 
-              {/* Right: Plotted count chip for balanced symmetry on desktop */}
-              <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              {/* Right: Plotted count chip for balanced symmetry on desktop (>= xl) */}
+              <div className="hidden xl:flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
                 <span className="px-2.5 py-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 tabular-nums">
                   <strong className="text-slate-800 dark:text-slate-200">{pinReports.length}</strong> Plotted
                 </span>
@@ -565,7 +581,7 @@ export default function GeospatialMap() {
         </div>
 
         {/* ── Map + Side Panel ── */}
-        <div className="flex-1 min-h-[340px] sm:min-h-[440px] lg:min-h-0 h-[calc(100dvh-18rem-env(safe-area-inset-bottom,0px))] lg:h-full flex flex-row relative">
+        <div className="flex-1 min-h-[340px] sm:min-h-[440px] md:min-h-0 h-[calc(100dvh-18rem-env(safe-area-inset-bottom,0px))] md:h-full flex flex-row relative">
 
           {/* Desktop Sidebar (inline, animated width & margin) */}
           <AnimatePresence initial={false}>
