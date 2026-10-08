@@ -7,6 +7,10 @@ export interface BarangayFeature {
         id: number;
         name: string;
         centroid: [number, number]; // [lng, lat]
+        psgc?: number;
+        area_km2?: number;
+        len_km?: number;
+        part?: number;
     };
     geometry: {
         type: 'Polygon';
