@@ -306,7 +306,7 @@ export default function Layout() {
           fixed z-[60] flex flex-col
           hidden md:flex
           top-4 bottom-4 left-4
-          w-18 ${collapsed ? 'lg:w-18' : 'lg:w-56'}
+          w-18 ${collapsed ? 'lg:w-18' : 'lg:w-64'}
           backdrop-blur-2xl backdrop-saturate-180
           bg-white/95 dark:bg-slate-900/95
           lg:bg-white/45 lg:dark:bg-slate-900/60
@@ -361,9 +361,9 @@ export default function Layout() {
                 }}
                 onPointerDown={() => prefetchRoute(item.path)}
                 className={`
-                  relative group flex items-center rounded-xl px-4 py-2.5 transition-colors duration-150 active:scale-[0.97]
+                  relative group flex items-center rounded-xl px-3.5 py-2.5 transition-colors duration-150 active:scale-[0.97]
                   md:justify-center md:px-0 md:gap-0 select-none
-                  ${isCollapsed ? 'lg:justify-center lg:px-0 lg:gap-0' : 'gap-3.5 lg:justify-start lg:px-4 lg:gap-3.5'}
+                  ${isCollapsed ? 'lg:justify-center lg:px-0 lg:gap-0' : 'gap-3 lg:justify-start lg:px-3.5 lg:gap-3'}
                   ${active
                     ? 'font-semibold text-blue-700 dark:text-blue-300'
                     : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -420,12 +420,12 @@ export default function Layout() {
                     ? 'text-blue-700 dark:text-blue-400 font-semibold'
                     : 'text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:hover:text-white font-medium'
                   }
-                  ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'lg:w-auto lg:opacity-100'}
+                  ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'lg:w-auto lg:opacity-100 shrink-0'}
                 `}>
                   {item.label}
                 </span>
                 {item.path === '/messenger-bot-logs' && incompleteCount > 0 && (
-                  <span className={`relative z-10 ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 tabular-nums block md:hidden ${isCollapsed ? 'lg:hidden' : 'lg:block'}`}>
+                  <span className={`relative z-10 ml-auto shrink-0 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/15 text-[oklch(29.3%_0.066_243.157)] border border-amber-500/30 tabular-nums block md:hidden ${isCollapsed ? 'lg:hidden' : 'lg:block'}`}>
                     {incompleteCount}
                   </span>
                 )}
@@ -446,9 +446,9 @@ export default function Layout() {
               setSignOutModalOpen(true);
             }}
             className={`
-              group relative flex items-center w-full rounded-xl px-4 py-2.5 transition-colors duration-150 active:scale-[0.97] select-none
+              group relative flex items-center w-full rounded-xl px-3.5 py-2.5 transition-colors duration-150 active:scale-[0.97] select-none
               md:justify-center md:px-0 md:gap-0
-              ${collapsed && !mobileOpen ? 'lg:justify-center lg:px-0 lg:gap-0' : 'gap-3.5 lg:justify-start lg:px-4 lg:gap-3.5'}
+              ${collapsed && !mobileOpen ? 'lg:justify-center lg:px-0 lg:gap-0' : 'gap-3 lg:justify-start lg:px-3.5 lg:gap-3'}
               text-slate-600 dark:text-slate-300 hover:bg-red-500/10 dark:hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 border border-transparent cursor-pointer
             `}
             title="Sign Out"
@@ -460,7 +460,7 @@ export default function Layout() {
               text-[13px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-red-500
               transition-all duration-300 overflow-hidden whitespace-nowrap
               block md:hidden lg:block
-              ${collapsed && !mobileOpen ? 'lg:w-0 lg:opacity-0' : 'lg:w-auto lg:opacity-100'}
+              ${collapsed && !mobileOpen ? 'lg:w-0 lg:opacity-0' : 'lg:w-auto lg:opacity-100 shrink-0'}
             `}>
               Sign Out
             </span>
@@ -473,7 +473,7 @@ export default function Layout() {
       <main
         className={`
           flex-1 flex flex-col min-w-0 min-h-0 h-full transition-all duration-300
-          ml-0 md:ml-[calc(16px+72px+8px)] ${collapsed ? 'lg:ml-[calc(16px+72px+8px)]' : 'lg:ml-[calc(16px+225px+8px)]'}
+          ml-0 md:ml-[calc(16px+72px+8px)] ${collapsed ? 'lg:ml-[calc(16px+72px+8px)]' : 'lg:ml-[calc(16px+256px+8px)]'}
         `}
       >
         {/* ─── FLOATING HEADER (Frosted Glass) ─── */}
