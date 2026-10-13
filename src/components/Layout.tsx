@@ -410,7 +410,7 @@ export default function Layout() {
                 `}>
                   <item.icon className="w-5.5 h-5.5" strokeWidth={active ? 2.5 : 1.75} />
                   {item.path === '/messenger-bot-logs' && incompleteCount > 0 && (
-                    <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white dark:ring-[#111827] animate-pulse md:block ${isCollapsed ? 'lg:block' : 'lg:hidden'}`} />
+                    <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[oklch(62.3%_0.214_259.815)] ring-2 ring-white dark:ring-[#111827] animate-pulse md:block ${isCollapsed ? 'lg:block' : 'lg:hidden'}`} />
                   )}
                 </motion.div>
                 <span className={`
@@ -425,7 +425,7 @@ export default function Layout() {
                   {item.label}
                 </span>
                 {item.path === '/messenger-bot-logs' && incompleteCount > 0 && (
-                  <span className={`relative z-10 ml-auto shrink-0 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/15 text-[oklch(29.3%_0.066_243.157)] border border-amber-500/30 tabular-nums block md:hidden ${isCollapsed ? 'lg:hidden' : 'lg:block'}`}>
+                  <span className={`relative z-10 ml-auto shrink-0 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[oklch(62.3%_0.214_259.815)]/10 text-[oklch(62.3%_0.214_259.815)] border border-[oklch(62.3%_0.214_259.815)]/20 tabular-nums block md:hidden ${isCollapsed ? 'lg:hidden' : 'lg:block'}`}>
                     {incompleteCount}
                   </span>
                 )}
@@ -897,7 +897,7 @@ export default function Layout() {
                   <item.icon className="w-5 h-5 relative z-10" strokeWidth={active ? 2.4 : 1.8} />
 
                   {hasMessengerBadge && (
-                    <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-slate-900 animate-pulse z-10" />
+                    <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-[oklch(62.3%_0.214_259.815)] ring-2 ring-white dark:ring-slate-900 animate-pulse z-10" />
                   )}
 
                   {hasScraperBadge && (
