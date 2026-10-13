@@ -5,7 +5,7 @@ import {
   Filter, X, Eye, ChevronLeft, ChevronRight, ChevronDown,
   Clock, User, Phone, MessageSquare,
   CheckCircle2, AlertTriangle, RotateCcw, Send,
-  ShieldCheck, FileText, AlertOctagon, MapPinned, Bot,
+  ShieldCheck, FileText, AlertOctagon, MapPinned, Bot, Globe,
   Check, Search,
 } from 'lucide-react';
 import DatePicker from '../components/DatePicker';
@@ -368,6 +368,7 @@ export default function IncidentReports() {
   const urlFocus = searchParams.get('focus');
 
   // Filters
+  const [filterSource, setFilterSource] = useState<'all' | 'bot' | 'scraper'>('all');
   const [filterBarangay, setFilterBarangay] = useState(() => urlBarangay || 'All Barangays');
   const [filterType, setFilterType] = useState('All Types');
   const [filterUrgency, setFilterUrgency] = useState('All Urgency');
@@ -388,14 +389,17 @@ export default function IncidentReports() {
   }, [urlFocus, reports]);
 
   const resetFilters = () => {
+    setFilterSource('all');
     setFilterBarangay('All Barangays');
     setFilterType('All Types');
     setFilterUrgency('All Urgency');
     setFromDate('');
     setToDate('');
+    setCurrentPage(1);
   };
 
   const hasActiveFilters =
+    filterSource !== 'all' ||
     filterBarangay !== 'All Barangays' ||
     filterType !== 'All Types' ||
     filterUrgency !== 'All Urgency' ||
@@ -403,6 +407,7 @@ export default function IncidentReports() {
     Boolean(toDate);
 
   const activeFilterCount =
+    (filterSource !== 'all' ? 1 : 0) +
     (filterBarangay !== 'All Barangays' ? 1 : 0) +
     (filterType !== 'All Types' ? 1 : 0) +
     (filterUrgency !== 'All Urgency' ? 1 : 0) +
@@ -492,7 +497,7 @@ export default function IncidentReports() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [activeTab, filterBarangay, filterType, filterUrgency, fromDate, toDate]);
+  }, [activeTab, filterSource, filterBarangay, filterType, filterUrgency, fromDate, toDate]);
 
   const availableIncidentTypes = useMemo(() => {
     const set = new Set<string>(BASE_INCIDENT_TYPES);
@@ -764,6 +769,11 @@ export default function IncidentReports() {
       } else {
         if (r.status !== activeTab) return false;
       }
+      if (filterSource !== 'all') {
+        const rSource = (r.source || '').trim().toLowerCase();
+        if (filterSource === 'bot' && rSource !== 'bot') return false;
+        if (filterSource === 'scraper' && rSource !== 'scraper') return false;
+      }
       if (filterBarangay !== 'All Barangays' && r.barangay?.toLowerCase() !== filterBarangay.toLowerCase()) return false;
       if (filterType !== 'All Types') {
         const normFilter = filterType.toLowerCase();
@@ -785,7 +795,7 @@ export default function IncidentReports() {
       }
       return true;
     });
-  }, [reports, activeTab, filterBarangay, filterType, filterUrgency, fromDate, toDate]);
+  }, [reports, activeTab, filterSource, filterBarangay, filterType, filterUrgency, fromDate, toDate]);
 
   const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
   const paginatedReports = filteredReports.slice(
@@ -959,6 +969,43 @@ export default function IncidentReports() {
                   <span>Filters</span>
                 </div>
 
+                {/* Source Toggle Filter: [Bot] [Scraper] */}
+                <div className="col-span-2 sm:col-span-1 md:col-span-auto inline-flex items-center p-0.5 sm:p-1 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl border border-slate-200/70 dark:border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] gap-1 shrink-0 h-[34px] sm:h-[38px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterSource(prev => (prev === 'bot' ? 'all' : 'bot'));
+                      setCurrentPage(1);
+                    }}
+                    className={`h-full inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold tracking-tight transition-all duration-200 select-none active:scale-[0.97] cursor-pointer ${
+                      filterSource === 'bot'
+                        ? "bg-[oklch(62.3%_0.214_259.815)] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)]"
+                        : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
+                    }`}
+                    title={filterSource === 'bot' ? 'Click to show all sources' : 'Filter by Bot reports'}
+                  >
+                    <Bot className={`w-3.5 h-3.5 ${filterSource === 'bot' ? 'text-white' : 'text-[#0071E3]'}`} />
+                    <span>Bot</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterSource(prev => (prev === 'scraper' ? 'all' : 'scraper'));
+                      setCurrentPage(1);
+                    }}
+                    className={`h-full inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold tracking-tight transition-all duration-200 select-none active:scale-[0.97] cursor-pointer ${
+                      filterSource === 'scraper'
+                        ? "bg-[oklch(62.3%_0.214_259.815)] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)]"
+                        : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
+                    }`}
+                    title={filterSource === 'scraper' ? 'Click to show all sources' : 'Filter by Scraper reports'}
+                  >
+                    <Globe className={`w-3.5 h-3.5 ${filterSource === 'scraper' ? 'text-white' : 'text-purple-500'}`} />
+                    <span>Scraper</span>
+                  </button>
+                </div>
+
                 <div className="col-span-1 md:col-span-auto min-w-[130px]">
                   <FilterDropdown
                     value={filterBarangay}
@@ -1005,11 +1052,11 @@ export default function IncidentReports() {
                     <button
                       type="button"
                       onClick={resetFilters}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-xl transition-all duration-150 active:scale-[0.97] cursor-pointer shrink-0 ml-auto sm:ml-0"
+                      className="inline-flex items-center justify-center w-[34px] h-[34px] sm:w-[38px] sm:h-[38px] text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-xl transition-all duration-150 active:scale-[0.95] cursor-pointer shrink-0 ml-auto sm:ml-0"
                       title="Reset all filters"
+                      aria-label="Reset all filters"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Reset</span>
                     </button>
                   )}
                 </div>
@@ -1174,10 +1221,18 @@ export default function IncidentReports() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3.5 text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">
-                              {report.source}
-                            </span>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            {(report.source || '').trim().toLowerCase() === 'scraper' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/25">
+                                <Globe className="w-3 h-3" />
+                                <span>Scraper</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[oklch(62.3%_0.214_259.815)]/10 dark:bg-[oklch(62.3%_0.214_259.815)]/20 text-[oklch(62.3%_0.214_259.815)] border border-[oklch(62.3%_0.214_259.815)]/20">
+                                <Bot className="w-3 h-3" />
+                                <span>Bot</span>
+                              </span>
+                            )}
                           </td>
                           <td className="px-3.5 py-3.5 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap font-mono w-24">
                             {report.time}
@@ -1395,8 +1450,15 @@ export default function IncidentReports() {
                                   <span className="truncate">{reviewingReport.contact || '—'}</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                                  <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
-                                  <span className="truncate">{reviewingReport.source}</span>
+                                  {(reviewingReport.source || '').trim().toLowerCase() === 'scraper' ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                      <Globe className="w-3 h-3" /> Scraper
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[oklch(62.3%_0.214_259.815)]/10 text-[oklch(62.3%_0.214_259.815)] border border-[oklch(62.3%_0.214_259.815)]/20">
+                                      <Bot className="w-3 h-3" /> Bot
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                                   <Clock className="w-3.5 h-3.5 text-slate-400" />
