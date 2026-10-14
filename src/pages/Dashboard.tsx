@@ -430,8 +430,8 @@ export default function Dashboard() {
                 <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-medium truncate">
                   {incompleteCount > 0 ? (
                     <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                      <span className="text-amber-600 dark:text-amber-400 font-semibold truncate">{incompleteCount} incomplete</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-[oklch(62.3%_0.214_259.815)] animate-pulse shrink-0" />
+                      <span className="text-[oklch(62.3%_0.214_259.815)] font-semibold truncate">{incompleteCount} incomplete</span>
                     </>
                   ) : (
                     <>
@@ -494,8 +494,8 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 {incompleteCount > 0 && (
-                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 tabular-nums">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[oklch(62.3%_0.214_259.815)]/10 text-[oklch(62.3%_0.214_259.815)] border border-[oklch(62.3%_0.214_259.815)]/20 tabular-nums">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[oklch(62.3%_0.214_259.815)] animate-pulse" />
                     {incompleteCount} incomplete
                   </span>
                 )}
@@ -537,7 +537,7 @@ export default function Dashboard() {
                       type="button"
                       onClick={() => openConversation(convo)}
                       className={`w-full flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-xl transition-all duration-150 text-left relative group active:scale-[0.985] ${isIncomplete
-                          ? "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.13] border border-amber-500/20 dark:border-amber-500/30"
+                          ? "bg-[oklch(62.3%_0.214_259.815)]/[0.06] dark:bg-[oklch(62.3%_0.214_259.815)]/[0.10] hover:bg-[oklch(62.3%_0.214_259.815)]/[0.10] dark:hover:bg-[oklch(62.3%_0.214_259.815)]/[0.15] border border-[oklch(62.3%_0.214_259.815)]/20 dark:border-[oklch(62.3%_0.214_259.815)]/30"
                           : "hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border border-transparent hover:border-slate-200/50 dark:hover:border-white/[0.05]"
                         }`}
                     >
@@ -558,7 +558,7 @@ export default function Dashboard() {
                           </h4>
                           <span
                             className={`text-[10px] sm:text-[11px] tabular-nums font-medium shrink-0 ${isIncomplete
-                                ? "text-amber-600 dark:text-amber-400 font-semibold"
+                                ? "text-[oklch(62.3%_0.214_259.815)] font-semibold"
                                 : "text-slate-400 dark:text-slate-500"
                               }`}
                           >
@@ -574,12 +574,12 @@ export default function Dashboard() {
                           </span>
                           <span
                             className={`inline-flex items-center gap-1 text-[10px] font-medium rounded-md px-1.5 sm:px-2 py-0.5 border ${isIncomplete
-                                ? "bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/20 font-semibold"
+                                ? "bg-[oklch(62.3%_0.214_259.815)]/10 dark:bg-[oklch(62.3%_0.214_259.815)]/20 text-[oklch(62.3%_0.214_259.815)] border-[oklch(62.3%_0.214_259.815)]/20 font-semibold"
                                 : "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
                               }`}
                           >
                             <span
-                              className={`w-1.5 h-1.5 rounded-full ${isIncomplete ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                              className={`w-1.5 h-1.5 rounded-full ${isIncomplete ? "bg-[oklch(62.3%_0.214_259.815)] animate-pulse" : "bg-emerald-500"
                                 }`}
                             />
                             {convo.status}
@@ -755,8 +755,8 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1.5">
                       {incompleteCount > 0 && (
-                        <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[11px] font-semibold rounded-full px-2 py-0.5 tabular-nums flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                        <span className="bg-[oklch(62.3%_0.214_259.815)]/10 text-[oklch(62.3%_0.214_259.815)] border border-[oklch(62.3%_0.214_259.815)]/20 text-[11px] font-semibold rounded-full px-2 py-0.5 tabular-nums flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[oklch(62.3%_0.214_259.815)] animate-pulse" />
                           {incompleteCount}
                         </span>
                       )}
@@ -794,7 +794,7 @@ export default function Dashboard() {
                         className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all duration-150 text-left relative group active:scale-[0.98] ${isSelected
                           ? "bg-blue-500/10 dark:bg-blue-500/20 shadow-xs border border-blue-500/25 dark:border-blue-500/30 text-slate-900 dark:text-white"
                           : isIncomplete
-                            ? "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.14] border border-amber-500/15 dark:border-amber-500/20 text-slate-950 dark:text-white"
+                            ? "bg-[oklch(62.3%_0.214_259.815)]/[0.06] dark:bg-[oklch(62.3%_0.214_259.815)]/[0.10] hover:bg-[oklch(62.3%_0.214_259.815)]/[0.10] dark:hover:bg-[oklch(62.3%_0.214_259.815)]/[0.15] border border-[oklch(62.3%_0.214_259.815)]/20 dark:border-[oklch(62.3%_0.214_259.815)]/30 text-slate-950 dark:text-white"
                             : "hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent text-slate-700 dark:text-slate-300"
                           }`}
                       >
@@ -812,7 +812,7 @@ export default function Dashboard() {
                             {initials}
                           </div>
                           {isIncomplete && (
-                            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-500 border-2 border-white dark:border-slate-800 rounded-full shadow-xs" />
+                            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[oklch(62.3%_0.214_259.815)] border-2 border-white dark:border-slate-800 rounded-full shadow-xs" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -830,14 +830,14 @@ export default function Dashboard() {
                             <div className="flex items-center gap-1 shrink-0 ml-1">
                               <span
                                 className={`text-[10px] tabular-nums transition-colors duration-200 ${isIncomplete
-                                  ? "font-semibold text-amber-600 dark:text-amber-400"
+                                  ? "font-semibold text-[oklch(62.3%_0.214_259.815)]"
                                   : "font-normal text-slate-400 dark:text-slate-500"
                                   }`}
                               >
                                 {formatDisplayTime(convo.time)}
                               </span>
                               {isIncomplete && (
-                                <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)] shrink-0" />
+                                <span className="w-2 h-2 rounded-full bg-[oklch(62.3%_0.214_259.815)] shadow-[0_0_6px_rgba(59,130,246,0.5)] shrink-0" />
                               )}
                             </div>
                           </div>
@@ -910,8 +910,8 @@ export default function Dashboard() {
                           <button
                             type="button"
                             onClick={() => updateBotConversationStatus(selectedConversation.id, 'Incomplete')}
-                            className={`relative flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold tracking-tight transition-colors duration-200 select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${selectedConversation.status === 'Incomplete'
-                              ? 'text-amber-600 dark:text-amber-400'
+                            className={`relative flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold tracking-tight transition-colors duration-200 select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[oklch(62.3%_0.214_259.815)] ${selectedConversation.status === 'Incomplete'
+                              ? 'text-[oklch(62.3%_0.214_259.815)]'
                               : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                               }`}
                             title="Mark conversation as Incomplete"
@@ -923,7 +923,7 @@ export default function Dashboard() {
                                 className="absolute inset-0 bg-white dark:bg-slate-700/90 rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10"
                               />
                             )}
-                            <span className="relative z-10 w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            <span className="relative z-10 w-1.5 h-1.5 rounded-full bg-[oklch(62.3%_0.214_259.815)] animate-pulse" />
                             <span className="relative z-10">Incomplete</span>
                           </button>
 
