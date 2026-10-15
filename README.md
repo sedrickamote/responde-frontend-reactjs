@@ -9,6 +9,7 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)](https://vitejs.dev)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss)](https://tailwindcss.com)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com)
+[![UptimeRobot](https://img.shields.io/badge/UptimeRobot-Monitored-3BD671?logo=uptimerobot)](https://uptimerobot.com)
 
 ---
 
@@ -90,9 +91,11 @@ Incoming (Bot/Scraper)
 | Technology | Purpose |
 |------------|---------|
 | [FastAPI](https://fastapi.tiangolo.com) | Python async web framework |
-| [PostgreSQL](https://www.postgresql.org) + [PostGIS](https://postgis.net) | Database with geospatial extensions |
-| [BERT](https://huggingface.co/docs/transformers/model_doc/bert) / [spaCy](https://spacy.io) | NLP for entity extraction & intent classification |
+| [Node.js](https://nodejs.org) + [Express](https://expressjs.com) | Core API, RBAC authentication, and report intake |
+| [PostgreSQL](https://www.postgresql.org) + [PostGIS](https://postgis.net) | Database with geospatial extensions (Supabase) |
+| [BERT](https://huggingface.co/docs/transformers/model_doc/bert) / [RoBERTa](https://huggingface.co/) | NLP for entity extraction & multi-task classification |
 | [Facebook Graph API](https://developers.facebook.com/docs/graph-api) | Messenger bot & page scraper integration |
+| [UptimeRobot](https://uptimerobot.com) | 24/7 uptime monitoring & Render backend keep-alive (5-min interval) |
 
 ---
 
