@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, FileText, MessageSquare, Globe, Map,
   BarChart3, Settings, Search, Bell, LogOut, Menu, X,
-  Globe2, MessageCircle, CheckCheck, Trash2, BellOff, ArrowRight,
+  Globe2, MessageCircle, CheckCheck, Trash2, BellOff, ArrowRight, ArrowDown,
   Sun, Moon, Copy, Check,
 } from 'lucide-react';
 import SignOutModal from './SignOutModal';
@@ -17,6 +17,11 @@ import {
 } from '../context/NotificationContext';
 import { useBotConversations } from '../context/BotConversationsContext';
 import { useTheme } from './ThemeContent';
+
+import {
+  formatPhilippineTimeOnly,
+  formatPhilippineDateOnly,
+} from '../utils/dateUtils';
 
 type FilterTab = 'all' | NotificationType;
 
@@ -160,13 +165,92 @@ export default function Layout() {
     toasts,
     unreadCount,
     markAllRead,
+    markTypeRead,
     markNotificationRead,
+    markMultipleRead,
     deleteNotification,
     clearAll,
     dismissToast,
   } = useNotifications();
 
   const { incompleteCount } = useBotConversations();
+
+  // Scroll container ref for notification dropdown
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const [viewedNotifIds, setViewedNotifIds] = useState<Set<string>>(new Set());
+  const viewedNotifIdsRef = useRef<Set<string>>(new Set());
+  viewedNotifIdsRef.current = viewedNotifIds;
+
+  // Clear unread notifications when viewing the corresponding page
+  useEffect(() => {
+    if (location.pathname === '/scraper-feed') {
+      markTypeRead('scraper');
+    } else if (location.pathname === '/messenger-bot-logs') {
+      markTypeRead('messenger');
+    }
+  }, [location.pathname, markTypeRead]);
+
+  // Keep notifications bold & highlighted while the notification panel is open.
+  // When the user closes the panel, mark ONLY the notifications that were actually scrolled/viewed as read.
+  const prevNotifOpenRef = useRef(notifOpen);
+  useEffect(() => {
+    if (prevNotifOpenRef.current && !notifOpen) {
+      if (viewedNotifIdsRef.current.size > 0) {
+        markMultipleRead(Array.from(viewedNotifIdsRef.current));
+      }
+    }
+    if (notifOpen && !prevNotifOpenRef.current) {
+      setViewedNotifIds(new Set());
+      viewedNotifIdsRef.current = new Set();
+    }
+    prevNotifOpenRef.current = notifOpen;
+  }, [notifOpen, markMultipleRead]);
+
+  // Option A: Track notifications that enter the viewport (IntersectionObserver with 50% threshold)
+  useEffect(() => {
+    if (!notifOpen || !listContainerRef.current) return;
+
+    const container = listContainerRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const newlySeen: string[] = [];
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            const notifId = entry.target.getAttribute('data-notif-id');
+            const isUnread = entry.target.getAttribute('data-unread') === 'true';
+            if (notifId && isUnread) {
+              newlySeen.push(notifId);
+            }
+          }
+        });
+
+        if (newlySeen.length > 0) {
+          setViewedNotifIds((prev) => {
+            let changed = false;
+            const next = new Set(prev);
+            for (const id of newlySeen) {
+              if (!next.has(id)) {
+                next.add(id);
+                changed = true;
+              }
+            }
+            return changed ? next : prev;
+          });
+        }
+      },
+      {
+        root: container,
+        threshold: [0.5],
+      }
+    );
+
+    const rows = container.querySelectorAll<HTMLElement>('[data-notif-id][data-unread="true"]');
+    rows.forEach((row) => observer.observe(row));
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [notifOpen, activeTab, notifications]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -206,10 +290,11 @@ export default function Layout() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Close mobile sidebar and profile dropdown on route change
+  // Close mobile sidebar, notification dropdown, and profile dropdown on route change
   useEffect(() => {
     setMobileOpen(false);
     setProfileOpen(false);
+    setNotifOpen(false);
   }, [location.pathname]);
 
   // Handle escape key and desktop resize
@@ -251,12 +336,8 @@ export default function Layout() {
     }
   };
 
-  const formattedTime = currentTime.toLocaleTimeString('en-US', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-  });
-  const formattedDate = currentTime.toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
+  const formattedTime = formatPhilippineTimeOnly(currentTime, true);
+  const formattedDate = formatPhilippineDateOnly(currentTime, 'short');
 
   const isActive = (p: string) => location.pathname === p;
 
@@ -277,6 +358,30 @@ export default function Layout() {
 
   const scraperUnread = notifications.filter((n) => n.type === 'scraper' && !n.read).length;
   const messengerUnread = notifications.filter((n) => n.type === 'messenger' && !n.read).length;
+
+  const unreadInTab = useMemo(() => {
+    return filteredNotifications.filter((n) => !n.read);
+  }, [filteredNotifications]);
+
+  const totalUnreadInTab = unreadInTab.length;
+  const viewedUnreadInTabCount = useMemo(() => {
+    return unreadInTab.filter((n) => viewedNotifIds.has(n.id)).length;
+  }, [unreadInTab, viewedNotifIds]);
+
+  const remainingUnseenInTab = Math.max(0, totalUnreadInTab - viewedUnreadInTabCount);
+
+  const scrollToNextUnseen = () => {
+    if (!listContainerRef.current) return;
+    const container = listContainerRef.current;
+    const unviewedRow = container.querySelector<HTMLElement>(
+      '[data-notif-id][data-unread="true"]:not([data-viewed="true"])'
+    );
+    if (unviewedRow) {
+      unviewedRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+      container.scrollBy({ top: 120, behavior: 'smooth' });
+    }
+  };
 
   const handleBellClick = () => {
     setNotifOpen((prev) => !prev);
@@ -584,27 +689,39 @@ export default function Layout() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1">
-                          {notifications.length > 0 && (
-                            <>
-                              <button
-                                onClick={markAllRead}
-                                className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors cursor-pointer"
-                                title="Mark all as read"
-                                aria-label="Mark all as read"
-                              >
-                                <CheckCheck className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => setConfirmDeleteTarget('all')}
-                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer"
-                                title="Clear all notifications"
-                                aria-label="Clear all notifications"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
+                        <div className="flex items-center gap-1.5">
+                          {unreadCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={markAllRead}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-all active:scale-95 cursor-pointer"
+                              title="Mark all notifications as read"
+                              aria-label="Mark all notifications as read"
+                            >
+                              <CheckCheck className="w-3.5 h-3.5" />
+                              <span>Mark all read</span>
+                            </button>
                           )}
+                          {notifications.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteTarget('all')}
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer"
+                              title="Clear all notifications"
+                              aria-label="Clear all notifications"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setNotifOpen(false)}
+                            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                            title="Close notification panel"
+                            aria-label="Close notification panel"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
 
@@ -638,31 +755,83 @@ export default function Layout() {
                         ))}
                       </div>
 
-                      {/* ── Notification List ── */}
-                      <div className="max-h-[min(24rem,calc(100dvh-16rem))] sm:max-h-90 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/60 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-                        <AnimatePresence initial={false}>
-                          {filteredNotifications.length === 0 ? (
+                      {/* ── Progress Bar & Viewing Status (Option C) ── */}
+                      {totalUnreadInTab > 0 && (
+                        <div className="flex items-center justify-between px-3.5 py-1.5 bg-slate-50/80 dark:bg-slate-800/40 border-y border-slate-100 dark:border-slate-800 text-[11px]">
+                          <div className="flex items-center gap-1.5">
+                            {remainingUnseenInTab === 0 ? (
+                              <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                All {totalUnreadInTab} new viewed
+                              </span>
+                            ) : (
+                              <span className="font-medium text-slate-500 dark:text-slate-400">
+                                <strong className="text-slate-800 dark:text-slate-200 font-semibold">{viewedUnreadInTabCount}</strong> of{' '}
+                                <strong className="text-slate-800 dark:text-slate-200 font-semibold">{totalUnreadInTab}</strong> new viewed
+                              </span>
+                            )}
+                          </div>
+                          {remainingUnseenInTab > 0 && (
+                            <span className="text-[10px] text-blue-600 dark:text-sky-400 font-medium">
+                              Scroll to view all
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* ── Notification List Wrapper with Floating Scroll Pill (Option A + C) ── */}
+                      <div className="relative flex-1 min-h-0 flex flex-col">
+                        <div
+                          ref={listContainerRef}
+                          className="max-h-[min(24rem,calc(100dvh-16rem))] sm:max-h-90 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/60 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700"
+                        >
+                          <AnimatePresence initial={false}>
+                            {filteredNotifications.length === 0 ? (
+                              <motion.div
+                                key="empty"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400"
+                              >
+                                <BellOff className="w-8 h-8" />
+                                <p className="text-sm font-medium">No notifications yet</p>
+                                <p className="text-xs text-slate-300 dark:text-slate-600">
+                                  New scraper &amp; messenger events will appear here in real-time
+                                </p>
+                              </motion.div>
+                            ) : (
+                              filteredNotifications.map((n) => (
+                                <NotificationRow
+                                  key={n.id}
+                                  notification={n}
+                                  isViewed={viewedNotifIds.has(n.id)}
+                                  onClick={() => handleNotifClick(n)}
+                                  onDelete={() => setConfirmDeleteTarget(n.id)}
+                                />
+                              ))
+                            )}
+                          </AnimatePresence>
+                        </div>
+
+                        {/* Floating "more new below" scroll pill (Option C) */}
+                        <AnimatePresence>
+                          {remainingUnseenInTab > 0 && (
                             <motion.div
-                              key="empty"
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400"
+                              initial={{ opacity: 0, y: 12, scale: 0.92 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 12, scale: 0.92 }}
+                              transition={{ duration: 0.2 }}
+                              className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 pointer-events-auto"
                             >
-                              <BellOff className="w-8 h-8" />
-                              <p className="text-sm font-medium">No notifications yet</p>
-                              <p className="text-xs text-slate-300 dark:text-slate-600">
-                                New scraper &amp; messenger events will appear here in real-time
-                              </p>
+                              <button
+                                type="button"
+                                onClick={scrollToNextUnseen}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-[11px] font-semibold shadow-lg shadow-blue-500/30 transition-all cursor-pointer backdrop-blur-md"
+                              >
+                                <ArrowDown className="w-3 h-3 animate-bounce" />
+                                <span>{remainingUnseenInTab} more new</span>
+                              </button>
                             </motion.div>
-                          ) : (
-                            filteredNotifications.map((n) => (
-                              <NotificationRow
-                                key={n.id}
-                                notification={n}
-                                onClick={() => handleNotifClick(n)}
-                                onDelete={() => setConfirmDeleteTarget(n.id)}
-                              />
-                            ))
                           )}
                         </AnimatePresence>
                       </div>
@@ -965,10 +1134,12 @@ export default function Layout() {
 
 function NotificationRow({
   notification: n,
+  isViewed = false,
   onClick,
   onDelete,
 }: {
   notification: AppNotification;
+  isViewed?: boolean;
   onClick: () => void;
   onDelete: () => void;
 }) {
@@ -978,32 +1149,36 @@ function NotificationRow({
   return (
     <motion.div
       layout
+      data-notif-id={n.id}
+      data-unread={!n.read}
+      data-viewed={isViewed}
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -10, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }}
       transition={{ duration: 0.2 }}
-      className={
-        'group relative flex items-start gap-3 px-4 py-3.5 cursor-pointer transition-colors ' +
-        (!n.read ? 'bg-blue-50/60 dark:bg-blue-950/10 ' : '') +
-        'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-      }
+      className={`group relative flex items-start gap-3 px-4 py-3.5 cursor-pointer transition-all duration-200 ${
+        !n.read
+          ? 'bg-blue-50/70 dark:bg-blue-950/25 hover:bg-blue-100/60 dark:hover:bg-blue-950/40'
+          : 'bg-transparent hover:bg-slate-50/80 dark:hover:bg-slate-800/40 opacity-75 hover:opacity-100'
+      }`}
       onClick={onClick}
       onMouseEnter={() => prefetchRoute(n.targetPath)}
       onPointerDown={() => prefetchRoute(n.targetPath)}
     >
-      {/* Left blue unread bar */}
+      {/* Left blue unread indicator bar */}
       {!n.read && (
-        <span className="absolute left-0 top-3 bottom-3 w-0.75 bg-blue-500 rounded-r-full" />
+        <span className="absolute left-0 top-3 bottom-3 w-1 bg-[#0071E3] rounded-r-full shadow-[0_0_8px_rgba(0,113,227,0.5)]" />
       )}
 
       {/* Icon */}
       <div
-        className={
-          'shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center ' +
-          (isMessenger
-            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-500'
-            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-500')
-        }
+        className={`shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+          !n.read
+            ? isMessenger
+              ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 ring-2 ring-purple-500/20'
+              : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 ring-2 ring-blue-500/20'
+            : 'bg-slate-100/80 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500'
+        }`}
       >
         {isMessenger ? (
           <MessageCircle className="w-4 h-4" />
@@ -1014,16 +1189,39 @@ function NotificationRow({
 
       {/* Content */}
       <div className="flex-1 min-w-0 pr-6">
-        <div className="flex items-center gap-2 mb-0.5">
-          <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+        <div className="flex items-center gap-2 mb-1">
+          <p
+            className={`text-xs truncate tracking-tight transition-colors ${
+              !n.read
+                ? 'font-bold text-slate-900 dark:text-white'
+                : 'font-medium text-slate-500 dark:text-slate-400'
+            }`}
+          >
             {n.title}
           </p>
+
+          {!n.read && (
+            <span className="w-2 h-2 rounded-full bg-[#0071E3] ring-4 ring-blue-500/20 shrink-0 animate-pulse" />
+          )}
+
           {isMessenger ? (
-            <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+            <span
+              className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                !n.read
+                  ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-semibold border border-purple-500/30'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-normal border border-slate-200/50 dark:border-slate-700/50'
+              }`}
+            >
               Messenger
             </span>
           ) : (
-            <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+            <span
+              className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                !n.read
+                  ? 'bg-blue-100 dark:bg-blue-900/40 text-[#0071E3] dark:text-blue-300 font-semibold border border-blue-500/30'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-normal border border-slate-200/50 dark:border-slate-700/50'
+              }`}
+            >
               Scraper
             </span>
           )}
@@ -1031,16 +1229,37 @@ function NotificationRow({
 
         {/* Barangay / Sender meta */}
         {(n.barangay || n.sender) && (
-          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-0.5">
+          <p
+            className={`text-[11px] mb-1 transition-colors ${
+              !n.read
+                ? 'font-semibold text-slate-700 dark:text-slate-200'
+                : 'font-normal text-slate-400 dark:text-slate-500'
+            }`}
+          >
             {n.barangay ? `📍 ${n.barangay}` : `👤 ${n.sender}`}
           </p>
         )}
 
-        {/* Message snippet */}
-        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+        {/* Message snippet: Bold & highlighted when new, Gray & faded when seen */}
+        <p
+          className={`text-xs line-clamp-2 leading-relaxed transition-colors ${
+            !n.read
+              ? 'font-semibold text-slate-900 dark:text-slate-100'
+              : 'font-normal text-slate-400 dark:text-slate-500'
+          }`}
+        >
           {n.message}
         </p>
-        <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-1">{timeAgo}</p>
+
+        <p
+          className={`text-[10px] mt-1.5 transition-colors tabular-nums ${
+            !n.read
+              ? 'font-semibold text-[#0071E3] dark:text-blue-400'
+              : 'font-normal text-slate-400/70 dark:text-slate-500'
+          }`}
+        >
+          {timeAgo}
+        </p>
       </div>
 
       {/* Dismiss / Delete button */}

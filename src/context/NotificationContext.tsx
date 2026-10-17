@@ -47,7 +47,9 @@ interface NotificationContextValue {
   toasts: ToastNotification[];
   unreadCount: number;
   markAllRead: () => void;
+  markTypeRead: (type: NotificationType) => void;
   markNotificationRead: (id: string) => void;
+  markMultipleRead: (ids: string[]) => void;
   deleteNotification: (id: string) => void;
   clearAll: () => void;
   dismissToast: (id: number) => void;
@@ -139,9 +141,23 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }, []);
 
+  const markTypeRead = useCallback((type: NotificationType) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.type === type ? { ...n, read: true } : n))
+    );
+  }, []);
+
   const markNotificationRead = useCallback((id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+  }, []);
+
+  const markMultipleRead = useCallback((ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    const idSet = new Set(ids);
+    setNotifications((prev) =>
+      prev.map((n) => (idSet.has(n.id) ? { ...n, read: true } : n))
     );
   }, []);
 
@@ -344,7 +360,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         toasts,
         unreadCount,
         markAllRead,
+        markTypeRead,
         markNotificationRead,
+        markMultipleRead,
         deleteNotification,
         clearAll,
         dismissToast,
