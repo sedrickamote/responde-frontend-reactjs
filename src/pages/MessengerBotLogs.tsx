@@ -1,14 +1,121 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { Filter, AlertCircle, X, CheckCircle2, RefreshCw, MessageSquare, ChevronRight, ChevronLeft, ChevronDown, Bot, RotateCcw } from "lucide-react";
+import {
+  Filter, AlertCircle, X, CheckCircle2, RefreshCw, MessageSquare,
+  ChevronRight, ChevronLeft, ChevronDown, Bot, RotateCcw,
+  Sparkles, Layers, AlertTriangle
+} from "lucide-react";
 import DatePicker from "../components/DatePicker";
 import FilterDropdown from "../components/DropDown";
 import { StaggerContainer, StaggerItem } from "../components/Stagger";
 import PageLoader from "../components/PageLoader";
 import { useBotConversations, type BotConversation as Conversation } from "../context/BotConversationsContext";
 import { TALISAY_BARANGAYS } from "../data/talisay-barangays";
+import { extractDisplayTime, formatPhilippineTimeOnly } from "../utils/dateUtils";
 
+// -- NLP Analysis for Messenger Conversations --
+export interface ConvoNLPAnalysis {
+  isIncident: boolean;
+  confidence: number;
+  nlpCategory: "Incident" | "Inquiry / Chatter";
+  incidentType: string;
+  urgency: "High" | "Moderate" | "Low";
+  nlpReason: string;
+  actionableNeeds: string[];
+  extractedLocation: string;
+  distressMessageIdx: number;
+}
 
+export type AnalyzedConversation = Conversation & {
+  nlp: ConvoNLPAnalysis;
+};
+
+export function analyzeConvoNLP(convo: Conversation): ConvoNLPAnalysis {
+  const allUserText = (convo.messages || [])
+    .filter((m) => m.sender === "user")
+    .map((m) => m.text)
+    .join(" ")
+    .toLowerCase();
+
+  const typeLower = (convo.type || "").toLowerCase();
+
+  const highKeywords = [
+    "saklolo", "rescue", "baha", "nasira", "bubong", "ambulance", "sugat",
+    "emergency", "pagguho", "landslide", "tulong", "naipit", "naanod", "nabalian", "sunog", "apoy"
+  ];
+  const moderateKeywords = [
+    "tubig", "supply", "puno", "kalsada", "daan", "poste", "interruption",
+    "first aid", "gamot", "food", "pagkain", "evacuate", "lumikas"
+  ];
+  const noiseKeywords = [
+    "may baha po ba", "may kuryente po ba", "saan po ang", "ano po hotline",
+    "bukas po ba", "good morning", "magandang", "hello", "hi po", "salamat", "thank you", "test", "ingat"
+  ];
+
+  const hasHigh = highKeywords.some((k) => allUserText.includes(k));
+  const hasModerate = moderateKeywords.some((k) => allUserText.includes(k));
+  const isExplicitNoise = noiseKeywords.some((k) => allUserText.includes(k)) && !hasHigh;
+
+  let incidentType = convo.type || "General";
+  if (allUserText.includes("ambulance") || allUserText.includes("sugat") || allUserText.includes("first aid") || typeLower.includes("medical")) {
+    incidentType = "Medical Emergency";
+  } else if (allUserText.includes("rescue") || allUserText.includes("naipit") || allUserText.includes("naanod") || typeLower.includes("search")) {
+    incidentType = "Search & Rescue";
+  } else if (allUserText.includes("bubong") || allUserText.includes("puno") || allUserText.includes("poste") || typeLower.includes("infrastructure")) {
+    incidentType = "Infrastructure / Hazard";
+  } else if (allUserText.includes("landslide") || allUserText.includes("pagguho")) {
+    incidentType = "Landslide / Geohazard";
+  } else if (allUserText.includes("tubig") || allUserText.includes("food") || allUserText.includes("relief") || typeLower.includes("food")) {
+    incidentType = "Food & Water Relief";
+  }
+
+  const actionableNeeds: string[] = [];
+  if (allUserText.includes("ambulance") || allUserText.includes("sugat")) actionableNeeds.push("Ambulance & Paramedics");
+  if (allUserText.includes("first aid")) actionableNeeds.push("First Aid Supplies");
+  if (allUserText.includes("rescue") || allUserText.includes("boat")) actionableNeeds.push("Rescue Boat Unit");
+  if (allUserText.includes("bubong")) actionableNeeds.push("Shelter Repair Kit");
+  if (allUserText.includes("puno") || allUserText.includes("daan")) actionableNeeds.push("Road Clearing Crew");
+  if (allUserText.includes("tubig")) actionableNeeds.push("Potable Drinking Water");
+  if (allUserText.includes("pagguho") || allUserText.includes("landslide")) actionableNeeds.push("Evacuation Assistance");
+  if (actionableNeeds.length === 0 && (hasHigh || hasModerate)) {
+    actionableNeeds.push("On-Site Verification");
+  }
+
+  const distressMessageIdx = (convo.messages || []).findIndex(
+    (m) =>
+      m.sender === "user" &&
+      (hasHigh
+        ? highKeywords.some((k) => m.text.toLowerCase().includes(k))
+        : hasModerate
+        ? moderateKeywords.some((k) => m.text.toLowerCase().includes(k))
+        : false)
+  );
+
+  const isIncident = (hasHigh || hasModerate || typeLower === "emergency" || typeLower === "medical" || typeLower === "search & rescue") && !isExplicitNoise;
+  const urgency: "High" | "Moderate" | "Low" = hasHigh ? "High" : hasModerate ? "Moderate" : "Low";
+  const confidence = isIncident ? (hasHigh ? 96 : 89) : 18;
+
+  let nlpReason = "";
+  if (isIncident) {
+    nlpReason = hasHigh
+      ? "Distress intent detected: critical emergency event requiring immediate dispatch of rescue or medical responders."
+      : "Community hazard or relief request detected requiring municipal response.";
+  } else {
+    nlpReason = "Routine informational inquiry / FAQ chat exchange without actionable emergency incident.";
+  }
+
+  return {
+    isIncident,
+    confidence,
+    nlpCategory: isIncident ? "Incident" : "Inquiry / Chatter",
+    incidentType,
+    urgency,
+    nlpReason,
+    actionableNeeds,
+    extractedLocation: convo.barangay || "Talisay",
+    distressMessageIdx,
+  };
+}
 
 // -- Helpers for Avatar and Message Previews --
 const AVATAR_PALETTE = [
@@ -63,12 +170,7 @@ function getLastMessage(convo: Conversation): string {
 }
 
 function formatDisplayTime(timeStr: string): string {
-  if (!timeStr) return "";
-  if (timeStr.includes(" ")) {
-    const parts = timeStr.split(" ");
-    return parts[parts.length - 1];
-  }
-  return timeStr;
+  return extractDisplayTime(timeStr);
 }
 
 // -- Toast Type --
@@ -96,7 +198,6 @@ const contentVariants: Variants = {
     transition: { duration: 0.15, ease: "easeOut" },
   },
 };
-
 
 // -- Apple Notification Toast Component --
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
@@ -149,7 +250,25 @@ export default function MessengerBotLogs() {
     error,
   } = useBotConversations();
 
-  const [selectedId, setSelectedId] = useState<string>("conv_1");
+  // Structured (NLP Incident Reports only) vs Unstructured (Raw Chat Logs)
+  const [viewMode, setViewMode] = useState<"structured" | "unstructured">(() => {
+    try {
+      return (localStorage.getItem("responde_messenger_view_mode") as any) || "structured";
+    } catch {
+      return "structured";
+    }
+  });
+
+  const handleViewModeChange = (mode: "structured" | "unstructured") => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem("responde_messenger_view_mode", mode);
+    } catch {}
+  };
+
+
+
+  const [selectedId, setSelectedId] = useState<string>("conv_2");
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [fromDate, setFromDate] = useState("");
@@ -159,10 +278,69 @@ export default function MessengerBotLogs() {
   const [filterStatus, setFilterStatus] = useState("All Status");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Track seen conversations (persisted in localStorage)
+  const [seenConvoIds, setSeenConvoIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('responde_seen_messenger_convos');
+      return raw ? new Set(JSON.parse(raw)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
+
+  const markConvoSeen = (id: string) => {
+    if (!id) return;
+    setSeenConvoIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      try {
+        localStorage.setItem('responde_seen_messenger_convos', JSON.stringify(Array.from(next)));
+      } catch {}
+      return next;
+    });
+  };
+
+  const markAllSeen = () => {
+    const allIds = new Set(conversations.map((c) => c.id));
+    setSeenConvoIds(allIds);
+    try {
+      localStorage.setItem('responde_seen_messenger_convos', JSON.stringify(Array.from(allIds)));
+    } catch {}
+  };
+
+  // Attach NLP analysis to conversations
+  const analyzedConversations: AnalyzedConversation[] = useMemo(() => {
+    return conversations.map((c) => {
+      const baseNLP = analyzeConvoNLP(c);
+      return {
+        ...c,
+        nlp: baseNLP,
+      };
+    });
+  }, [conversations]);
+
+  const incidentCount = useMemo(() => analyzedConversations.filter(c => c.nlp.isIncident).length, [analyzedConversations]);
+  const rawCount = analyzedConversations.length;
+
+  const unseenCount = useMemo(() => {
+    return analyzedConversations.filter((c) => {
+      if (viewMode === "structured" && !c.nlp.isIncident) return false;
+      return !seenConvoIds.has(c.id);
+    }).length;
+  }, [analyzedConversations, viewMode, seenConvoIds]);
+
+  const handleSelectConversation = (id: string) => {
+    setSelectedId(id);
+    markConvoSeen(id);
+    setMobileView('chat');
+  };
+
   // Keep first conversation selected once loaded
   useEffect(() => {
     if (conversations.length > 0 && !selectedId) {
       setSelectedId(conversations[0].id);
+      markConvoSeen(conversations[0].id);
     }
   }, [conversations, selectedId]);
 
@@ -188,11 +366,6 @@ export default function MessengerBotLogs() {
         newStatus === "Complete" ? "success" : "info"
       );
     }
-  };
-
-  const handleSelectConversation = (id: string) => {
-    setSelectedId(id);
-    setMobileView('chat');
   };
 
   const activeFilterCount =
@@ -258,7 +431,8 @@ export default function MessengerBotLogs() {
   };
 
   const filteredConversations = useMemo(() => {
-    return conversations.filter((c) => {
+    return analyzedConversations.filter((c) => {
+      if (viewMode === "structured" && !c.nlp.isIncident) return false;
       if (filterBarangay !== "All Barangays" && c.barangay?.toLowerCase() !== filterBarangay.toLowerCase()) {
         return false;
       }
@@ -278,7 +452,7 @@ export default function MessengerBotLogs() {
       }
       return true;
     });
-  }, [conversations, filterBarangay, filterType, filterStatus, fromDate, toDate]);
+  }, [analyzedConversations, viewMode, filterBarangay, filterType, filterStatus, fromDate, toDate]);
 
   const selectedConversation =
     filteredConversations.find((c) => c.id === selectedId) || filteredConversations[0] || null;
@@ -289,6 +463,7 @@ export default function MessengerBotLogs() {
       const exists = filteredConversations.some((c) => c.id === selectedId);
       if (!exists) {
         setSelectedId(filteredConversations[0].id);
+        markConvoSeen(filteredConversations[0].id);
       }
     } else {
       setSelectedId("");
@@ -347,6 +522,7 @@ export default function MessengerBotLogs() {
       {/* Main Content */}
       {!loading && !error && (
         <div className="flex-1 flex flex-col gap-4 lg:gap-5 min-h-0">
+
           {/* Header & Filter Controls Bar — hidden on mobile chat view so chat gets 100% height */}
           <div
             className={`
@@ -442,7 +618,7 @@ export default function MessengerBotLogs() {
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 lg:gap-6 min-h-0 md:h-[calc(100vh-14.5rem)]">
+          <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 lg:gap-6 min-h-0 md:h-[calc(100vh-17.5rem)]">
             {/* LEFT: Conversation List — macOS Messages Sidebar Style */}
             <div
               className={`
@@ -451,19 +627,87 @@ export default function MessengerBotLogs() {
                 h-[calc(100vh-17.5rem)] min-h-[440px] md:h-full md:min-h-0
               `}
             >
-              {/* Header Row */}
-              <div className="px-4 sm:px-5 py-3 sm:py-3.5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0 bg-white/60 dark:bg-[#111827]/60 backdrop-blur-md">
-                <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/15">
-                    <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  </div>
-                  <h3 className="font-semibold text-slate-900 dark:text-white text-xs sm:text-base tracking-tight truncate">
-                    Messenger Bot Activities
-                  </h3>
+              {/* Apple Segmented Stream Switcher Header */}
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0 bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md gap-2">
+                <div
+                  role="tablist"
+                  aria-label="View Mode"
+                  className="inline-flex items-center p-1 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl border border-slate-200/60 dark:border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewMode === "structured"}
+                    onClick={() => handleViewModeChange("structured")}
+                    className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-colors duration-150 select-none cursor-pointer active:scale-[0.98] ${
+                      viewMode === "structured"
+                        ? "text-[#0071E3] dark:text-sky-300"
+                        : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    {viewMode === "structured" && (
+                      <motion.div
+                        layoutId="activeMessengerSidebarTab"
+                        transition={APPLE_SPRING}
+                        className="absolute inset-0 bg-white dark:bg-slate-700/90 border border-slate-200/80 dark:border-white/10 rounded-lg shadow-xs"
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400" />
+                      <span>Incidents</span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums ${
+                        viewMode === "structured"
+                          ? "bg-[#0071E3] text-white"
+                          : "bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                      }`}>
+                        {incidentCount}
+                      </span>
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewMode === "unstructured"}
+                    onClick={() => handleViewModeChange("unstructured")}
+                    className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-colors duration-150 select-none cursor-pointer active:scale-[0.98] ${
+                      viewMode === "unstructured"
+                        ? "text-slate-900 dark:text-white"
+                        : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    {viewMode === "unstructured" && (
+                      <motion.div
+                        layoutId="activeMessengerSidebarTab"
+                        transition={APPLE_SPRING}
+                        className="absolute inset-0 bg-white dark:bg-slate-700/90 border border-slate-200/80 dark:border-white/10 rounded-lg shadow-xs"
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                      <span>All Logs</span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums ${
+                        viewMode === "unstructured"
+                          ? "bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900"
+                          : "bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                      }`}>
+                        {rawCount}
+                      </span>
+                    </span>
+                  </button>
                 </div>
-                <span className="bg-blue-500/10 text-[#0071E3] dark:text-blue-400 border border-blue-500/20 text-[10px] sm:text-xs font-semibold rounded-full px-2 sm:px-2.5 py-0.5 tabular-nums shrink-0">
-                  {filteredConversations.length} active
-                </span>
+
+                <div className="flex items-center gap-2">
+                  {unseenCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={markAllSeen}
+                      className="text-[11px] font-medium text-[#0071E3] dark:text-sky-400 hover:underline cursor-pointer"
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Scrollable Conversation List with Apple-grade Edge Fade */}
@@ -477,7 +721,7 @@ export default function MessengerBotLogs() {
                 {filteredConversations.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 sm:py-20 text-slate-400 dark:text-slate-500 text-xs sm:text-sm gap-2">
                     <MessageSquare className="w-8 h-8 stroke-[1.5] text-slate-300 dark:text-slate-600" />
-                    <span>No conversations found.</span>
+                    <span>{viewMode === "structured" ? "No emergency incident reports match filters." : "No conversations found."}</span>
                     {hasActiveFilters && (
                       <button
                         type="button"
@@ -492,18 +736,20 @@ export default function MessengerBotLogs() {
                   <StaggerContainer className="space-y-1">
                     {filteredConversations.map((convo, index) => {
                       const isSelected = selectedId === convo.id;
+                      const isSeen = seenConvoIds.has(convo.id);
                       const isIncomplete = convo.status === "Incomplete";
                       return (
                         <StaggerItem key={convo.id} className="w-full">
                           <button
                             type="button"
                             onClick={() => handleSelectConversation(convo.id)}
-                            className={`w-full flex items-center gap-2.5 sm:gap-3.5 p-2.5 sm:p-3 rounded-xl transition-all duration-150 text-left relative group active:scale-[0.985] cursor-pointer ${isSelected
-                              ? "bg-blue-500/10 dark:bg-blue-500/20 shadow-xs border border-blue-500/25 dark:border-blue-500/30 text-slate-900 dark:text-white"
-                              : isIncomplete
-                                ? "bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-100"
-                                : "hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent text-slate-700 dark:text-slate-300"
-                              }`}
+                            className={`w-full flex items-center gap-2.5 sm:gap-3.5 p-2.5 sm:p-3 rounded-xl transition-all duration-150 text-left relative group active:scale-[0.985] cursor-pointer ${
+                              isSelected
+                                ? "bg-blue-500/10 dark:bg-blue-500/20 shadow-xs border border-blue-500/25 dark:border-blue-500/30 text-slate-900 dark:text-white"
+                                : !isSeen
+                                ? "bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-50/70 dark:hover:bg-blue-950/30 border border-blue-200/50 dark:border-blue-900/40 text-slate-900 dark:text-white"
+                                : "hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent text-slate-600 dark:text-slate-400 opacity-90"
+                            }`}
                           >
                             {/* Active pill accent bar */}
                             {isSelected && (
@@ -520,7 +766,9 @@ export default function MessengerBotLogs() {
                                 className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full ${getAvatarColor(
                                   convo.name,
                                   index
-                                )} flex items-center justify-center font-bold text-xs text-white shadow-sm ring-2 ring-white/80 dark:ring-slate-800`}
+                                )} flex items-center justify-center font-bold text-xs text-white shadow-sm ring-2 ${
+                                  !isSeen ? "ring-blue-400/80 dark:ring-blue-500/80" : "ring-white/80 dark:ring-slate-800 opacity-80"
+                                }`}
                               >
                                 {getInitials(convo.name)}
                               </div>
@@ -539,21 +787,31 @@ export default function MessengerBotLogs() {
 
                             {/* Content */}
                             <div className="flex-1 min-w-0 pr-1">
-                              <h4
-                                className={`text-xs sm:text-sm tracking-tight truncate transition-all duration-200 ${isIncomplete
-                                  ? "font-semibold text-slate-900 dark:text-white"
-                                  : isSelected
-                                    ? "font-semibold text-slate-900 dark:text-white"
-                                    : "font-medium text-slate-700 dark:text-slate-300"
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                {!isSeen && (
+                                  <span
+                                    className="w-2 h-2 rounded-full bg-blue-500 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.6)] animate-pulse"
+                                    title="New unread message"
+                                  />
+                                )}
+                                <h4
+                                  className={`text-xs sm:text-sm tracking-tight truncate transition-all duration-200 ${
+                                    !isSeen
+                                      ? "font-bold text-slate-900 dark:text-white"
+                                      : isSelected
+                                      ? "font-semibold text-slate-900 dark:text-white"
+                                      : "font-medium text-slate-500 dark:text-slate-400"
                                   }`}
-                              >
-                                {convo.name}
-                              </h4>
+                                >
+                                  {convo.name}
+                                </h4>
+                              </div>
                               <p
-                                className={`text-[11px] sm:text-xs truncate mt-0.5 leading-snug transition-all duration-200 ${isIncomplete
-                                  ? "font-medium text-slate-600 dark:text-slate-300"
-                                  : "font-normal text-slate-500 dark:text-slate-400"
-                                  }`}
+                                className={`text-[11px] sm:text-xs truncate mt-0.5 leading-snug transition-all duration-200 ${
+                                  !isSeen
+                                    ? "font-semibold text-slate-900 dark:text-slate-100"
+                                    : "font-normal text-slate-400 dark:text-slate-500"
+                                }`}
                               >
                                 {getLastMessage(convo)}
                               </p>
@@ -561,6 +819,9 @@ export default function MessengerBotLogs() {
                                 <span className="inline-flex items-center text-[9px] sm:text-[10px] font-medium bg-slate-100/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-400 rounded-md px-1.5 sm:px-2 py-0.5 border border-slate-200/50 dark:border-slate-700/50 truncate max-w-[130px] sm:max-w-none">
                                   {convo.type} · {convo.barangay}
                                 </span>
+
+
+
                                 <span
                                   className={`inline-flex items-center gap-1.5 text-[9px] sm:text-[10px] font-medium rounded-md px-1.5 sm:px-2 py-0.5 border transition-colors duration-200 ${isIncomplete
                                     ? "bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/70"
@@ -582,10 +843,11 @@ export default function MessengerBotLogs() {
                             <div className="flex flex-col items-end justify-between self-stretch shrink-0 py-0.5 pl-1">
                               <div className="flex items-center gap-1">
                                 <span
-                                  className={`text-[10px] sm:text-[11px] tabular-nums transition-colors duration-200 ${isIncomplete
-                                    ? "font-medium text-slate-600 dark:text-slate-400"
-                                    : "font-normal text-slate-400 dark:text-slate-500"
-                                    }`}
+                                  className={`text-[10px] sm:text-[11px] tabular-nums transition-colors duration-200 ${
+                                    !isSeen
+                                      ? "font-semibold text-blue-600 dark:text-blue-400"
+                                      : "font-normal text-slate-400 dark:text-slate-500"
+                                  }`}
                                 >
                                   {formatDisplayTime(convo.time)}
                                 </span>
@@ -618,7 +880,7 @@ export default function MessengerBotLogs() {
               className={`
                 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}
                 md:col-span-7 lg:col-span-7 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-col overflow-hidden
-                h-[calc(100vh-12.5rem)] min-h-[480px] md:h-full md:min-h-0
+                h-[calc(100vh-17.5rem)] min-h-[480px] md:h-full md:min-h-0
               `}
             >
               <AnimatePresence mode="wait">
@@ -657,7 +919,7 @@ export default function MessengerBotLogs() {
                           <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 sm:gap-1.5 mt-0.5 truncate">
                             <span className="truncate">{selectedConversation.barangay}</span>
                             <span className="text-slate-300 dark:text-slate-600 shrink-0">•</span>
-                            <span className="truncate">{selectedConversation.type}</span>
+                            <span className="truncate">{selectedConversation.nlp.incidentType}</span>
                             <span className="hidden md:inline text-slate-300 dark:text-slate-600 shrink-0">•</span>
                             <span className="hidden md:inline font-mono text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 shrink-0">PSID: {selectedConversation.psid}</span>
                           </p>
@@ -737,7 +999,13 @@ export default function MessengerBotLogs() {
                                   </div>
                                   <span className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 mt-1 mr-1 font-medium flex items-center gap-1">
                                     <Bot className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#0071E3]" />
-                                    Responde Bot
+                                    <span>Responde Bot</span>
+                                    {msg.timestamp && (
+                                      <>
+                                        <span className="text-slate-300 dark:text-slate-600">•</span>
+                                        <span>{formatPhilippineTimeOnly(msg.timestamp)}</span>
+                                      </>
+                                    )}
                                   </span>
                                 </div>
                                 <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-[10px] sm:text-[11px] font-bold text-[#0071E3] dark:text-blue-400 shrink-0 mb-3 sm:mb-4 ring-1 ring-blue-500/20 shadow-2xs">
@@ -754,11 +1022,24 @@ export default function MessengerBotLogs() {
                                   {selectedInitials}
                                 </div>
                                 <div className="flex flex-col items-start max-w-[85%] sm:max-w-[74%]">
+                                  {/* Emergency Distress Tag on User Message */}
+                                  {selectedConversation.nlp.isIncident && idx === selectedConversation.nlp.distressMessageIdx && (
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20 rounded-md px-1.5 py-0.5 mb-1">
+                                      <AlertTriangle className="w-2.5 h-2.5" />
+                                      <span>Distress Intent Extracted</span>
+                                    </span>
+                                  )}
                                   <div className="bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 text-slate-800 dark:text-slate-100 rounded-[18px] sm:rounded-[20px] rounded-bl-[4px] px-3.5 sm:px-4 py-2 sm:py-2.5 shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
                                     <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
                                   </div>
-                                  <span className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 mt-1 ml-1 font-medium">
-                                    {selectedConversation.name}
+                                  <span className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 mt-1 ml-1 font-medium flex items-center gap-1">
+                                    <span>{selectedConversation.name}</span>
+                                    {msg.timestamp && (
+                                      <>
+                                        <span className="text-slate-300 dark:text-slate-600">•</span>
+                                        <span>{formatPhilippineTimeOnly(msg.timestamp)}</span>
+                                      </>
+                                    )}
                                   </span>
                                 </div>
                               </div>
@@ -785,12 +1066,14 @@ export default function MessengerBotLogs() {
                       No Conversation Selected
                     </h4>
                     <p className="text-xs text-slate-400 dark:text-slate-500 max-w-[260px] mt-1">
-                      Select an active conversation from the list to inspect logs and AI bot exchanges.
+                      {viewMode === "structured"
+                        ? "Select an active incident report from the list to view extracted details and chat history."
+                        : "Select an active conversation from the list to inspect logs and AI bot exchanges."}
                     </p>
                     <button
                       type="button"
                       onClick={() => setMobileView('list')}
-                      className="lg:hidden mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] transition-colors"
+                      className="lg:hidden mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] transition-colors cursor-pointer"
                     >
                       <ChevronLeft className="w-4 h-4" />
                       <span>View Conversations</span>
@@ -804,4 +1087,4 @@ export default function MessengerBotLogs() {
       )}
     </div>
   );
-}
+}
