@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { TALISAY_BARANGAYS } from '../data/talisay-barangays';
+import { formatTimestampPHT } from '../utils/dateUtils';
 
 // ── Types ──
 export interface BotMessage {
@@ -416,15 +417,7 @@ export function BotConversationsProvider({ children }: { children: ReactNode }) 
       const mapped: BotConversation[] = sessions
         .sort((a, b) => b.lastTime - a.lastTime)
         .map((session) => {
-          const lastDate = new Date(session.lastTime);
-          const timeFormatted = `${lastDate.toLocaleDateString('en-US', {
-            month: 'numeric',
-            day: 'numeric',
-          })} ${lastDate.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-          })}`;
+          const timeFormatted = formatTimestampPHT(session.lastTime);
 
           const override = statusOverridesRef.current[session.id];
           const calculatedStatus = session.needsReview || !session.barangay ? 'Incomplete' : 'Complete';

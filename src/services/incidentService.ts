@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { apiFetch } from './authService';
+import { formatTimestampPHT } from '../utils/dateUtils';
 
 export type ReportStatus = 'pending' | 'under_review' | 'verified' | 'rejected' | 'resolved';
 
@@ -100,7 +101,13 @@ export async function fetchReports(): Promise<Report[]> {
 
   const json = await res.json();
   const rawReports: Report[] = json.data ?? [];
-  return rawReports.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  return rawReports
+    .map((r: any) => ({
+      ...r,
+      time: (r.createdAt ? formatTimestampPHT(r.createdAt) : null) || (r.time ? formatTimestampPHT(r.time) : '') || r.time,
+      verifiedAt: r.verifiedAt ? (formatTimestampPHT(r.verifiedAt) || r.verifiedAt) : null,
+    }))
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 }
 
 /** Update an incident report action, triage status, notes, and coordinates via backend API. */
