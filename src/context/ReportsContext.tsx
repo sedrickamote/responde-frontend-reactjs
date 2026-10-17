@@ -61,13 +61,23 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
 
         initialLoad();
 
+        // Debounce live database refresh to avoid rapid-fire API request storms during scraper batches
+        let refreshDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+        const debouncedRefresh = () => {
+            if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+            refreshDebounceTimer = setTimeout(() => {
+                refreshReports(false);
+            }, 1200);
+        };
+
         // Subscribe to live database changes across conversations, fb_comments, and incident_reports
         const unsubscribe = subscribeToReports(() => {
-            refreshReports(false);
+            debouncedRefresh();
         });
 
         return () => {
             mounted = false;
+            if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
             unsubscribe();
         };
     }, [refreshReports]);

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { TALISAY_BARANGAYS } from '../data/talisay-barangays';
+import { apiRequest } from '../services/apiClient';
 
 // ── Types ──
 export interface BotMessage {
@@ -245,7 +246,8 @@ export const initialBotConversations: BotConversation[] = [
 
 const STORAGE_KEY = 'responde_bot_status_overrides_v2';
 const INACTIVITY_GAP_MS = 60 * 60 * 1000;
-const POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_MS = 60_000; // 60s standard poll interval to reduce server pressure
+const BACKOFF_INTERVAL_MS = 120_000; // 2 min backoff when rate-limited
 
 const getInitialOverrides = (): Record<string, 'Incomplete' | 'Complete'> => {
   try {
@@ -300,41 +302,27 @@ export function BotConversationsProvider({ children }: { children: ReactNode }) 
     );
   }, []);
 
-  const fetchConversations = useCallback(async (isFirst = false) => {
+  const fetchConversations = useCallback(async (isFirst = false, signal?: AbortSignal, forceRefresh = false) => {
     if (isFirst) setLoading(true);
-    setError(null);
-
-    // Use authenticated backend API instead of direct Supabase anon access
-    const API_BASE = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL ?? '');
-    const storedToken = (() => { try { return localStorage.getItem('responde_session_token'); } catch { return null; } })();
-    const hdrs: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (storedToken) hdrs['Authorization'] = `Bearer ${storedToken}`;
 
     let data: any[] | null = null;
     try {
-      const res = await fetch(`${API_BASE}/api/auth/data/conversations?limit=500`, {
-        credentials: 'include',
-        headers: hdrs,
-      });
-      if (res.ok) {
-        const json = await res.json();
-        data = json.data ?? [];
-      } else {
-        const errJson = await res.json().catch(() => ({ error: res.statusText }));
-        console.error('[BotConversationsContext] API error:', errJson.error);
-        setError(errJson.error || 'Failed to fetch conversations');
-        if (isFirst) setLoading(false);
-        return;
-      }
+      // Use cached, deduplicated apiRequest with automatic 429 retry
+      const json = await apiRequest<{ data?: any[] }>(
+        '/api/auth/data/conversations?limit=100',
+        {
+          signal,
+          forceRefresh,
+          cacheTtlMs: 8000,
+        }
+      );
+      data = json.data ?? [];
+      setError(null);
     } catch (netErr: any) {
-      console.error('[BotConversationsContext] Network error:', netErr.message);
-      setError(netErr.message || 'Network error');
-      if (isFirst) setLoading(false);
-      return;
-    }
-
-    const sbError = null; // kept for type compatibility below
-    if (sbError) {
+      if (netErr.name === 'AbortError') return;
+      console.warn('[BotConversationsContext] Fetch warning:', netErr.message);
+      // Only set error state if we have no conversations yet to prevent screen-blanking
+      setError((prev) => (conversations.length === 0 ? (netErr.message || 'Failed to fetch conversations') : prev));
       if (isFirst) setLoading(false);
       return;
     }
@@ -409,7 +397,13 @@ export function BotConversationsProvider({ children }: { children: ReactNode }) 
       }
 
       if (row.user_message) session.messages.push({ sender: 'user', text: row.user_message, timestamp: row.timestamp });
-      if (row.ai_reply) session.messages.push({ sender: 'bot', text: row.ai_reply, timestamp: row.timestamp });
+      if (row.ai_reply) {
+        session.messages.push({ sender: 'bot', text: row.ai_reply, timestamp: row.timestamp });
+      } else if (row.reply_status === 'pending') {
+        session.messages.push({ sender: 'bot', text: '(Replying...)', timestamp: row.timestamp });
+      } else if (row.reply_status === 'failed') {
+        session.messages.push({ sender: 'bot', text: '[Failed to send reply]', timestamp: row.timestamp });
+      }
     }
 
     if (sessions.length > 0) {
@@ -458,12 +452,48 @@ export function BotConversationsProvider({ children }: { children: ReactNode }) 
     }
 
     if (isFirst) setLoading(false);
-  }, []);
+  }, [conversations.length]);
 
   useEffect(() => {
-    fetchConversations(true);
-    const interval = setInterval(() => fetchConversations(false), POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
+    const controller = new AbortController();
+    fetchConversations(true, controller.signal);
+
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const schedulePoll = (delay: number) => {
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = setTimeout(async () => {
+        // Pause polling when browser tab is hidden to save rate limit and bandwidth
+        if (document.visibilityState !== 'visible') {
+          schedulePoll(POLL_INTERVAL_MS);
+          return;
+        }
+
+        try {
+          await fetchConversations(false, controller.signal);
+          schedulePoll(POLL_INTERVAL_MS);
+        } catch (err: any) {
+          const isRateLimit = err?.status === 429 || err?.isRateLimit;
+          schedulePoll(isRateLimit ? BACKOFF_INTERVAL_MS : POLL_INTERVAL_MS);
+        }
+      }, delay);
+    };
+
+    schedulePoll(POLL_INTERVAL_MS);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchConversations(false, controller.signal);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      controller.abort();
+      if (pollTimer) clearTimeout(pollTimer);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [fetchConversations]);
 
   const incompleteCount = conversations.filter((c) => c.status === 'Incomplete').length;

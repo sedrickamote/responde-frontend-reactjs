@@ -97,7 +97,8 @@ export function setStoredUser(user: AuthUser | null): void {
   } catch { }
 }
 
-// Internal fetch wrapper - sends cookies AND Authorization Bearer header if token exists
+// Internal fetch wrapper - sends cookies AND Authorization Bearer header if token exists,
+// with transparent retry and exponential backoff on HTTP 429 rate limit errors.
 export async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   const token = getStoredSessionToken();
   const headers: Record<string, string> = {
@@ -106,11 +107,40 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<Res
     ...((options?.headers as Record<string, string>) ?? {}),
   };
 
-  return fetch(`${API_BASE}${path}`, {
-    ...options,
-    credentials: 'include',
-    headers,
-  });
+  const url = `${API_BASE}${path}`;
+  let attempt = 0;
+  const maxRetries = 2;
+
+  while (attempt <= maxRetries) {
+    const res = await fetch(url, {
+      ...options,
+      credentials: 'include',
+      headers,
+    });
+
+    if (res.status === 429 && attempt < maxRetries) {
+      attempt++;
+      const retryAfter = res.headers.get('retry-after');
+      const resetHeader = res.headers.get('ratelimit-reset');
+      let delayMs = 900 * Math.pow(2, attempt) + Math.random() * 200;
+      if (retryAfter) {
+        const s = parseInt(retryAfter, 10);
+        if (!isNaN(s) && s > 0) delayMs = Math.min(s * 1000, 8000);
+      } else if (resetHeader) {
+        const s = parseInt(resetHeader, 10);
+        if (!isNaN(s) && s > 0 && s < 60) delayMs = Math.min(s * 1000, 8000);
+      }
+      if (import.meta.env.DEV) {
+        console.warn(`[apiFetch] 429 on ${path}. Retrying in ${Math.round(delayMs)}ms (attempt ${attempt}/${maxRetries})...`);
+      }
+      await new Promise((r) => setTimeout(r, delayMs));
+      continue;
+    }
+
+    return res;
+  }
+
+  return fetch(url, { ...options, credentials: 'include', headers });
 }
 
 // -- Auth API --
