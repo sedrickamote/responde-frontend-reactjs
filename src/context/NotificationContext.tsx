@@ -1,6 +1,6 @@
 // src/context/NotificationContext.tsx
-// Global real-time notification system using Supabase Realtime
-// Listens for INSERT events on: fb_comments, conversations
+// Global real-time notification & priority alert system using Supabase Realtime
+// Listens for INSERT events on: incident_reports, fb_comments, conversations
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
@@ -16,15 +16,15 @@ import { supabase } from '../lib/supabaseClient';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type NotificationType = 'scraper' | 'messenger';
+export type NotificationType = 'scraper' | 'messenger' | 'priority';
 
 export interface AppNotification {
   id: string;
   type: NotificationType;
   title: string;
-  /** Short preview of the comment or message text */
+  /** Short preview of the comment, message, or incident text */
   message: string;
-  /** Barangay location — scraper notifications only */
+  /** Barangay location */
   barangay?: string;
   /** Sender name — messenger notifications only */
   sender?: string;
@@ -32,6 +32,11 @@ export interface AppNotification {
   targetPath: string;
   timestamp: Date;
   read: boolean;
+  /** Priority Alert indicators for FR-007 */
+  isPriority?: boolean;
+  urgency?: string;
+  incidentType?: string;
+  reportId?: string;
 }
 
 export interface ToastNotification {
@@ -40,12 +45,18 @@ export interface ToastNotification {
   title: string;
   message: string;
   targetPath: string;
+  isPriority?: boolean;
+  barangay?: string;
+  urgency?: string;
+  incidentType?: string;
+  reportId?: string;
 }
 
 interface NotificationContextValue {
   notifications: AppNotification[];
   toasts: ToastNotification[];
   unreadCount: number;
+  priorityUnreadCount: number;
   markAllRead: () => void;
   markTypeRead: (type: NotificationType) => void;
   markNotificationRead: (id: string) => void;
@@ -53,10 +64,61 @@ interface NotificationContextValue {
   deleteNotification: (id: string) => void;
   clearAll: () => void;
   dismissToast: (id: number) => void;
+  triggerPriorityAlert: (data: {
+    id?: string;
+    title?: string;
+    message: string;
+    barangay?: string;
+    type?: string;
+    urgency?: string;
+    targetPath?: string;
+    reportId?: string;
+  }) => void;
+}
+
+// ── Web Audio API Emergency Alert Chime ───────────────────────────────────────
+
+/**
+ * Play a clean two-tone acoustic alert chime for high-priority emergency incidents.
+ * Utilizes the browser's native Web Audio API (zero audio asset dependencies).
+ */
+export function playPriorityChime() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    const playTone = (freq: number, start: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.18, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(start);
+      osc.stop(start + duration);
+    };
+
+    const t = ctx.currentTime;
+    // Two-tone warning: 880Hz (A5) -> 1174.66Hz (D6)
+    playTone(880, t, 0.18);
+    playTone(1174.66, t + 0.14, 0.28);
+  } catch (err) {
+    console.debug('[NotificationContext] Web Audio chime suspended or not allowed:', err);
+  }
 }
 
 // ── Storage Key ─────────────────────────────────────────────────────────────
-const NOTIFS_STORAGE_KEY = 'responde_notifications_v2';
+const NOTIFS_STORAGE_KEY = 'responde_notifications_v3';
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
@@ -102,9 +164,20 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       title: string,
       message: string,
       targetPath: string,
-      extra?: { barangay?: string; sender?: string; id?: string; timestamp?: Date; read?: boolean }
+      extra?: {
+        barangay?: string;
+        sender?: string;
+        id?: string;
+        timestamp?: Date;
+        read?: boolean;
+        isPriority?: boolean;
+        urgency?: string;
+        incidentType?: string;
+        reportId?: string;
+      }
     ) => {
       const id = extra?.id || crypto.randomUUID();
+      const isPriority = extra?.isPriority || type === 'priority';
       const newNotif: AppNotification = {
         id,
         type,
@@ -115,6 +188,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         sender: extra?.sender,
         timestamp: extra?.timestamp || new Date(),
         read: extra?.read ?? false,
+        isPriority,
+        urgency: extra?.urgency,
+        incidentType: extra?.incidentType,
+        reportId: extra?.reportId,
       };
 
       setNotifications((prev) => {
@@ -126,11 +203,62 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         const toastId = ++toastIdRef.current;
         setToasts((prev) => [
           ...prev,
-          { id: toastId, type, title, message, targetPath },
+          {
+            id: toastId,
+            type,
+            title,
+            message,
+            targetPath,
+            isPriority,
+            barangay: extra?.barangay,
+            urgency: extra?.urgency,
+            incidentType: extra?.incidentType,
+            reportId: extra?.reportId,
+          },
         ]);
+        if (isPriority) {
+          playPriorityChime();
+        }
       }
     },
     []
+  );
+
+  const triggerPriorityAlert = useCallback(
+    (data: {
+      id?: string;
+      title?: string;
+      message: string;
+      barangay?: string;
+      type?: string;
+      urgency?: string;
+      targetPath?: string;
+      reportId?: string;
+    }) => {
+      const id = data.id || `priority-${crypto.randomUUID()}`;
+      const isSearchAndRescue =
+        (data.type || '').toLowerCase().includes('rescue') ||
+        (data.type || '').toLowerCase().includes('search');
+      const title =
+        data.title ||
+        (isSearchAndRescue
+          ? '🚨 PRIORITY ALERT: Search & Rescue'
+          : '🚨 PRIORITY ALERT: High Urgency Incident');
+      const targetPath = data.targetPath || '/incident-reports';
+
+      addNotification('priority', title, data.message, targetPath, {
+        id,
+        barangay: data.barangay,
+        read: false,
+        isPriority: true,
+        urgency: data.urgency || 'High',
+        incidentType: data.type || (isSearchAndRescue ? 'Search & Rescue' : 'Emergency'),
+        reportId: data.reportId,
+      });
+
+      playPriorityChime();
+    },
+    [addNotification]
   );
 
   const dismissToast = useCallback((id: number) => {
@@ -209,17 +337,25 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             const preview =
               row.comment_text || row.commentText || row.raw_text || row.text || 'New comment scraped';
             const time = row.created_at || row.timestamp || new Date().toISOString();
+            const urgency = String(row.urgency || '').toLowerCase();
+            const type = String(row.incident_type || row.type || '').toLowerCase();
+            const isRescue = type.includes('rescue') || type.includes('search');
+            const isHigh = urgency === 'high';
+
             fetchedItems.push({
-              id: `scraper-${rawId || crypto.randomUUID()}`,
-              type: 'scraper',
-              title: 'New Scraped Comment',
+              id: isHigh && isRescue ? `priority-sc-${rawId || crypto.randomUUID()}` : `scraper-${rawId || crypto.randomUUID()}`,
+              type: isHigh && isRescue ? 'priority' : 'scraper',
+              title: isHigh && isRescue ? '🚨 PRIORITY ALERT: Search & Rescue' : 'New Scraped Comment',
               message:
                 String(preview).slice(0, 70) +
                 (String(preview).length > 70 ? '...' : ''),
               barangay,
-              targetPath: '/scraper-feed',
+              targetPath: isHigh && isRescue ? '/incident-reports' : '/scraper-feed',
               timestamp: new Date(time),
-              read: true, // Existing records from database start as read unless new
+              read: true,
+              isPriority: isHigh && isRescue,
+              urgency: row.urgency,
+              incidentType: isRescue ? 'Search & Rescue' : row.incident_type,
             });
           });
         }
@@ -236,17 +372,25 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               (row.messages && row.messages[0]?.text) ||
               'New message received';
             const time = row.created_at || row.timestamp || row.time || new Date().toISOString();
+            const urgency = String(row.urgency || '').toLowerCase();
+            const type = String(row.type || '').toLowerCase();
+            const isRescue = type.includes('rescue') || type.includes('search');
+            const isHigh = urgency === 'high';
+
             fetchedItems.push({
-              id: `messenger-${rawId || crypto.randomUUID()}`,
-              type: 'messenger',
-              title: 'New Messenger Message',
+              id: isHigh && isRescue ? `priority-msg-${rawId || crypto.randomUUID()}` : `messenger-${rawId || crypto.randomUUID()}`,
+              type: isHigh && isRescue ? 'priority' : 'messenger',
+              title: isHigh && isRescue ? '🚨 PRIORITY ALERT: Search & Rescue' : 'New Messenger Message',
               message:
                 String(preview).slice(0, 70) +
                 (String(preview).length > 70 ? '...' : ''),
               sender,
-              targetPath: '/messenger-bot-logs',
+              targetPath: isHigh && isRescue ? '/incident-reports' : '/messenger-bot-logs',
               timestamp: new Date(time),
               read: true,
+              isPriority: isHigh && isRescue,
+              urgency: row.urgency,
+              incidentType: isRescue ? 'Search & Rescue' : row.type,
             });
           });
         }
@@ -288,7 +432,43 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   // ── Supabase Realtime Subscriptions ──────────────────────────────────────────
 
   useEffect(() => {
-    // fb_comments — scraped Facebook comments
+    // 1. incident_reports — Emergency Incident Reports table
+    const incidentChannel = supabase
+      .channel('rt:incident_reports')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'incident_reports' },
+        (payload) => {
+          const row = payload.new as Record<string, any>;
+          if (!row) return;
+          const urgency = String(row.urgency || '').toLowerCase();
+          const type = String(row.type || row.incident_type || '').toLowerCase();
+          const isHigh = urgency === 'high';
+          const isSearchAndRescue = type.includes('rescue') || type.includes('search');
+          const rawId = row.id || crypto.randomUUID();
+
+          if (isHigh || isSearchAndRescue) {
+            triggerPriorityAlert({
+              id: `priority-inc-${rawId}`,
+              title: isSearchAndRescue
+                ? '🚨 PRIORITY ALERT: Search & Rescue'
+                : '🚨 PRIORITY ALERT: High-Urgency Incident',
+              message:
+                row.description ||
+                row.original_text ||
+                'High-urgency Search and Rescue incident requiring immediate response.',
+              barangay: row.barangay || 'Talisay',
+              type: isSearchAndRescue ? 'Search & Rescue' : (row.type || 'Emergency'),
+              urgency: 'High',
+              targetPath: '/incident-reports',
+              reportId: String(rawId),
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // 2. fb_comments — scraped Facebook comments
     const scraperChannel = supabase
       .channel('rt:fb_comments')
       .on(
@@ -298,22 +478,50 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           const row = payload.new as Record<string, any>;
           const rawId = row.id || row.comment_id;
           const barangay = row.barangay || 'Unknown Barangay';
-          const preview = row.comment_text
-            ? String(row.comment_text).slice(0, 70) +
-              (String(row.comment_text).length > 70 ? '...' : '')
+          const text = String(row.comment_text || row.raw_text || '');
+          const preview = text
+            ? text.slice(0, 70) + (text.length > 70 ? '...' : '')
             : 'New comment scraped';
-          addNotification('scraper', 'New Scraped Comment', preview, '/scraper-feed', {
-            barangay,
-            id: `scraper-${rawId || crypto.randomUUID()}`,
-            read: false,
-          });
+          const urgency = String(row.urgency || '').toLowerCase();
+          const type = String(row.incident_type || row.type || '').toLowerCase();
+          const lowerText = text.toLowerCase();
+
+          const isSearchAndRescue =
+            type.includes('rescue') ||
+            lowerText.includes('rescue') ||
+            lowerText.includes('stranded') ||
+            lowerText.includes('naipit sa bubong') ||
+            lowerText.includes('boat capsized') ||
+            lowerText.includes('bangka');
+          const isHigh =
+            urgency === 'high' ||
+            lowerText.includes('lampas tao') ||
+            lowerText.includes('kailangan ng rescue boat') ||
+            lowerText.includes('saklolo');
+
+          if (isHigh && isSearchAndRescue) {
+            triggerPriorityAlert({
+              id: `priority-fb-${rawId || crypto.randomUUID()}`,
+              title: '🚨 PRIORITY ALERT: Search & Rescue',
+              message: text || 'High-urgency rescue request scraped from community comments.',
+              barangay,
+              type: 'Search & Rescue',
+              urgency: 'High',
+              targetPath: '/incident-reports',
+              reportId: String(rawId),
+            });
+          } else {
+            addNotification('scraper', 'New Scraped Comment', preview, '/scraper-feed', {
+              barangay,
+              id: `scraper-${rawId || crypto.randomUUID()}`,
+              read: false,
+            });
+          }
         }
       )
-      .subscribe((s) => {
-        if (import.meta.env.DEV) console.log('[Notif] fb_comments:', s);
-      });
+      .subscribe();
 
-    // conversations — Messenger Bot messages
+    // 3. conversations — Messenger Bot messages
     const messengerChannel = supabase
       .channel('rt:conversations')
       .on(
@@ -328,30 +536,60 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               : row.sender_psid
               ? `PSID ...${String(row.sender_psid).slice(-6)}`
               : 'Unknown User';
-          const preview = row.user_message
-            ? String(row.user_message).slice(0, 70) +
-              (String(row.user_message).length > 70 ? '...' : '')
+          const text = String(row.user_message || (row.messages && row.messages[0]?.text) || '');
+          const preview = text
+            ? text.slice(0, 70) + (text.length > 70 ? '...' : '')
             : 'New message received';
-          addNotification(
-            'messenger',
-            'New Messenger Message',
-            preview,
-            '/messenger-bot-logs',
-            { sender, id: `messenger-${rawId || crypto.randomUUID()}`, read: false }
-          );
+          const urgency = String(row.urgency || '').toLowerCase();
+          const type = String(row.type || '').toLowerCase();
+          const lowerText = text.toLowerCase();
+
+          const isSearchAndRescue =
+            type.includes('rescue') ||
+            lowerText.includes('rescue') ||
+            lowerText.includes('stranded') ||
+            lowerText.includes('saklolo');
+          const isHigh =
+            urgency === 'high' ||
+            lowerText.includes('asap') ||
+            lowerText.includes('emergency') ||
+            lowerText.includes('tulong po');
+
+          if (isHigh && isSearchAndRescue) {
+            triggerPriorityAlert({
+              id: `priority-msg-${rawId || crypto.randomUUID()}`,
+              title: '🚨 PRIORITY ALERT: Search & Rescue',
+              message: text || 'Immediate citizen distress call received via Messenger.',
+              barangay: row.barangay || 'Talisay',
+              type: 'Search & Rescue',
+              urgency: 'High',
+              targetPath: '/incident-reports',
+              reportId: String(rawId),
+            });
+          } else {
+            addNotification(
+              'messenger',
+              'New Messenger Message',
+              preview,
+              '/messenger-bot-logs',
+              { sender, id: `messenger-${rawId || crypto.randomUUID()}`, read: false }
+            );
+          }
         }
       )
-      .subscribe((s) => {
-        if (import.meta.env.DEV) console.log('[Notif] conversations:', s);
-      });
+      .subscribe();
 
     return () => {
+      supabase.removeChannel(incidentChannel);
       supabase.removeChannel(scraperChannel);
       supabase.removeChannel(messengerChannel);
     };
-  }, [addNotification]);
+  }, [addNotification, triggerPriorityAlert]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const priorityUnreadCount = notifications.filter(
+    (n) => (n.type === 'priority' || n.isPriority) && !n.read
+  ).length;
 
   return (
     <NotificationContext.Provider
@@ -359,6 +597,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         notifications,
         toasts,
         unreadCount,
+        priorityUnreadCount,
         markAllRead,
         markTypeRead,
         markNotificationRead,
@@ -366,6 +605,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         deleteNotification,
         clearAll,
         dismissToast,
+        triggerPriorityAlert,
       }}
     >
       {children}

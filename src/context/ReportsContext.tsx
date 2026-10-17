@@ -2,7 +2,7 @@
 // Unified state and live synchronization between IncidentReports, GeospatialMap, and Analytics
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { sampleReports } from '../data/sample-reports';
 import {
     fetchReports,
@@ -12,6 +12,7 @@ import {
     type Report,
     type ReportStatus,
 } from '../services/incidentService';
+import { useNotifications } from './NotificationContext';
 
 interface ReportsContextValue {
     reports: Report[];
@@ -29,31 +30,74 @@ const ReportsContext = createContext<ReportsContextValue | null>(null);
 export function ReportsProvider({ children }: { children: ReactNode }) {
     const [reports, setReports] = useState<Report[]>(sampleReports);
     const [loading, setLoading] = useState<boolean>(true);
+    const { triggerPriorityAlert } = useNotifications();
+    const knownReportIdsRef = useRef<Set<string>>(new Set());
+    const isFirstLoadRef = useRef<boolean>(true);
+
+    const handleIncomingReports = useCallback((liveData: Report[]) => {
+        if (!Array.isArray(liveData)) return;
+
+        // If not initial mount, check for newly arrived high-urgency Search & Rescue reports
+        if (!isFirstLoadRef.current) {
+            const known = knownReportIdsRef.current;
+            liveData.forEach((r) => {
+                if (!known.has(r.id)) {
+                    const isHigh = (r.urgency || '').toLowerCase() === 'high';
+                    const isSearchAndRescue =
+                        (r.type || '').toLowerCase().includes('rescue') ||
+                        (r.type || '').toLowerCase().includes('search');
+
+                    if (isHigh || isSearchAndRescue) {
+                        triggerPriorityAlert({
+                            id: `priority-report-${r.id}`,
+                            title: isSearchAndRescue
+                                ? '🚨 PRIORITY ALERT: Search & Rescue'
+                                : '🚨 PRIORITY ALERT: High-Urgency Incident',
+                            message:
+                                r.description ||
+                                r.originalText ||
+                                'High-urgency Search and Rescue report received.',
+                            barangay: r.barangay || 'Talisay',
+                            type: isSearchAndRescue ? 'Search & Rescue' : r.type,
+                            urgency: r.urgency || 'High',
+                            targetPath: '/incident-reports',
+                            reportId: r.id,
+                        });
+                    }
+                }
+            });
+        }
+
+        // Cache known IDs and update state
+        knownReportIdsRef.current = new Set(liveData.map((r) => r.id));
+        isFirstLoadRef.current = false;
+        setReports(liveData);
+    }, [triggerPriorityAlert]);
 
     const refreshReports = useCallback(async (showLoader = false) => {
         if (showLoader) setLoading(true);
         try {
             const liveData = await fetchReports();
-            if (Array.isArray(liveData) && liveData.length > 0) {
-                setReports(liveData);
+            if (Array.isArray(liveData)) {
+                handleIncomingReports(liveData);
             }
         } catch (err) {
-            console.warn('[ReportsContext] Could not load live reports, using resilient offline fallback:', err);
+            console.warn('[ReportsContext] Could not load live reports:', err);
         } finally {
             if (showLoader) setLoading(false);
         }
-    }, []);
+    }, [handleIncomingReports]);
 
     useEffect(() => {
         let mounted = true;
         const initialLoad = async () => {
             try {
                 const liveData = await fetchReports();
-                if (mounted && Array.isArray(liveData) && liveData.length > 0) {
-                    setReports(liveData);
+                if (mounted && Array.isArray(liveData)) {
+                    handleIncomingReports(liveData);
                 }
             } catch (err) {
-                console.warn('[ReportsContext] Initial load failed, using fallback:', err);
+                console.warn('[ReportsContext] Initial load failed:', err);
             } finally {
                 if (mounted) setLoading(false);
             }
@@ -70,7 +114,7 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
             mounted = false;
             unsubscribe();
         };
-    }, [refreshReports]);
+    }, [refreshReports, handleIncomingReports]);
 
     const updateReport = useCallback(async (id: string, updates: Partial<Report>): Promise<boolean> => {
         // 1. Optimistic update: instantly reflects in IncidentReports, GeospatialMap, Dashboard
@@ -101,7 +145,7 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
         try {
             return await bulkUpdateIncidentReports(ids, status, action);
         } catch (err) {
-            console.error('[ReportsContext] Failed to persist bulk update:', err);
+            console.error('[ReportsContext] Failed to bulk update reports:', err);
             return false;
         }
     }, []);
@@ -112,27 +156,27 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
 
     const getReportsByBarangay = useCallback(() => {
         const map: Record<string, Report[]> = {};
-        reports
-            .filter((r) => r.status !== 'rejected')
-            .forEach((r) => {
-                const b = r.barangay || 'Unknown';
-                if (!map[b]) map[b] = [];
-                map[b].push(r);
-            });
+        reports.forEach((r) => {
+            const b = r.barangay || 'Unknown';
+            if (!map[b]) map[b] = [];
+            map[b].push(r);
+        });
         return map;
     }, [reports]);
 
     return (
-        <ReportsContext.Provider value={{
-            reports,
-            setReports,
-            loading,
-            refreshReports,
-            updateReport,
-            bulkUpdateReports,
-            getVerifiedReports,
-            getReportsByBarangay,
-        }}>
+        <ReportsContext.Provider
+            value={{
+                reports,
+                setReports,
+                loading,
+                refreshReports,
+                updateReport,
+                bulkUpdateReports,
+                getVerifiedReports,
+                getReportsByBarangay,
+            }}
+        >
             {children}
         </ReportsContext.Provider>
     );
@@ -140,6 +184,8 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
 
 export function useReports() {
     const ctx = useContext(ReportsContext);
-    if (!ctx) throw new Error('useReports must be used inside ReportsProvider');
+    if (!ctx) {
+        throw new Error('useReports must be used within a ReportsProvider');
+    }
     return ctx;
 }
