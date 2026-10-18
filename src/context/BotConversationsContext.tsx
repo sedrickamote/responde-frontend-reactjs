@@ -19,12 +19,6 @@ export interface BotConversation {
   time: string;
   createdAt?: string;
   messages: BotMessage[];
-  reportNo?: number | null;
-  reportId?: string | null;
-  hasAddendum?: boolean;
-  isIncomplete?: boolean;
-  locationSource?: 'provided' | 'inherited';
-  contactSource?: 'provided' | 'inherited';
 }
 
 function titleCase(str: string): string {
@@ -145,12 +139,15 @@ export function BotConversationsProvider({ children }: { children: ReactNode }) 
       type: string;
       needsReview: boolean;
       messages: BotMessage[];
-      reportNo?: number | null;
-      reportId?: string | null;
-      hasAddendum?: boolean;
-      isIncomplete?: boolean;
-      locationSource?: 'provided' | 'inherited';
-      contactSource?: 'provided' | 'inherited';
+    };
+
+    const isExplicitNewReport = (msg?: string) => {
+      if (!msg) return false;
+      const t = msg.trim();
+      return (
+        t === 'CHOICE_NEW_REPORT' ||
+        /^(opo,? bagong report|bagong report|bago po|bago)/i.test(t)
+      );
     };
 
     const psidNameMap = new Map<string, string>();
@@ -164,7 +161,6 @@ export function BotConversationsProvider({ children }: { children: ReactNode }) 
 
     const sessions: Session[] = [];
     const psidToLastIdx = new Map<string, number>();
-    const reportIdToIdx = new Map<string, number>();
 
     for (const row of data ?? []) {
       const psid = String(row.sender_psid || row.id || 'unknown');
@@ -180,69 +176,37 @@ export function BotConversationsProvider({ children }: { children: ReactNode }) 
         (!rowBarangay || rowBarangay.toLowerCase() === 'unknown')
       );
 
+      const isExplicitNew = isExplicitNewReport(row.user_message);
+
       let session: Session;
-      if (row.report_id) {
-        const rKey = String(row.report_id);
-        const existingIdx = reportIdToIdx.get(rKey);
-        if (existingIdx !== undefined) {
-          session = sessions[existingIdx];
-          session.lastTime = Math.max(session.lastTime, rowTime);
-          if (session.senderName === 'Unknown User' && resolvedName !== 'Unknown User') {
-            session.senderName = resolvedName;
-          }
-          if (!session.barangay && rowBarangay) session.barangay = rowBarangay;
-          if (!session.type && rowType) session.type = rowType;
-          if (rowNeedsReview) session.needsReview = true;
-          if (row.routing_state === 'addendum') session.hasAddendum = true;
-        } else {
-          session = {
-            id: `report_${rKey}`,
-            psid,
-            senderName: resolvedName,
-            lastTime: rowTime,
-            barangay: rowBarangay,
-            type: rowType,
-            needsReview: rowNeedsReview,
-            messages: [],
-            reportId: rKey,
-            reportNo: row.report_no || null,
-            hasAddendum: row.routing_state === 'addendum',
-            locationSource: row.location_source || 'provided',
-            contactSource: row.contact_source || 'provided',
-          };
-          sessions.push(session);
-          reportIdToIdx.set(rKey, sessions.length - 1);
-        }
+      const lastIdx = psidToLastIdx.get(psid);
+      if (lastIdx === undefined || rowTime - sessions[lastIdx].lastTime > INACTIVITY_GAP_MS || isExplicitNew) {
+        session = {
+          id: `${psid}_${rowTime}`,
+          psid,
+          senderName: resolvedName,
+          lastTime: rowTime,
+          barangay: rowBarangay,
+          type: rowType,
+          needsReview: rowNeedsReview,
+          messages: [],
+        };
+        sessions.push(session);
+        psidToLastIdx.set(psid, sessions.length - 1);
       } else {
-        const lastIdx = psidToLastIdx.get(psid);
-        if (lastIdx === undefined || rowTime - sessions[lastIdx].lastTime > INACTIVITY_GAP_MS) {
-          session = {
-            id: `${psid}_${rowTime}`,
-            psid,
-            senderName: resolvedName,
-            lastTime: rowTime,
-            barangay: rowBarangay,
-            type: rowType,
-            needsReview: rowNeedsReview,
-            messages: [],
-          };
-          sessions.push(session);
-          psidToLastIdx.set(psid, sessions.length - 1);
-        } else {
-          session = sessions[lastIdx];
-          session.lastTime = rowTime;
-          if (session.senderName === 'Unknown User' && resolvedName !== 'Unknown User') {
-            session.senderName = resolvedName;
-          }
-          if (!session.barangay && rowBarangay) {
-            session.barangay = rowBarangay;
-          }
-          if (!session.type && rowType) {
-            session.type = rowType;
-          }
-          if (rowNeedsReview) {
-            session.needsReview = true;
-          }
+        session = sessions[lastIdx];
+        session.lastTime = rowTime;
+        if (session.senderName === 'Unknown User' && resolvedName !== 'Unknown User') {
+          session.senderName = resolvedName;
+        }
+        if (!session.barangay && rowBarangay) {
+          session.barangay = rowBarangay;
+        }
+        if (!session.type && rowType) {
+          session.type = rowType;
+        }
+        if (rowNeedsReview) {
+          session.needsReview = true;
         }
       }
 
@@ -286,11 +250,6 @@ export function BotConversationsProvider({ children }: { children: ReactNode }) 
             time: timeFormatted,
             createdAt: new Date(session.lastTime).toISOString(),
             messages: session.messages,
-            reportNo: session.reportNo,
-            reportId: session.reportId,
-            hasAddendum: session.hasAddendum,
-            locationSource: session.locationSource,
-            contactSource: session.contactSource,
           };
         });
 

@@ -27,14 +27,6 @@ export interface Report {
   verifiedAt: string | null;
   rejectionReason: string | null;
   possibleDuplicateOf: string | null;
-  reportNo?: number | null;
-  reportId?: string | null;
-  intakeStatus?: 'collecting' | 'submitted' | 'abandoned';
-  hasAddendum?: boolean;
-  isIncomplete?: boolean;
-  locationSource?: 'provided' | 'inherited';
-  contactSource?: 'provided' | 'inherited';
-  inheritedFromReportId?: string | null;
 }
 
 /** Check if report has missing barangay or out-of-scope type */

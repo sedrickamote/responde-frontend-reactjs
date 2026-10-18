@@ -428,7 +428,6 @@ export default function IncidentReports() {
 
   const [coordError, setCoordError] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
-  const [locationConfirmed, setLocationConfirmed] = useState(false);
 
   const itemsPerPage = 10;
 
@@ -533,7 +532,6 @@ export default function IncidentReports() {
     setShowRejectPanel(false);
     setRejectReason('');
     setCoordError(false);
-    setLocationConfirmed(false);
     if (report.status === 'pending') {
       contextUpdateReport(report.id, { status: 'under_review' });
     }
@@ -601,12 +599,6 @@ export default function IncidentReports() {
     if (isReportIncomplete({ barangay: currentBarangay, type: currentType })) {
       const reasons = getIncompleteReasons({ barangay: currentBarangay, type: currentType });
       showToast(`Cannot verify incomplete report. Please resolve: ${reasons.join(', ')}`, 'error');
-      return;
-    }
-
-    // Guard: Officer must confirm or edit inherited location before verifying
-    if (reviewingReport.locationSource === 'inherited' && !locationConfirmed && currentBarangay === (reviewingReport.barangay || '').trim()) {
-      showToast('Minanang Lokasyon: Paki-tsek ang "Kumpirmadong Lokasyon" sa modal bago i-verify.', 'error');
       return;
     }
 
@@ -1175,7 +1167,7 @@ export default function IncidentReports() {
                             />
                           </td>
                           <td className="px-3.5 py-3.5 w-28 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-1.5">
                               {report.status === 'pending' && (
                                 <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 ring-4 ring-blue-500/20 animate-pulse" title="Pending" />
                               )}
@@ -1183,13 +1175,8 @@ export default function IncidentReports() {
                                 className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700 truncate inline-block"
                                 title={`Original ID: ${report.id}`}
                               >
-                                {report.reportNo ? `#${report.reportNo}` : formatReportCode(report.id, report.source)}
+                                {formatReportCode(report.id, report.source)}
                               </span>
-                              {report.hasAddendum && (
-                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                                  Addendum
-                                </span>
-                              )}
                             </div>
                           </td>
                           <td className="px-3.5 py-3.5 text-slate-900 dark:text-slate-100 font-medium whitespace-nowrap">
@@ -1199,17 +1186,7 @@ export default function IncidentReports() {
                                 Unknown Barangay
                               </span>
                             ) : (
-                              <div className="flex items-center gap-1.5">
-                                <span>{report.barangay}</span>
-                                {report.locationSource === 'inherited' && (
-                                  <span
-                                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25 shadow-2xs"
-                                    title="Location inherited from previous citizen report (unverified hint)"
-                                  >
-                                    ⚠️ Inherited
-                                  </span>
-                                )}
-                              </div>
+                              report.barangay
                             )}
                           </td>
                           <td className={`px-4 py-3.5 whitespace-nowrap font-medium text-xs ${getTypeColor(report.type)}`}>
@@ -1658,39 +1635,6 @@ export default function IncidentReports() {
                         </div>
                       </div>
                     </StaggerItem>
-
-                    {/* Inherited Location Review Notice */}
-                    {reviewingReport.locationSource === 'inherited' && (
-                      <StaggerItem>
-                        <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-4 flex items-start gap-3">
-                          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                          <div className="space-y-2 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
-                                Minanang Lokasyon (Unverified Hint)
-                              </span>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold">
-                                Inherited from Previous Report
-                              </span>
-                            </div>
-                            <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed">
-                              Ang barangay at landmark na ito ay awtomatikong minana mula sa naunang ulat ng citizen. Kung hindi binago ang lokasyon sa itaas, kailangang lagyan ng tsek ang checkbox bago i-verify bilang patunay na kinumpirma mo ito sa nag-ulat o sa barangay captain.
-                            </p>
-                            <label className="flex items-center gap-2.5 pt-1 cursor-pointer select-none">
-                              <input
-                                type="checkbox"
-                                checked={locationConfirmed}
-                                onChange={e => setLocationConfirmed(e.target.checked)}
-                                className="rounded border-amber-400 text-amber-600 focus:ring-0 w-4 h-4 cursor-pointer"
-                              />
-                              <span className="text-xs font-semibold text-amber-900 dark:text-amber-200">
-                                Kumpirmadong Lokasyon (Sinuri at napatunayang tama ang lokasyon)
-                              </span>
-                            </label>
-                          </div>
-                        </div>
-                      </StaggerItem>
-                    )}
 
                     {/* Verification Checklist — Apple Interactive Setting Cards */}
                     {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
