@@ -573,16 +573,23 @@ export default function MessengerBotLogs() {
 
                             {/* Content */}
                             <div className="flex-1 min-w-0 pr-1">
-                              <h4
-                                className={`text-xs sm:text-sm tracking-tight truncate transition-all duration-200 ${isIncomplete
-                                  ? "font-semibold text-slate-900 dark:text-white"
-                                  : isSelected
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <h4
+                                  className={`text-xs sm:text-sm tracking-tight truncate transition-all duration-200 ${isIncomplete
                                     ? "font-semibold text-slate-900 dark:text-white"
-                                    : "font-medium text-slate-700 dark:text-slate-300"
-                                  }`}
-                              >
-                                {convo.name}
-                              </h4>
+                                    : isSelected
+                                      ? "font-semibold text-slate-900 dark:text-white"
+                                      : "font-medium text-slate-700 dark:text-slate-300"
+                                    }`}
+                                >
+                                  {convo.name}
+                                </h4>
+                                {convo.reportNo && (
+                                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
+                                    #{convo.reportNo}
+                                  </span>
+                                )}
+                              </div>
                               <p
                                 className={`text-[11px] sm:text-xs truncate mt-0.5 leading-snug transition-all duration-200 ${isIncomplete
                                   ? "font-medium text-slate-600 dark:text-slate-300"
@@ -595,6 +602,21 @@ export default function MessengerBotLogs() {
                                 <span className="inline-flex items-center text-[9px] sm:text-[10px] font-medium bg-slate-100/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-400 rounded-md px-1.5 sm:px-2 py-0.5 border border-slate-200/50 dark:border-slate-700/50 truncate max-w-[130px] sm:max-w-none">
                                   {convo.type} · {convo.barangay}
                                 </span>
+                                {convo.hasAddendum && (
+                                  <span className="inline-flex items-center text-[9px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded">
+                                    Addendum
+                                  </span>
+                                )}
+                                {convo.locationSource === "inherited" && (
+                                  <span className="inline-flex items-center text-[9px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25 px-1.5 py-0.5 rounded" title="Location inherited from previous citizen report">
+                                    📍 Inherited Loc
+                                  </span>
+                                )}
+                                {convo.contactSource === "inherited" && (
+                                  <span className="inline-flex items-center text-[9px] font-semibold bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/25 px-1.5 py-0.5 rounded" title="Contact inherited from previous citizen report">
+                                    📞 Inherited Contact
+                                  </span>
+                                )}
                                 <span
                                   className={`inline-flex items-center gap-1.5 text-[9px] sm:text-[10px] font-medium rounded-md px-1.5 sm:px-2 py-0.5 border transition-colors duration-200 ${isIncomplete
                                     ? "bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/70"
@@ -717,8 +739,13 @@ export default function MessengerBotLogs() {
                           {selectedInitials}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-slate-900 dark:text-white text-xs sm:text-base tracking-tight truncate">
-                            {selectedConversation.name}
+                          <h3 className="font-semibold text-slate-900 dark:text-white text-xs sm:text-base tracking-tight truncate flex items-center gap-2">
+                            <span>{selectedConversation.name}</span>
+                            {selectedConversation.reportNo && (
+                              <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+                                Report #{selectedConversation.reportNo}
+                              </span>
+                            )}
                           </h3>
                           <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 sm:gap-1.5 mt-0.5 truncate">
                             <span className="truncate">{selectedConversation.barangay}</span>
@@ -783,6 +810,19 @@ export default function MessengerBotLogs() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Inherited Provenance Warning Banner */}
+                    {(selectedConversation.locationSource === "inherited" || selectedConversation.contactSource === "inherited") && (
+                      <div className="mx-3.5 sm:mx-6 mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2.5 text-xs text-amber-700 dark:text-amber-300 shrink-0">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                        <div>
+                          <span className="font-semibold">Paalala sa Opisyal: </span>
+                          {selectedConversation.locationSource === "inherited" && "Ang lokasyon ay minana mula sa naunang report ng citizen (unverified hint). "}
+                          {selectedConversation.contactSource === "inherited" && "Ang contact number ay minana mula sa naunang report. "}
+                          Kumpirmahin muna bago mag-dispatch ng rescue team.
+                        </div>
+                      </div>
+                    )}
 
                     {/* Messages — Apple Messages Thread with Edge Fade */}
                     <div
