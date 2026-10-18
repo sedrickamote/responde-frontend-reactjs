@@ -16,6 +16,7 @@ import type { MapLayerState } from '../types/geospatial';
 import PageLoader from '../components/PageLoader';
 import { BarangayBarChart } from '../components/BarangayBarChart';
 import { formatTimestampPHT, extractDisplayTime } from '../utils/dateUtils';
+import { apiRequest } from '../services/apiClient';
 
 // ── Types ──
 interface ScraperItem {
@@ -201,31 +202,25 @@ export default function Dashboard() {
   // Fetch Scraper posts (uses authenticated backend API with fallback to Supabase direct client)
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
 
     const fetchData = async () => {
       setLoading(true);
-
-      const API_BASE = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL ?? '');
-      const storedToken = (() => { try { return localStorage.getItem('responde_session_token'); } catch { return null; } })();
-      const hdrs: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (storedToken) hdrs['Authorization'] = `Bearer ${storedToken}`;
 
       let rows: any[] = [];
       let fetchError: string | null = null;
 
       try {
-        const res = await fetch(`${API_BASE}/api/auth/data/fb-comments?limit=100`, {
-          credentials: 'include',
-          headers: hdrs,
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          rows = json.data ?? (Array.isArray(json) ? json : []);
-        } else {
-          throw new Error(res.statusText || 'API non-200');
-        }
+        const json = await apiRequest<{ data?: any[] }>(
+          '/api/auth/data/fb-comments?limit=100',
+          {
+            signal: controller.signal,
+            cacheTtlMs: 8000,
+          }
+        );
+        rows = json.data ?? (Array.isArray(json) ? json : []);
       } catch (apiErr: any) {
+        if (apiErr.name === 'AbortError') return;
         console.warn('[Dashboard] Failed to fetch FB comments from backend:', apiErr?.message);
         fetchError = apiErr?.message || 'Failed to load comments';
       }
@@ -281,6 +276,7 @@ export default function Dashboard() {
 
     return () => {
       isMounted = false;
+      controller.abort();
     };
   }, []);
 

@@ -3,7 +3,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import { sampleReports } from '../data/sample-reports';
 import {
     fetchReports,
     subscribeToReports,
@@ -28,7 +27,7 @@ interface ReportsContextValue {
 const ReportsContext = createContext<ReportsContextValue | null>(null);
 
 export function ReportsProvider({ children }: { children: ReactNode }) {
-    const [reports, setReports] = useState<Report[]>(sampleReports);
+    const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const { triggerPriorityAlert } = useNotifications();
     const knownReportIdsRef = useRef<Set<string>>(new Set());
@@ -105,13 +104,23 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
 
         initialLoad();
 
+        // Debounce live database refresh to avoid rapid-fire API request storms during scraper batches
+        let refreshDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+        const debouncedRefresh = () => {
+            if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+            refreshDebounceTimer = setTimeout(() => {
+                refreshReports(false);
+            }, 1200);
+        };
+
         // Subscribe to live database changes across conversations, fb_comments, and incident_reports
         const unsubscribe = subscribeToReports(() => {
-            refreshReports(false);
+            debouncedRefresh();
         });
 
         return () => {
             mounted = false;
+            if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
             unsubscribe();
         };
     }, [refreshReports, handleIncomingReports]);

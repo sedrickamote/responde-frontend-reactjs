@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { apiRequest } from '../services/apiClient';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -303,29 +304,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     async function loadRecentHistory() {
       try {
-        const API_BASE = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL ?? '');
-        const storedToken = (() => { try { return localStorage.getItem('responde_session_token'); } catch { return null; } })();
-        const hdrs: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (storedToken) hdrs['Authorization'] = `Bearer ${storedToken}`;
-
         let commentsData: any[] = [];
         let convosData: any[] = [];
 
         try {
           const [cRes, mRes] = await Promise.all([
-            fetch(`${API_BASE}/api/auth/data/fb-comments?limit=25`, { credentials: 'include', headers: hdrs }),
-            fetch(`${API_BASE}/api/auth/data/conversations?limit=25`, { credentials: 'include', headers: hdrs }),
+            apiRequest<{ data?: any[] }>('/api/auth/data/fb-comments?limit=25', { cacheTtlMs: 8000 }),
+            apiRequest<{ data?: any[] }>('/api/auth/data/conversations?limit=25', { cacheTtlMs: 8000 }),
           ]);
-          if (cRes.ok) {
-            const j = await cRes.json();
-            commentsData = j.data ?? [];
-          }
-          if (mRes.ok) {
-            const j = await mRes.json();
-            convosData = j.data ?? [];
-          }
+          commentsData = cRes.data ?? [];
+          convosData = mRes.data ?? [];
         } catch {
-          // Backend API fetch failed, proceed to Supabase fallback
+          // Backend API fetch failed or rate-limited, proceed with cached/stored history
         }
 
         const fetchedItems: AppNotification[] = [];
