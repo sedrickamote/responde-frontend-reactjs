@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL ?? '');
 
 export type UserRole = 'staff' | 'admin' | 'super_admin';
 

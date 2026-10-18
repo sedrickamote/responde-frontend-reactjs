@@ -3,7 +3,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { sampleReports } from '../data/sample-reports';
 import {
     fetchReports,
     subscribeToReports,
@@ -27,18 +26,18 @@ interface ReportsContextValue {
 const ReportsContext = createContext<ReportsContextValue | null>(null);
 
 export function ReportsProvider({ children }: { children: ReactNode }) {
-    const [reports, setReports] = useState<Report[]>(sampleReports);
+    const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
 
     const refreshReports = useCallback(async (showLoader = false) => {
         if (showLoader) setLoading(true);
         try {
             const liveData = await fetchReports();
-            if (Array.isArray(liveData) && liveData.length > 0) {
+            if (Array.isArray(liveData)) {
                 setReports(liveData);
             }
         } catch (err) {
-            console.warn('[ReportsContext] Could not load live reports, using resilient offline fallback:', err);
+            console.warn('[ReportsContext] Could not load live reports:', err);
         } finally {
             if (showLoader) setLoading(false);
         }
@@ -49,11 +48,11 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
         const initialLoad = async () => {
             try {
                 const liveData = await fetchReports();
-                if (mounted && Array.isArray(liveData) && liveData.length > 0) {
+                if (mounted && Array.isArray(liveData)) {
                     setReports(liveData);
                 }
             } catch (err) {
-                console.warn('[ReportsContext] Initial load failed, using fallback:', err);
+                console.warn('[ReportsContext] Initial load failed:', err);
             } finally {
                 if (mounted) setLoading(false);
             }
