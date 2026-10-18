@@ -1,14 +1,16 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Filter, Globe, MessageCircle, AlertTriangle, MapPin, Clock,
   CheckCircle, XCircle, Brain, Users, ExternalLink,
-  Loader2, Radio, X, ChevronLeft, ChevronDown, RotateCcw,
+  Loader2, Radio, X, ChevronLeft, ChevronRight, ChevronDown, RotateCcw, RefreshCw,
 } from "lucide-react";
 import DatePicker from "../components/DatePicker";
 import FilterDropdown from "../components/DropDown";
 import { StaggerContainer, StaggerItem } from "../components/Stagger";
 import { authService } from "../services/authService";
+import { apiRequest } from "../services/apiClient";
+import { useDebounce } from "../hooks/useDebounce";
 import PageLoader from "../components/PageLoader";
 import { TALISAY_BARANGAYS } from "../data/talisay-barangays";
 
@@ -158,6 +160,23 @@ export default function ScraperFeed() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
+  // Pagination state (20 comments per page)
+  const PAGE_SIZE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // 300ms debounce on filter inputs to eliminate rapid filter stutter
+  const debouncedBarangay = useDebounce(filterBarangay, 300);
+  const debouncedType = useDebounce(filterType, 300);
+  const debouncedUrgency = useDebounce(filterUrgency, 300);
+  const debouncedStatus = useDebounce(filterStatus, 300);
+  const debouncedFromDate = useDebounce(fromDate, 300);
+  const debouncedToDate = useDebounce(toDate, 300);
+
+  // Reset to first page when any debounced filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedBarangay, debouncedType, debouncedUrgency, debouncedStatus, debouncedFromDate, debouncedToDate]);
+
   // -- Toast State --
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [toastIdCounter, setToastIdCounter] = useState(0);
@@ -226,45 +245,43 @@ export default function ScraperFeed() {
     }
   };
 
-  // -- Fetch from backend API (authenticated) --
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      setError(null);
+  // -- Fetch from backend API (authenticated, cached, deduplicated) --
+  const fetchPosts = useCallback(async (isFirst = false, signal?: AbortSignal, forceRefresh = false) => {
+    if (isFirst) setLoading(true);
+    setError(null);
 
-      try {
-        const API_BASE = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL ?? '');
-        const storedToken = (() => { try { return localStorage.getItem('responde_session_token'); } catch { return null; } })();
-        const hdrs: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (storedToken) hdrs['Authorization'] = `Bearer ${storedToken}`;
-
-        const res = await fetch(`${API_BASE}/api/auth/data/fb-comments?limit=100`, {
-          credentials: 'include',
-          headers: hdrs,
-        });
-
-        if (!res.ok) {
-          const errJson = await res.json().catch(() => ({ error: res.statusText }));
-          setError(errJson.error || 'Failed to fetch FB comments');
-          setLoading(false);
-          return;
+    try {
+      const json = await apiRequest<{ data?: any[] }>(
+        '/api/auth/data/fb-comments?limit=100',
+        {
+          signal,
+          forceRefresh,
+          cacheTtlMs: 8000,
         }
+      );
 
-        const json = await res.json();
-        const data: any[] = json.data ?? [];
-        setActiveTable('fb_comments');
-        setDiscoveredTables(['fb_comments']);
-        processData(data, 'fb_comments');
-      } catch (err: any) {
-        console.error('[ScraperFeed] Fetch error:', err);
-        setError(err.message || 'An unexpected error occurred');
+      const data: any[] = json.data ?? [];
+      setActiveTable('fb_comments');
+      setDiscoveredTables(['fb_comments']);
+      processData(data, 'fb_comments');
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
+      console.warn('[ScraperFeed] Fetch warning:', err.message);
+      setError((prev) => (posts.length === 0 ? (err.message || 'An unexpected error occurred') : prev));
+      if (posts.length === 0) {
         showToast(err.message || 'An unexpected error occurred', 'error');
-        setLoading(false);
       }
-    };
+      setLoading(false);
+    }
+  }, [posts.length]);
 
-    fetchPosts();
-  }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchPosts(true, controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [fetchPosts]);
 
   const handleUpdateStatus = async (postId: string, newStatus: ScrapedPost["status"]) => {
     const prevStatus = posts.find(p => p.id === postId)?.status;
@@ -309,6 +326,7 @@ export default function ScraperFeed() {
     setFilterStatus("All Status");
     setFromDate("");
     setToDate("");
+    setCurrentPage(1);
   };
 
   const availableBarangays = useMemo(() => {
@@ -341,26 +359,33 @@ export default function ScraperFeed() {
     return null;
   };
 
-  // Filter logic
+  // Filter logic with 300ms debounced inputs
   const filteredPosts = useMemo(() => {
     return posts.filter((p) => {
-      if (filterBarangay !== "All Barangays" && p.barangay?.toLowerCase() !== filterBarangay.toLowerCase()) return false;
-      if (filterType !== "All Types" && p.type?.toLowerCase() !== filterType.toLowerCase()) return false;
-      if (filterUrgency !== "All Urgency" && p.urgency?.toLowerCase() !== filterUrgency.toLowerCase()) return false;
-      if (filterStatus !== "All Status" && p.status?.toLowerCase() !== filterStatus.toLowerCase()) return false;
-      if (fromDate) {
+      if (debouncedBarangay !== "All Barangays" && p.barangay?.toLowerCase() !== debouncedBarangay.toLowerCase()) return false;
+      if (debouncedType !== "All Types" && p.type?.toLowerCase() !== debouncedType.toLowerCase()) return false;
+      if (debouncedUrgency !== "All Urgency" && p.urgency?.toLowerCase() !== debouncedUrgency.toLowerCase()) return false;
+      if (debouncedStatus !== "All Status" && p.status?.toLowerCase() !== debouncedStatus.toLowerCase()) return false;
+      if (debouncedFromDate) {
         const dStr = getPostDateString(p);
-        if (dStr && dStr < fromDate) return false;
+        if (dStr && dStr < debouncedFromDate) return false;
       }
-      if (toDate) {
+      if (debouncedToDate) {
         const dStr = getPostDateString(p);
-        if (dStr && dStr > toDate) return false;
+        if (dStr && dStr > debouncedToDate) return false;
       }
       return true;
     });
-  }, [posts, filterBarangay, filterType, filterUrgency, filterStatus, fromDate, toDate]);
+  }, [posts, debouncedBarangay, debouncedType, debouncedUrgency, debouncedStatus, debouncedFromDate, debouncedToDate]);
 
-  const selectedPost = filteredPosts.find((p) => p.id === selectedId) || filteredPosts[0] || null;
+  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / PAGE_SIZE));
+
+  const paginatedPosts = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredPosts.slice(start, start + PAGE_SIZE);
+  }, [filteredPosts, currentPage]);
+
+  const selectedPost = filteredPosts.find((p) => p.id === selectedId) || paginatedPosts[0] || null;
 
   useEffect(() => {
     if (filteredPosts.length > 0) {
@@ -488,15 +513,23 @@ export default function ScraperFeed() {
       {loading && <PageLoader variant="scraper" />}
 
       {/* Error State */}
-      {!loading && error && (
+      {!loading && error && posts.length === 0 && (
         <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 max-w-md text-center">
+          <div className="flex flex-col items-center gap-3 text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 max-w-md text-center shadow-lg">
             <AlertTriangle className="w-8 h-8" />
             <p className="font-semibold text-sm">Failed to load scraped comments</p>
             <p className="text-xs text-red-400 font-mono">{error}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Check your Supabase credentials and RLS policies.
+              The system experienced a temporary connection or rate-limit delay. Click retry below.
             </p>
+            <button
+              type="button"
+              onClick={() => fetchPosts(true, undefined, true)}
+              className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-95 transition-all cursor-pointer shadow-sm"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry Now</span>
+            </button>
           </div>
         </div>
       )}
@@ -666,7 +699,7 @@ export default function ScraperFeed() {
                   </div>
                 ) : (
                   <StaggerContainer className="space-y-1">
-                    {filteredPosts.map((post) => {
+                    {paginatedPosts.map((post) => {
                       const isSelected = selectedId === post.id;
                       return (
                         <StaggerItem key={post.id} className="w-full">
@@ -736,6 +769,38 @@ export default function ScraperFeed() {
                   </StaggerContainer>
                 )}
               </div>
+
+              {/* Pagination Controls Footer */}
+              {filteredPosts.length > PAGE_SIZE && (
+                <div className="px-3.5 py-2.5 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md flex items-center justify-between gap-2 shrink-0">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
+                    Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredPosts.length)} of {filteredPosts.length}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                      title="Previous Page"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 px-1.5 tabular-nums">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                      title="Next Page"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* RIGHT: Post Detail — macOS Inspector Style */}

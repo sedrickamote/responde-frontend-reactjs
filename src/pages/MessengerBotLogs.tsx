@@ -7,6 +7,7 @@ import { StaggerContainer, StaggerItem } from "../components/Stagger";
 import PageLoader from "../components/PageLoader";
 import { useBotConversations, type BotConversation as Conversation } from "../context/BotConversationsContext";
 import { TALISAY_BARANGAYS } from "../data/talisay-barangays";
+import { useDebounce } from "../hooks/useDebounce";
 
 
 
@@ -147,6 +148,7 @@ export default function MessengerBotLogs() {
     updateConversationStatus: setContextStatus,
     loading,
     error,
+    refetchConversations,
   } = useBotConversations();
 
   const [selectedId, setSelectedId] = useState<string>("conv_1");
@@ -158,6 +160,22 @@ export default function MessengerBotLogs() {
   const [filterType, setFilterType] = useState("All Types");
   const [filterStatus, setFilterStatus] = useState("All Status");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Pagination state (20 conversations per page)
+  const PAGE_SIZE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // 300ms debounce on all filter inputs to prevent re-filtering on rapid clicks
+  const debouncedBarangay = useDebounce(filterBarangay, 300);
+  const debouncedType = useDebounce(filterType, 300);
+  const debouncedStatus = useDebounce(filterStatus, 300);
+  const debouncedFromDate = useDebounce(fromDate, 300);
+  const debouncedToDate = useDebounce(toDate, 300);
+
+  // Reset to first page when any debounced filter value changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedBarangay, debouncedType, debouncedStatus, debouncedFromDate, debouncedToDate]);
 
   // Keep first conversation selected once loaded
   useEffect(() => {
@@ -221,6 +239,7 @@ export default function MessengerBotLogs() {
     setFromDate("");
     setToDate("");
     setSelectedId("");
+    setCurrentPage(1);
   };
 
   const getConvoDateString = (c: Conversation): string | null => {
@@ -259,29 +278,36 @@ export default function MessengerBotLogs() {
 
   const filteredConversations = useMemo(() => {
     return conversations.filter((c) => {
-      if (filterBarangay !== "All Barangays" && c.barangay?.toLowerCase() !== filterBarangay.toLowerCase()) {
+      if (debouncedBarangay !== "All Barangays" && c.barangay?.toLowerCase() !== debouncedBarangay.toLowerCase()) {
         return false;
       }
-      if (filterType !== "All Types" && c.type?.toLowerCase() !== filterType.toLowerCase()) {
+      if (debouncedType !== "All Types" && c.type?.toLowerCase() !== debouncedType.toLowerCase()) {
         return false;
       }
-      if (filterStatus !== "All Status" && c.status?.toLowerCase() !== filterStatus.toLowerCase()) {
+      if (debouncedStatus !== "All Status" && c.status?.toLowerCase() !== debouncedStatus.toLowerCase()) {
         return false;
       }
-      if (fromDate) {
+      if (debouncedFromDate) {
         const dStr = getConvoDateString(c);
-        if (dStr && dStr < fromDate) return false;
+        if (dStr && dStr < debouncedFromDate) return false;
       }
-      if (toDate) {
+      if (debouncedToDate) {
         const dStr = getConvoDateString(c);
-        if (dStr && dStr > toDate) return false;
+        if (dStr && dStr > debouncedToDate) return false;
       }
       return true;
     });
-  }, [conversations, filterBarangay, filterType, filterStatus, fromDate, toDate]);
+  }, [conversations, debouncedBarangay, debouncedType, debouncedStatus, debouncedFromDate, debouncedToDate]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredConversations.length / PAGE_SIZE));
+
+  const paginatedConversations = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredConversations.slice(start, start + PAGE_SIZE);
+  }, [filteredConversations, currentPage]);
 
   const selectedConversation =
-    filteredConversations.find((c) => c.id === selectedId) || filteredConversations[0] || null;
+    filteredConversations.find((c) => c.id === selectedId) || paginatedConversations[0] || null;
 
   // Sync selectedId with first filtered item when active filter excludes previous selection
   useEffect(() => {
@@ -331,15 +357,23 @@ export default function MessengerBotLogs() {
       {loading && <PageLoader variant="messenger" />}
 
       {/* Error state */}
-      {!loading && error && (
+      {!loading && error && conversations.length === 0 && (
         <div className="flex-1 flex items-center justify-center p-4">
-          <div className="flex flex-col items-center gap-3 text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 max-w-md text-center">
+          <div className="flex flex-col items-center gap-3 text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 max-w-md text-center shadow-lg">
             <AlertCircle className="w-8 h-8" />
             <p className="font-semibold text-sm">Failed to load conversations</p>
             <p className="text-xs text-red-400 font-mono">{error}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Check your browser console and verify your Supabase credentials in <code>.env</code>.
+              The system experienced a temporary connection or rate-limit delay. Click retry below.
             </p>
+            <button
+              type="button"
+              onClick={() => refetchConversations()}
+              className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-95 transition-all cursor-pointer shadow-sm"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry Now</span>
+            </button>
           </div>
         </div>
       )}
@@ -490,7 +524,7 @@ export default function MessengerBotLogs() {
                   </div>
                 ) : (
                   <StaggerContainer className="space-y-1">
-                    {filteredConversations.map((convo, index) => {
+                    {paginatedConversations.map((convo, index) => {
                       const isSelected = selectedId === convo.id;
                       const isIncomplete = convo.status === "Incomplete";
                       return (
@@ -611,6 +645,38 @@ export default function MessengerBotLogs() {
                   </StaggerContainer>
                 )}
               </div>
+
+              {/* Pagination Controls Footer */}
+              {filteredConversations.length > PAGE_SIZE && (
+                <div className="px-3.5 py-2.5 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md flex items-center justify-between gap-2 shrink-0">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
+                    Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredConversations.length)} of {filteredConversations.length}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                      title="Previous Page"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 px-1.5 tabular-nums">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                      title="Next Page"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* RIGHT: Message Detail — Apple Messages Style */}
