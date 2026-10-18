@@ -24,18 +24,13 @@ import {
 import { useReports } from '../context/ReportsContext';
 import { useBotConversations, type BotMessage } from '../context/BotConversationsContext';
 import { TALISAY_BARANGAYS } from '../data/talisay-barangays';
+import { formatPhilippineTimeOnly, getPhilippineTimestampNow } from '../utils/dateUtils';
 
 export type TabKey = 'under_review' | 'incomplete' | 'verified' | 'resolved' | 'rejected';
 
 export const BASE_INCIDENT_TYPES = ['Earthquake', 'Fire', 'Flood', 'Landslide', 'None'] as const;
 
-const formatBubbleTime = (iso?: string) => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? ''
-    : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-};
+const formatBubbleTime = (iso?: string) => formatPhilippineTimeOnly(iso);
 
 // ── Apple Design Spring Physics & Ease curves ──
 const APPLE_SPRING = { type: 'spring', stiffness: 340, damping: 34, mass: 0.8 } as const;
@@ -622,7 +617,7 @@ export default function IncidentReports() {
       setCoordError(false);
     }
 
-    const now = new Date().toLocaleString('en-US', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    const now = getPhilippineTimestampNow();
     const actionDesc = editForm.action || 'Verified and plotted on map';
     const updated: Report = {
       ...reviewingReport,

@@ -15,6 +15,7 @@ import { useBotConversations, type BotConversation } from '../context/BotConvers
 import type { MapLayerState } from '../types/geospatial';
 import PageLoader from '../components/PageLoader';
 import { BarangayBarChart } from '../components/BarangayBarChart';
+import { formatTimestampPHT, extractDisplayTime } from '../utils/dateUtils';
 import { apiRequest } from '../services/apiClient';
 
 // ── Types ──
@@ -89,20 +90,12 @@ function getLastMessage(convo: BotConversation): string {
 }
 
 function formatDisplayTime(timeStr: string): string {
-  if (!timeStr) return "";
-  if (timeStr.includes(" ")) {
-    const parts = timeStr.split(" ");
-    return parts[parts.length - 1];
-  }
-  return timeStr;
+  return extractDisplayTime(timeStr);
 }
 
 // ── Helpers ──
 function formatTimestamp(ts: string | null): string {
-  if (!ts) return '';
-  const d = new Date(ts);
-  if (isNaN(d.getTime())) return String(ts);
-  return `${d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })} ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+  return formatTimestampPHT(ts);
 }
 
 function inferType(incidentType: string, text: string): string {

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import SignOutModal from '../components/SignOutModal';
 import { authService, type AuthUser, type UserRole, AuthError } from '../services/authService';
+import { formatPhilippineDateTime } from '../utils/dateUtils';
 
 type AuditAction = 'invite' | 'signup' | 'role_change' | 'user_deleted' | 'password_change' | 'login';
 
@@ -40,7 +41,7 @@ const formatRelative = (iso: string) => {
   if (diff < 1) return 'Just now';
   if (diff < 60) return `${diff} min ago`;
   if (diff < 1440) return `${Math.floor(diff / 60)} hr ago`;
-  return new Date(iso).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+  return formatPhilippineDateTime(iso, { includeYear: true });
 };
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
@@ -1084,10 +1085,7 @@ export default function Settings() {
 
                         <td className="px-4 py-3 text-xs text-slate-400 hidden md:table-cell">
                           {u.last_login_at
-                            ? new Date(u.last_login_at).toLocaleString('en-US', {
-                              dateStyle: 'short',
-                              timeStyle: 'short',
-                            })
+                            ? formatPhilippineDateTime(u.last_login_at, { includeYear: true })
                             : 'Never'}
                         </td>
 

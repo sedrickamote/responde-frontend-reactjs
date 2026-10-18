@@ -108,8 +108,13 @@ const URGENCY_WEIGHT: Record<string, number> = { High: 3, Moderate: 2, Low: 1 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function parseReportTime(value: string) {
-  const m = String(value || '').match(/^(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})$/);
-  return m ? { month: +m[1], day: +m[2], hour: +m[3], minute: +m[4] } : null;
+  const m = String(value || '').trim().match(/^(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})(?:\s*([AP]M))?$/i);
+  if (!m) return null;
+  let hour = +m[3];
+  const ampm = m[5]?.toUpperCase();
+  if (ampm === 'PM' && hour < 12) hour += 12;
+  if (ampm === 'AM' && hour === 12) hour = 0;
+  return { month: +m[1], day: +m[2], hour, minute: +m[4] };
 }
 
 function responseMinutes(report: AnalyticsReport) {
