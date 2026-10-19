@@ -327,6 +327,16 @@ export default function ScraperFeed() {
       const nlpCategory = row.nlp_category || nlpInfo.nlpCategory;
       const nlpReason = row.nlp_reason || nlpInfo.nlpReason;
 
+      // Prioritize ML classified urgency and confidence stored in Supabase
+      const nlpConfidence = typeof row.confidence === "number" && row.confidence > 0
+        ? row.confidence
+        : (row.urgency_confidence ? Math.round(row.urgency_confidence * 100) : (row.incident_type_confidence ? Math.round(row.incident_type_confidence * 100) : 0));
+
+      const rawUrgency = row.urgency ? String(row.urgency).trim().toLowerCase() : '';
+      const resolvedUrgency: ScrapedPost["urgency"] = (rawUrgency === 'high' || rawUrgency === 'moderate' || rawUrgency === 'low')
+        ? (rawUrgency.charAt(0).toUpperCase() + rawUrgency.slice(1)) as ScrapedPost["urgency"]
+        : inferUrgency(row.incident_type || row.type, text);
+
       return {
         id: String(idVal),
         source: source as ScrapedPost["source"],
@@ -335,11 +345,11 @@ export default function ScraperFeed() {
         rawText: text,
         barangay,
         type: inferType(row.incident_type || row.type, text),
-        urgency: inferUrgency(row.incident_type || row.type, text),
+        urgency: resolvedUrgency,
         status: status as ScrapedPost["status"],
         timestamp: formatTimestamp(row.created_at || row.timestamp),
         createdAt: row.created_at || row.timestamp || "",
-        confidence: confidence > 0 ? confidence : (isIncident ? 88 : 15),
+        confidence: nlpConfidence > 0 ? nlpConfidence : (isIncident ? 88 : 15),
         isIncident,
         nlpCategory,
         nlpReason,
@@ -643,25 +653,45 @@ export default function ScraperFeed() {
       {/* Skeleton — shown on first load, replaced by real content */}
       {loading && <PageLoader variant="scraper" />}
 
-      {/* Error State */}
+      {/* Error State with Cold-Start / Waking Up detection */}
       {!loading && error && posts.length === 0 && (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 max-w-md text-center shadow-lg">
-            <AlertTriangle className="w-8 h-8" />
-            <p className="font-semibold text-sm">Failed to load scraped comments</p>
-            <p className="text-xs text-red-400 font-mono">{error}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              The system experienced a temporary connection or rate-limit delay. Click retry below.
-            </p>
-            <button
-              type="button"
-              onClick={() => fetchPosts(true, undefined, true)}
-              className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-95 transition-all cursor-pointer shadow-sm"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Retry Now</span>
-            </button>
-          </div>
+        <div className="flex-1 flex items-center justify-center p-4">
+          {error.includes("Too many requests") || error.includes("429") || error.includes("503") || error.toLowerCase().includes("unavailable") || error.toLowerCase().includes("timeout") ? (
+            <div className="flex flex-col items-center gap-3 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-6 max-w-md text-center shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 animate-pulse">
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              </div>
+              <p className="font-semibold text-sm text-slate-800 dark:text-slate-200">Server is waking up...</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                The scraper feed service is warming up or handling a temporary rate-limit delay. Stored comments will appear shortly.
+              </p>
+              <button
+                type="button"
+                onClick={() => fetchPosts(true, undefined, true)}
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-[#0071E3] text-white hover:bg-blue-600 active:scale-95 transition-all cursor-pointer shadow-sm"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Retry Connection</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 max-w-md text-center shadow-lg">
+              <AlertTriangle className="w-8 h-8" />
+              <p className="font-semibold text-sm">Failed to load scraped comments</p>
+              <p className="text-xs text-red-400 font-mono">{error}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                The system experienced a temporary connection delay. Click retry below.
+              </p>
+              <button
+                type="button"
+                onClick={() => fetchPosts(true, undefined, true)}
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-95 transition-all cursor-pointer shadow-sm"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Retry Now</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 

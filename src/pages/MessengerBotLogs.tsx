@@ -12,6 +12,7 @@ import PageLoader from "../components/PageLoader";
 import { useBotConversations, type BotConversation as Conversation } from "../context/BotConversationsContext";
 import { TALISAY_BARANGAYS } from "../data/talisay-barangays";
 import { extractDisplayTime, formatPhilippineTimeOnly } from "../utils/dateUtils";
+import { useDebounce } from "../hooks/useDebounce";
 
 // -- NLP Analysis for Messenger Conversations --
 export interface ConvoNLPAnalysis {
@@ -248,6 +249,7 @@ export default function MessengerBotLogs() {
     updateConversationStatus: setContextStatus,
     loading,
     error,
+    refetchConversations,
   } = useBotConversations();
 
   // Structured (NLP Incident Reports only) vs Unstructured (Raw Chat Logs)
@@ -275,7 +277,25 @@ export default function MessengerBotLogs() {
   const [toDate, setToDate] = useState("");
   const [filterBarangay, setFilterBarangay] = useState("All Barangays");
   const [filterType, setFilterType] = useState("All Types");
+  const [filterUrgency, setFilterUrgency] = useState("All Urgency");
   const [filterStatus, setFilterStatus] = useState("All Status");
+
+  // Pagination state (20 conversations per page)
+  const PAGE_SIZE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // 300ms debounce on filter inputs to eliminate rapid filter stutter
+  const debouncedBarangay = useDebounce(filterBarangay, 300);
+  const debouncedType = useDebounce(filterType, 300);
+  const debouncedUrgency = useDebounce(filterUrgency, 300);
+  const debouncedStatus = useDebounce(filterStatus, 300);
+  const debouncedFromDate = useDebounce(fromDate, 300);
+  const debouncedToDate = useDebounce(toDate, 300);
+
+  // Reset to first page when any debounced filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedBarangay, debouncedType, debouncedUrgency, debouncedStatus, debouncedFromDate, debouncedToDate]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Track seen conversations (persisted in localStorage)
@@ -371,6 +391,7 @@ export default function MessengerBotLogs() {
   const activeFilterCount =
     (filterBarangay !== "All Barangays" ? 1 : 0) +
     (filterType !== "All Types" ? 1 : 0) +
+    (filterUrgency !== "All Urgency" ? 1 : 0) +
     (filterStatus !== "All Status" ? 1 : 0) +
     (fromDate ? 1 : 0) +
     (toDate ? 1 : 0);
@@ -390,10 +411,12 @@ export default function MessengerBotLogs() {
   const resetFilters = () => {
     setFilterBarangay("All Barangays");
     setFilterType("All Types");
+    setFilterUrgency("All Urgency");
     setFilterStatus("All Status");
     setFromDate("");
     setToDate("");
     setSelectedId("");
+    setCurrentPage(1);
   };
 
   const getConvoDateString = (c: Conversation): string | null => {
@@ -433,26 +456,36 @@ export default function MessengerBotLogs() {
   const filteredConversations = useMemo(() => {
     return analyzedConversations.filter((c) => {
       if (viewMode === "structured" && !c.nlp.isIncident) return false;
-      if (filterBarangay !== "All Barangays" && c.barangay?.toLowerCase() !== filterBarangay.toLowerCase()) {
+      if (debouncedBarangay !== "All Barangays" && c.barangay?.toLowerCase() !== debouncedBarangay.toLowerCase()) {
         return false;
       }
-      if (filterType !== "All Types" && c.type?.toLowerCase() !== filterType.toLowerCase()) {
+      if (debouncedType !== "All Types" && c.type?.toLowerCase() !== debouncedType.toLowerCase()) {
         return false;
       }
-      if (filterStatus !== "All Status" && c.status?.toLowerCase() !== filterStatus.toLowerCase()) {
+      if (debouncedUrgency !== "All Urgency" && c.nlp?.urgency?.toLowerCase() !== debouncedUrgency.toLowerCase()) {
         return false;
       }
-      if (fromDate) {
+      if (debouncedStatus !== "All Status" && c.status?.toLowerCase() !== debouncedStatus.toLowerCase()) {
+        return false;
+      }
+      if (debouncedFromDate) {
         const dStr = getConvoDateString(c);
-        if (dStr && dStr < fromDate) return false;
+        if (dStr && dStr < debouncedFromDate) return false;
       }
-      if (toDate) {
+      if (debouncedToDate) {
         const dStr = getConvoDateString(c);
-        if (dStr && dStr > toDate) return false;
+        if (dStr && dStr > debouncedToDate) return false;
       }
       return true;
     });
-  }, [analyzedConversations, viewMode, filterBarangay, filterType, filterStatus, fromDate, toDate]);
+  }, [analyzedConversations, viewMode, debouncedBarangay, debouncedType, debouncedUrgency, debouncedStatus, debouncedFromDate, debouncedToDate]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredConversations.length / PAGE_SIZE));
+
+  const paginatedConversations = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredConversations.slice(start, start + PAGE_SIZE);
+  }, [filteredConversations, currentPage]);
 
   const selectedConversation =
     filteredConversations.find((c) => c.id === selectedId) || filteredConversations[0] || null;
@@ -505,17 +538,45 @@ export default function MessengerBotLogs() {
       {/* Skeleton — shown on first load, replaced by real content */}
       {loading && <PageLoader variant="messenger" />}
 
-      {/* Error state */}
+      {/* Error state with Cold-Start / Waking Up detection */}
       {!loading && error && (
         <div className="flex-1 flex items-center justify-center p-4">
-          <div className="flex flex-col items-center gap-3 text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 max-w-md text-center">
-            <AlertCircle className="w-8 h-8" />
-            <p className="font-semibold text-sm">Failed to load conversations</p>
-            <p className="text-xs text-red-400 font-mono">{error}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Check your browser console and verify your Supabase credentials in <code>.env</code>.
-            </p>
-          </div>
+          {error.includes("Too many requests") || error.includes("429") || error.includes("503") || error.toLowerCase().includes("unavailable") || error.toLowerCase().includes("timeout") ? (
+            <div className="flex flex-col items-center gap-3 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-6 max-w-md text-center shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 animate-pulse">
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              </div>
+              <p className="font-semibold text-sm text-slate-800 dark:text-slate-200">Server is waking up...</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                The cloud instance is spinning up from a cold-start sleep or handling a brief rate limit. Live conversations will load in just a moment.
+              </p>
+              <button
+                type="button"
+                onClick={() => refetchConversations && refetchConversations()}
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-[#0071E3] text-white hover:bg-blue-600 active:scale-95 transition-all cursor-pointer shadow-sm"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Retry Connection</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 max-w-md text-center">
+              <AlertCircle className="w-8 h-8" />
+              <p className="font-semibold text-sm">Failed to load conversations</p>
+              <p className="text-xs text-red-400 font-mono">{error}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Please check your network connection or try refreshing the page.
+              </p>
+              <button
+                type="button"
+                onClick={() => refetchConversations && refetchConversations()}
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-95 transition-all cursor-pointer shadow-sm"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Retry</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -579,6 +640,13 @@ export default function MessengerBotLogs() {
                     value={filterType}
                     options={["All Types", ...availableTypes]}
                     onChange={(val) => { setFilterType(val); setSelectedId(""); }}
+                  />
+                </div>
+                <div className="col-span-1 md:col-span-auto">
+                  <FilterDropdown
+                    value={filterUrgency}
+                    options={["All Urgency", "High", "Moderate", "Low"]}
+                    onChange={(val) => { setFilterUrgency(val); setSelectedId(""); }}
                   />
                 </div>
                 <div className="col-span-2 sm:col-span-1 md:col-span-auto">
@@ -734,7 +802,7 @@ export default function MessengerBotLogs() {
                   </div>
                 ) : (
                   <StaggerContainer className="space-y-1">
-                    {filteredConversations.map((convo, index) => {
+                    {paginatedConversations.map((convo, index) => {
                       const isSelected = selectedId === convo.id;
                       const isSeen = seenConvoIds.has(convo.id);
                       const isIncomplete = convo.status === "Incomplete";
@@ -873,6 +941,37 @@ export default function MessengerBotLogs() {
                   </StaggerContainer>
                 )}
               </div>
+              {/* Pagination Controls Footer */}
+              {filteredConversations.length > PAGE_SIZE && (
+                <div className="px-3 py-2.5 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0 bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
+                    Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredConversations.length)} of {filteredConversations.length}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200/80 dark:border-slate-700/80 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                      title="Previous Page"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 px-1 tabular-nums">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200/80 dark:border-slate-700/80 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                      title="Next Page"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* RIGHT: Message Detail — Apple Messages Style */}
