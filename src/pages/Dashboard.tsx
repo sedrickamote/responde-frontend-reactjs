@@ -151,6 +151,8 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
   );
 }
 
+let dashboardMountCounter = 0;
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -165,6 +167,12 @@ export default function Dashboard() {
 
   const [scraperItems, setScraperItems] = useState<ScraperItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Instrument mount lifecycle to distinguish double-effect vs AnimatePresence unmount
+  const mountIdRef = useRef(0);
+  if (mountIdRef.current === 0) {
+    mountIdRef.current = ++dashboardMountCounter;
+  }
 
   // Modal states
   const [activeConv, setActiveConv] = useState<BotConversation | null>(null);
@@ -201,6 +209,10 @@ export default function Dashboard() {
 
   // Fetch Scraper posts (uses authenticated backend API with fallback to Supabase direct client)
   useEffect(() => {
+    const currentMountId = mountIdRef.current;
+    const mountTime = performance.now();
+    console.log(`[Dashboard:MountTrace #${currentMountId}] Mounted at +${mountTime.toFixed(1)}ms`);
+
     let isMounted = true;
     const controller = new AbortController();
 
@@ -220,9 +232,16 @@ export default function Dashboard() {
         );
         rows = json.data ?? (Array.isArray(json) ? json : []);
       } catch (apiErr: any) {
-        if (apiErr.name === 'AbortError') return;
+        if (apiErr.name === 'AbortError') {
+          console.log(`[Dashboard:MountTrace #${currentMountId}] Fetch aborted cleanly`);
+          return;
+        }
         console.warn('[Dashboard] Failed to fetch FB comments from backend:', apiErr?.message);
         fetchError = apiErr?.message || 'Failed to load comments';
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
 
       if (!isMounted) return;
@@ -260,7 +279,6 @@ export default function Dashboard() {
       }
 
       setScraperItems(mappedScraper);
-      setLoading(false);
 
       if (!hasShownInitialToast.current && mappedScraper.length > 0) {
         hasShownInitialToast.current = true;
@@ -275,6 +293,9 @@ export default function Dashboard() {
     fetchData();
 
     return () => {
+      const elapsed = performance.now() - mountTime;
+      const isFastUnmount = elapsed < 80;
+      console.log(`[Dashboard:MountTrace #${currentMountId}] Unmounting/aborting after ${elapsed.toFixed(1)}ms (${isFastUnmount ? 'Double-effect / StrictMode remount' : 'Route change / AnimatePresence transition'})`);
       isMounted = false;
       controller.abort();
     };

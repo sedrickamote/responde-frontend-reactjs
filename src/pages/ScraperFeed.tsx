@@ -393,12 +393,18 @@ export default function ScraperFeed() {
       const data: any[] = json.data ?? [];
       processData(data, 'fb_comments');
     } catch (err: any) {
-      if (err.name === 'AbortError') return;
+      if (err.name === 'AbortError') {
+        if (import.meta.env.DEV) {
+          console.log('[ScraperFeed] Fetch aborted cleanly');
+        }
+        return;
+      }
       console.warn('[ScraperFeed] Fetch warning:', err.message);
       setError((prev) => (posts.length === 0 ? (err.message || 'An unexpected error occurred') : prev));
       if (posts.length === 0) {
         showToast(err.message || 'An unexpected error occurred', 'error');
       }
+    } finally {
       setLoading(false);
     }
   }, [posts.length]);
