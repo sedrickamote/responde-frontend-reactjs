@@ -230,7 +230,7 @@ For the **Incident Reports** verification workflow, the backend should support:
 - **Light background gradient**: `113deg #fff → #f1f5ff → #e5ebff → #e3eaff`
 - **Animation easing**: Strong ease-out `[0.23, 1, 0.32, 1]` for UI interactions; no animation on high-frequency actions (tab switching)
 - **Modal pattern**: `scale(0.96)` at 250ms with backdrop blur; sections stagger in at 50ms
-- **Scrollbars**: Hidden globally via CSS while preserving scroll functionality
+- **Scrollbars**: Hidden globally via CSS while preserving scroll functionality.
 
 ---
 
