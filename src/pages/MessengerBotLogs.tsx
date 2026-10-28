@@ -467,9 +467,9 @@ export default function MessengerBotLogs() {
                     onClick={resetFilters}
                     className="col-span-2 md:col-span-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 transition-all duration-150 active:scale-[0.97] cursor-pointer shrink-0 ml-auto sm:ml-0"
                     title="Reset all filters"
+                    aria-label="Reset all filters"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Reset</span>
                   </button>
                 )}
               </div>
