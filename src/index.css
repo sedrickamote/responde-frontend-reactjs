@@ -66,3 +66,111 @@ button:not(:disabled),
 .dropdown-scroll::-webkit-scrollbar-thumb:hover {
   background-color: rgba(156, 163, 175, 0.6);
 }
+
+
+/* MDRRMO Talisay Command Center Radar Pulse */
+@keyframes mdrrmo-radar-wave {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.95;
+  }
+  55% {
+    transform: scale(1.9);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(2.9);
+    opacity: 0;
+  }
+}
+
+@keyframes mdrrmo-beacon-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.65));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px rgba(56, 189, 248, 0.95));
+  }
+}
+
+.mdrrmo-radar-ring {
+  position: absolute;
+  inset: -16px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(56, 189, 248, 0.7);
+  pointer-events: none;
+  animation: mdrrmo-radar-wave 2.8s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+  z-index: 10;
+}
+
+.mdrrmo-radar-ring-delayed {
+  position: absolute;
+  inset: -16px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(14, 165, 233, 0.55);
+  pointer-events: none;
+  animation: mdrrmo-radar-wave 2.8s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+  animation-delay: 1.3s;
+  z-index: 10;
+}
+
+.mdrrmo-beacon-core {
+  animation: mdrrmo-beacon-glow 2.5s ease-in-out infinite;
+}
+
+/* Always keep MDRRMO marker on top of all pins, clusters & labels */
+.mdrrmo-marker-wrapper {
+  z-index: 999999 !important;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.maplibregl-marker:has(.mdrrmo-marker-wrapper) {
+  z-index: 999999 !important;
+}
+
+.mdrrmo-logo-emblem {
+  position: relative;
+  z-index: 30;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: #0b132b;
+  border: 2px solid #38bdf8;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.8), 0 4px 12px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s ease;
+}
+
+.mdrrmo-marker-wrapper:hover .mdrrmo-logo-emblem {
+  transform: scale(1.12);
+  box-shadow: 0 0 24px rgba(56, 189, 248, 1), 0 6px 18px rgba(0, 0, 0, 0.55);
+  border-color: #7dd3fc;
+}
+
+.mdrrmo-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 9999px;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.mdrrmo-pin-pointer {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid #38bdf8;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+  margin-top: -1px;
+  z-index: 31;
+}

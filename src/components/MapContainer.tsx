@@ -1,5 +1,6 @@
 // src/components/MapContainer.tsx
-// MapLibre base map + Choropleth (real data) + Pin layer + Boundaries
+// MapLibre base map + Choropleth + Incident Pins + Boundaries
+// + MDRRMO Talisay HQ Beacon + True 3D Upward Curved Throbbing Dispatch Arcs
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -14,6 +15,17 @@ import type { BarangayFeatureCollection, MapLayerState, SelectedFeature } from '
 import type { Report } from '../data/sample-reports';
 
 import { talisayBarangays } from '../data/talisay-barangays';
+import mdrrmoLogoUrl from '../assets/mdrrmo-talisay-logo.png';
+import {
+    MDRRMO_TALISAY_COORDS,
+    getActiveBarangaysFromReports,
+    buildGroundShadowsGeoJSON,
+    buildTargetRingsGeoJSON,
+    renderDispatchArcsOverlay,
+    hitTestProjectedArcs,
+    type ActiveBarangayTarget,
+    type ProjectedArcScreenData,
+} from '../lib/dispatch-arcs';
 
 interface MapContainerProps {
     theme: 'light' | 'dark';
@@ -29,6 +41,13 @@ const LINE_LAYER_ID = 'barangays-boundary';
 const HIGHLIGHT_LAYER_ID = 'barangays-highlight';
 const PIN_SOURCE_ID = 'pins';
 const PIN_LAYER_ID = 'incident-pins';
+
+// ── Dispatch Ground Shadow & Destination Target Layer IDs ──
+const DISPATCH_TARGETS_SOURCE_ID = 'dispatch-targets-source';
+const DISPATCH_SHADOWS_SOURCE_ID = 'dispatch-shadows-source';
+const DISPATCH_SHADOWS_LAYER_ID = 'dispatch-shadows-layer';
+const DISPATCH_TARGETS_RING_LAYER_ID = 'dispatch-targets-ring';
+const DISPATCH_TARGETS_DOT_LAYER_ID = 'dispatch-targets-dot';
 
 interface BarangayLabelInfo {
     id: number;
@@ -48,7 +67,7 @@ function getBarangayLabels(): {
 
     for (const feature of talisayBarangays.features) {
         const { id, name, centroid } = feature.properties;
-        // Ignore any non-mainland feature
+        // Ignore non-mainland feature
         if (centroid[1] < 14.075) continue;
         if (seen.has(name)) continue;
         seen.add(name);
@@ -92,6 +111,52 @@ function createLabelElement(
     }`;
     pill.textContent = text;
     wrapper.appendChild(pill);
+
+    wrapper.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onClick();
+    });
+
+    return wrapper;
+}
+
+/**
+ * Creates the high-tech glowing MDRRMO Talisay Command Center HTML beacon
+ * Uses the official MDRRMO Talisay logo seal (NO text), anchored on top with pinpoint.
+ */
+function createMdrrmoMarkerElement(onClick: () => void): HTMLDivElement {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'mdrrmo-marker-wrapper relative cursor-pointer select-none';
+    wrapper.style.pointerEvents = 'auto';
+    wrapper.style.zIndex = '999999';
+
+    // Ambient radar pulse waves
+    const ring1 = document.createElement('div');
+    ring1.className = 'mdrrmo-radar-ring';
+
+    const ring2 = document.createElement('div');
+    ring2.className = 'mdrrmo-radar-ring-delayed';
+
+    // Central circular logo seal emblem - Pure logo, NO TEXT
+    const emblem = document.createElement('div');
+    emblem.className = 'mdrrmo-logo-emblem';
+    emblem.title = 'MDRRMO Talisay HQ • Municipal Command Center (Click to inspect)';
+
+    const img = document.createElement('img');
+    img.src = mdrrmoLogoUrl;
+    img.alt = 'MDRRMO Talisay HQ';
+    img.className = 'mdrrmo-logo-img';
+    img.draggable = false;
+    emblem.appendChild(img);
+
+    // Precise pinpoint arrow pointing down to municipal hall coordinates
+    const pinPointer = document.createElement('div');
+    pinPointer.className = 'mdrrmo-pin-pointer';
+
+    wrapper.appendChild(ring1);
+    wrapper.appendChild(ring2);
+    wrapper.appendChild(emblem);
+    wrapper.appendChild(pinPointer);
 
     wrapper.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -152,13 +217,11 @@ function buildPinGeoJSON(reports: Report[]) {
 }
 
 function buildChoroplethPaint(theme: 'light' | 'dark'): maplibregl.FillLayerSpecification['paint'] {
-    // [none, low, moderate, high]
     const colors =
         theme === 'light'
             ? ['#e2e8f0', '#22c55e', '#eab308', '#dc2626']
             : ['#334155', '#4ade80', '#facc15', '#f87171'];
 
-    // Max urgency per barangay: Low=1, Moderate=2, High=3
     return {
         'fill-color': [
             'step',
@@ -180,7 +243,13 @@ function buildBoundaryPaint(theme: 'light' | 'dark'): maplibregl.LineLayerSpecif
     };
 }
 
-export default function MapContainer({ theme, layers, barangayCounts, pinReports, onSelectFeature }: MapContainerProps) {
+export default function MapContainer({
+    theme,
+    layers,
+    barangayCounts,
+    pinReports,
+    onSelectFeature,
+}: MapContainerProps) {
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const isLoadedRef = useRef(false);
@@ -190,7 +259,15 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
     const poblacionSummaryMarkerRef = useRef<maplibregl.Marker | null>(null);
     const poblacionDetailMarkersRef = useRef<maplibregl.Marker[]>([]);
 
-    // Keep refs to avoid stale closures or race conditions during map load
+    // MDRRMO Marker & 3D Dispatch Arcs Canvas Overlay references
+    const mdrrmoMarkerRef = useRef<maplibregl.Marker | null>(null);
+    const arcCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const activeTargetsRef = useRef<ActiveBarangayTarget[]>([]);
+    const projectedArcsRef = useRef<ProjectedArcScreenData[]>([]);
+    const animFrameRef = useRef<number | null>(null);
+    const lastAnimTimeRef = useRef<number>(0);
+
+    // Keep refs to avoid stale closures
     const layersRef = useRef(layers);
     layersRef.current = layers;
 
@@ -205,6 +282,21 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
 
     const onSelectFeatureRef = useRef(onSelectFeature);
     onSelectFeatureRef.current = onSelectFeature;
+
+    const drawArcsCanvas = useCallback((now = performance.now()) => {
+        const map = mapRef.current;
+        const overlay = arcCanvasRef.current;
+        if (!map || !overlay || !isLoadedRef.current) return;
+
+        const isArcsVisible = layersRef.current.dispatchArcs !== false;
+        projectedArcsRef.current = renderDispatchArcsOverlay(
+            map,
+            overlay,
+            activeTargetsRef.current,
+            now,
+            isArcsVisible
+        );
+    }, []);
 
     const updateLabelsVisibility = useCallback(() => {
         const map = mapRef.current;
@@ -228,6 +320,36 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
         });
     }, []);
 
+    // ── Throbbing & Photon Light Pulse Animation Loop ──
+    const startPulseAnimation = useCallback(() => {
+        if (animFrameRef.current !== null) return;
+
+        const animateLoop = (now: number) => {
+            animFrameRef.current = requestAnimationFrame(animateLoop);
+
+            const map = mapRef.current;
+            if (!map || !isLoadedRef.current) return;
+
+            // Pause calculations if dispatchArcs layer is disabled or tab is hidden
+            if (layersRef.current.dispatchArcs === false || document.hidden) return;
+
+            // Throttle to ~40fps (every ~24ms) to keep CPU overhead negligible
+            if (now - lastAnimTimeRef.current < 24) return;
+            lastAnimTimeRef.current = now;
+
+            drawArcsCanvas(now);
+        };
+
+        animFrameRef.current = requestAnimationFrame(animateLoop);
+    }, [drawArcsCanvas]);
+
+    const stopPulseAnimation = useCallback(() => {
+        if (animFrameRef.current !== null) {
+            cancelAnimationFrame(animFrameRef.current);
+            animFrameRef.current = null;
+        }
+    }, []);
+
     // ── 1. Initialize Map Once ──
     useEffect(() => {
         if (!mapContainerRef.current || mapRef.current) return;
@@ -246,14 +368,26 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
             if (themeRef.current === 'dark') {
                 const canvas = mapContainerRef.current.querySelector('.maplibregl-canvas');
                 if (canvas) {
-                    (canvas as HTMLElement).style.filter = 'invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.1)';
+                    (canvas as HTMLElement).style.filter =
+                        'invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.1)';
                 }
             }
+
+            // Create High-DPI 2D Canvas Overlay for True 3D Curved Arcs & Pulses
+            const arcOverlayCanvas = document.createElement('canvas');
+            arcOverlayCanvas.className = 'dispatch-arcs-overlay-canvas';
+            arcOverlayCanvas.style.position = 'absolute';
+            arcOverlayCanvas.style.inset = '0';
+            arcOverlayCanvas.style.width = '100%';
+            arcOverlayCanvas.style.height = '100%';
+            arcOverlayCanvas.style.pointerEvents = 'none';
+            arcOverlayCanvas.style.zIndex = '5';
+            map.getCanvasContainer().appendChild(arcOverlayCanvas);
+            arcCanvasRef.current = arcOverlayCanvas;
 
             map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
             map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 
-            // Responsive auto-resize observer for smooth layout transitions
             const ro = new ResizeObserver(() => {
                 map.resize();
             });
@@ -294,6 +428,120 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
                         'line-opacity': 0,
                     },
                     filter: ['==', ['get', 'id'], -1],
+                });
+
+                // ── MDRRMO Dispatch Ground Shadows & Target Rings ──
+                const activeTargets = getActiveBarangaysFromReports(
+                    pinReportsRef.current,
+                    talisayBarangays
+                );
+                activeTargetsRef.current = activeTargets;
+
+                const shadowsGeoJSON = buildGroundShadowsGeoJSON(activeTargets);
+                const targetsGeoJSON = buildTargetRingsGeoJSON(activeTargets);
+
+                // Add Ground Shadow Source (for 3D floating depth cue)
+                map.addSource(DISPATCH_SHADOWS_SOURCE_ID, {
+                    type: 'geojson',
+                    data: shadowsGeoJSON as any,
+                });
+
+                // Add Target Rings Source
+                map.addSource(DISPATCH_TARGETS_SOURCE_ID, {
+                    type: 'geojson',
+                    data: targetsGeoJSON as any,
+                });
+
+                const isArcsVisible = layersRef.current.dispatchArcs !== false;
+
+                // Layer 0: Subtle Ground Shadow Trace (visible when tilted in 3D view)
+                map.addLayer({
+                    id: DISPATCH_SHADOWS_LAYER_ID,
+                    type: 'line',
+                    source: DISPATCH_SHADOWS_SOURCE_ID,
+                    paint: {
+                        'line-color': '#0f172a',
+                        'line-width': 2.2,
+                        'line-blur': 1.5,
+                        'line-dasharray': [2, 2],
+                        'line-opacity': 0,
+                    },
+                    layout: {
+                        'line-cap': 'round',
+                        'line-join': 'round',
+                        visibility: isArcsVisible ? 'visible' : 'none',
+                    },
+                });
+
+                // Layer 1: Destination Target Rings
+                map.addLayer({
+                    id: DISPATCH_TARGETS_RING_LAYER_ID,
+                    type: 'circle',
+                    source: DISPATCH_TARGETS_SOURCE_ID,
+                    paint: {
+                        'circle-radius': 14,
+                        'circle-color': 'transparent',
+                        'circle-stroke-color': ['get', 'color'],
+                        'circle-stroke-width': 2,
+                        'circle-stroke-opacity': 0.85,
+                    },
+                    layout: {
+                        visibility: isArcsVisible ? 'visible' : 'none',
+                    },
+                });
+
+                // Layer 2: Destination Target Center Dot
+                map.addLayer({
+                    id: DISPATCH_TARGETS_DOT_LAYER_ID,
+                    type: 'circle',
+                    source: DISPATCH_TARGETS_SOURCE_ID,
+                    paint: {
+                        'circle-radius': 3.5,
+                        'circle-color': ['get', 'color'],
+                        'circle-opacity': 0.95,
+                    },
+                    layout: {
+                        visibility: isArcsVisible ? 'visible' : 'none',
+                    },
+                });
+
+                // ── 3D/2D Arc Hover Tooltip ──
+                const arcPopup = new maplibregl.Popup({
+                    closeButton: false,
+                    closeOnClick: false,
+                    offset: 10,
+                    className: 'dispatch-arc-popup',
+                });
+                let isHoveringArc = false;
+
+                map.on('mousemove', (e: any) => {
+                    if (layersRef.current.dispatchArcs === false) {
+                        if (isHoveringArc) {
+                            isHoveringArc = false;
+                            arcPopup.remove();
+                        }
+                        return;
+                    }
+                    const hitTarget = hitTestProjectedArcs(projectedArcsRef.current, e.point, 8);
+                    if (hitTarget) {
+                        isHoveringArc = true;
+                        map.getCanvas().style.cursor = 'pointer';
+                        arcPopup
+                            .setLngLat(e.lngLat)
+                            .setHTML(`
+                                <div style="font-family: inherit; padding: 4px 6px; font-size: 11px; line-height: 1.35;">
+                                    <div style="font-weight: 700; color: #0284c7;">MDRRMO ➔ ${hitTarget.name} Corridor</div>
+                                    <div style="color: #64748b; font-size: 10px; margin-top: 2px;">
+                                        ${hitTarget.incidentCount} active ${hitTarget.incidentCount === 1 ? 'incident' : 'incidents'} • <span style="font-weight:700; color:${hitTarget.color};">${hitTarget.highestUrgency} Urgency</span>
+                                    </div>
+                                </div>
+                            `)
+                            .addTo(map);
+                    } else if (isHoveringArc) {
+                        isHoveringArc = false;
+                        map.getCanvas().style.cursor = '';
+                        arcPopup.remove();
+                    }
                 });
 
                 // ── Pin Source & Layer ──
@@ -356,10 +604,26 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
                     }
                 });
 
+                // ── MDRRMO Talisay HQ Beacon Marker (Always on top with anchor: bottom) ──
+                const mdrrmoEl = createMdrrmoMarkerElement(() => {
+                    onSelectFeatureRef.current({ type: 'mdrrmo' });
+                });
+
+                const mdrrmoMarker = new maplibregl.Marker({ element: mdrrmoEl, anchor: 'bottom' })
+                    .setLngLat(MDRRMO_TALISAY_COORDS)
+                    .addTo(map);
+                mdrrmoMarkerRef.current = mdrrmoMarker;
+
+                // Ensure marker DOM element is on top of all pins & 3D arcs
+                const markerDom = mdrrmoMarker.getElement();
+                if (markerDom) {
+                    markerDom.style.zIndex = '999999';
+                }
+
                 // ── Barangay Center Name Labels ──
                 const { regularBarangays, poblacionBarangays, poblacionCenter } = getBarangayLabels();
 
-                // 1. Regular barangays (always centered in their boundary)
+                // 1. Regular barangays
                 regularBarangays.forEach((item) => {
                     const el = createLabelElement(item.displayName, () => {
                         onSelectFeatureRef.current({ type: 'barangay', id: item.id, name: item.name });
@@ -370,7 +634,7 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
                     regularMarkersRef.current.push(marker);
                 });
 
-                // 2. Poblacion overview cluster label (shown when zoomed out < 13.5)
+                // 2. Poblacion overview cluster label
                 const summaryEl = createLabelElement(
                     'Poblacion',
                     () => {
@@ -382,7 +646,7 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
                     .setLngLat(poblacionCenter)
                     .addTo(map);
 
-                // 3. Poblacion individual detail labels (shown when zoomed in >= 13.5)
+                // 3. Poblacion individual detail labels
                 poblacionBarangays.forEach((item) => {
                     const el = createLabelElement(item.displayName, () => {
                         onSelectFeatureRef.current({ type: 'barangay', id: item.id, name: item.name });
@@ -395,9 +659,19 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
 
                 map.on('zoom', updateLabelsVisibility);
                 updateLabelsVisibility();
+
+                // Initial 3D/2D arc draw & start animation loop
+                drawArcsCanvas(performance.now());
+                startPulseAnimation();
             });
 
             map.on('error', (e: any) => console.error('❌ MapLibre error:', e.error));
+
+            // Synchronously redraw 3D arcs whenever MapLibre renders a frame (pan/zoom/tilt/rotate)
+            const handleMapRender = () => {
+                drawArcsCanvas(performance.now());
+            };
+            map.on('render', handleMapRender);
 
             // ── FlyTo Event Listener ──
             const handleFlyTo = (e: any) => {
@@ -405,6 +679,26 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
                 map.flyTo({ center, zoom, duration: 1500, essential: true });
             };
             window.addEventListener('map-fly-to', handleFlyTo);
+
+            const handleToggle3D = (e: any) => {
+                const is3D = !!e.detail?.is3D;
+                if (is3D) {
+                    map.easeTo({ pitch: 65, bearing: -25, center: [121.02, 14.075], duration: 1200 });
+                } else {
+                    map.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
+                }
+            };
+            window.addEventListener('map-toggle-3d', handleToggle3D);
+
+            const handlePitch = () => {
+                const pitch = map.getPitch();
+                if (map.getLayer(DISPATCH_SHADOWS_LAYER_ID)) {
+                    const shadowOpacity = Math.sin((pitch * Math.PI) / 180) * 0.25;
+                    map.setPaintProperty(DISPATCH_SHADOWS_LAYER_ID, 'line-opacity', shadowOpacity);
+                }
+                window.dispatchEvent(new CustomEvent('map-pitch-changed', { detail: { pitch } }));
+            };
+            map.on('pitch', handlePitch);
 
             const handleResize = () => map.resize();
             window.addEventListener('resize', handleResize);
@@ -423,8 +717,19 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
                 if (resizeRaf !== null) cancelAnimationFrame(resizeRaf);
                 window.removeEventListener('resize', handleResize);
                 window.removeEventListener('map-fly-to', handleFlyTo);
+                window.removeEventListener('map-toggle-3d', handleToggle3D);
+                map.off('render', handleMapRender);
+                map.off('pitch', handlePitch);
                 resizeObserver.disconnect();
                 isLoadedRef.current = false;
+
+                // Stop pulse animation
+                stopPulseAnimation();
+
+                if (arcCanvasRef.current) {
+                    arcCanvasRef.current.remove();
+                    arcCanvasRef.current = null;
+                }
 
                 // Cleanup markers
                 regularMarkersRef.current.forEach((m) => m.remove());
@@ -436,6 +741,11 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
                 poblacionDetailMarkersRef.current.forEach((m) => m.remove());
                 poblacionDetailMarkersRef.current = [];
 
+                if (mdrrmoMarkerRef.current) {
+                    mdrrmoMarkerRef.current.remove();
+                    mdrrmoMarkerRef.current = null;
+                }
+
                 ro.disconnect();
                 map.remove();
                 mapRef.current = null;
@@ -443,18 +753,40 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
         } catch (err) {
             console.error('❌ MapLibre init failed:', err);
         }
-    }, []);
+    }, [drawArcsCanvas, startPulseAnimation, stopPulseAnimation, updateLabelsVisibility]);
 
-    // ── 2. Update Pins via setData() when pinReports change ──
+    // ── 2. Update Pins & Dispatch Arcs when pinReports change ──
     useEffect(() => {
         const map = mapRef.current;
         if (!map || !isLoadedRef.current) return;
 
+        // Update Pins
         const pinSource = map.getSource(PIN_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
         if (pinSource) {
             pinSource.setData(buildPinGeoJSON(pinReports) as any);
         }
-    }, [pinReports]);
+
+        // Recompute active barangay targets (exactly 1 line per active barangay)
+        const activeTargets = getActiveBarangaysFromReports(pinReports, talisayBarangays);
+        activeTargetsRef.current = activeTargets;
+
+        const shadowsGeoJSON = buildGroundShadowsGeoJSON(activeTargets);
+        const targetsGeoJSON = buildTargetRingsGeoJSON(activeTargets);
+
+        // Update Ground Shadows Source
+        const shadowsSource = map.getSource(DISPATCH_SHADOWS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+        if (shadowsSource) {
+            shadowsSource.setData(shadowsGeoJSON as any);
+        }
+
+        // Update Targets Source
+        const targetsSource = map.getSource(DISPATCH_TARGETS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+        if (targetsSource) {
+            targetsSource.setData(targetsGeoJSON as any);
+        }
+
+        drawArcsCanvas(performance.now());
+    }, [pinReports, drawArcsCanvas]);
 
     // ── 3. Update Choropleth via setData() when barangayCounts change ──
     useEffect(() => {
@@ -512,8 +844,26 @@ export default function MapContainer({ theme, layers, barangayCounts, pinReports
             map.setLayoutProperty(PIN_LAYER_ID, 'visibility', layers.pins ? 'visible' : 'none');
         }
 
+        const isArcsVisible = layers.dispatchArcs !== false;
+
+        const arcLayerIds = [
+            DISPATCH_SHADOWS_LAYER_ID,
+            DISPATCH_TARGETS_RING_LAYER_ID,
+            DISPATCH_TARGETS_DOT_LAYER_ID,
+        ];
+
+        arcLayerIds.forEach((id) => {
+            if (map.getLayer(id)) {
+                map.setLayoutProperty(id, 'visibility', isArcsVisible ? 'visible' : 'none');
+            }
+        });
+        if (arcCanvasRef.current) {
+            arcCanvasRef.current.style.display = isArcsVisible ? 'block' : 'none';
+        }
+
+        drawArcsCanvas(performance.now());
         updateLabelsVisibility();
-    }, [layers, updateLabelsVisibility]);
+    }, [layers, drawArcsCanvas, updateLabelsVisibility]);
 
     return (
         <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" style={{ minHeight: '100%' }} />

@@ -6,7 +6,7 @@ import {
   Filter, Navigation, RotateCcw,
   Siren, HeartPulse, Droplets, HardHat, ShieldCheck,
   FileText, User, Phone, Clock, Layers, MapPin,
-  AlertTriangle, ChevronRight, Search, Bot, MessageSquare, Compass,
+  AlertTriangle, ChevronRight, Search, Bot, MessageSquare, Compass, Box,
   MapPinOff, AlertCircle, CheckCircle2, Trash2,
 } from 'lucide-react';
 
@@ -18,12 +18,15 @@ import PageLoader from '../components/PageLoader';
 import PageTransition from '../components/Transition';
 import type { MapLayerState, SelectedFeature } from '../types/geospatial';
 import { isReportIncomplete, getIncompleteReasons, formatReportCode, type Report } from '../services/incidentService';
-import { getBarangayMeta, normalizeBarangayName, clampPointToBarangay } from '../data/talisay-barangays';
+import { talisayBarangays, getBarangayMeta, normalizeBarangayName, clampPointToBarangay } from '../data/talisay-barangays';
+import { MDRRMO_TALISAY_COORDS, getActiveBarangaysFromReports, type ActiveBarangayTarget } from '../lib/dispatch-arcs';
+import mdrrmoLogoUrl from '../assets/mdrrmo-talisay-logo.png';
 
 const INITIAL_LAYERS: MapLayerState = {
   choropleth: true,
   pins: true,
   boundaries: true,
+  dispatchArcs: true,
 };
 
 // -- Apple Design Spring & Smooth Easing Curves --
@@ -1025,6 +1028,105 @@ function LayerToggle({ active, label, activeDot, onClick }: {
 
 // ── Main Page ──
 
+
+function MdrrmoDetailCard({
+  onClose,
+  activeTargets,
+  onFlyToMdrrmo,
+}: {
+  onClose: () => void;
+  activeTargets: ActiveBarangayTarget[];
+  onFlyToMdrrmo: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 12, scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+      className="absolute bottom-5 sm:bottom-6 left-3 sm:left-6 z-[120] w-[min(380px,calc(100vw-24px))] rounded-2xl bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-2xl shadow-2xl border border-slate-200/80 dark:border-white/10 p-5 space-y-4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <img
+            src={mdrrmoLogoUrl}
+            alt="MDRRMO Talisay"
+            className="w-11 h-11 rounded-xl object-cover border border-sky-400/50 shadow-[0_0_14px_rgba(56,189,248,0.35)] shrink-0"
+          />
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                MDRRMO Talisay
+              </h3>
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/20 uppercase tracking-wider">
+                EOC HQ
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Municipal Emergency Operations Center
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          title="Close"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/60 dark:border-white/5">
+        <div className="flex items-center justify-between">
+          <span className="text-slate-400">Location:</span>
+          <span className="font-semibold text-slate-800 dark:text-slate-200">Talisay Municipal Hall Complex</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-slate-400">Coordinates:</span>
+          <span className="font-mono text-[11px] text-sky-600 dark:text-sky-400">14.09303° N, 121.02128° E</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-slate-400">Active Corridors:</span>
+          <span className="font-bold text-slate-900 dark:text-white tabular-nums">
+            {activeTargets.length} Connected {activeTargets.length === 1 ? 'Sector' : 'Sectors'}
+          </span>
+        </div>
+      </div>
+
+      {activeTargets.length > 0 && (
+        <div className="space-y-1.5 max-h-36 overflow-y-auto dropdown-scroll">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Active Incident Corridors
+          </p>
+          {activeTargets.map((target) => (
+            <div
+              key={target.normalizedName}
+              className="flex items-center justify-between py-1 px-2 rounded-lg bg-white/80 dark:bg-slate-800/60 text-xs border border-slate-200/50 dark:border-white/5"
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: target.color }} />
+                <span className="font-medium text-slate-800 dark:text-slate-200">{target.name}</span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-500 tabular-nums">
+                {target.incidentCount} {target.incidentCount === 1 ? 'incident' : 'incidents'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={onFlyToMdrrmo}
+        className="w-full py-2 px-3 flex items-center justify-center gap-1.5 bg-[#0071E3] hover:bg-[#0077ED] text-white rounded-xl text-xs font-semibold shadow-xs transition-all active:scale-[0.98]"
+      >
+        <Compass className="w-3.5 h-3.5" />
+        <span>Center on MDRRMO HQ</span>
+      </button>
+    </motion.div>
+  );
+}
+
 export default function GeospatialMap() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1069,6 +1171,21 @@ export default function GeospatialMap() {
 
   const [layers, setLayers] = useState<MapLayerState>(INITIAL_LAYERS);
   const [selected, setSelected] = useState<SelectedFeature>(null);
+  const [is3DView, setIs3DView] = useState(false);
+
+  useEffect(() => {
+    const onPitch = (e: any) => {
+      setIs3DView((e.detail?.pitch ?? 0) > 25);
+    };
+    window.addEventListener('map-pitch-changed', onPitch);
+    return () => window.removeEventListener('map-pitch-changed', onPitch);
+  }, []);
+
+  const toggle3DView = useCallback(() => {
+    const next = !is3DView;
+    setIs3DView(next);
+    window.dispatchEvent(new CustomEvent('map-toggle-3d', { detail: { is3D: next } }));
+  }, [is3DView]);
   const [drawerOpen, setDrawerOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth >= 1024;
@@ -1282,6 +1399,10 @@ export default function GeospatialMap() {
     ? pinReports.find((r) => r.id === selected.id) || reports.find((r) => r.id === selected.id) || null
     : null;
 
+  const activeBarangayTargets = useMemo(() => {
+    return getActiveBarangaysFromReports(pinReports, talisayBarangays);
+  }, [pinReports]);
+
   const selectedBarangayReports = useMemo(() => {
     if (selected?.type !== 'barangay') return [];
     const targetName = selected.name.trim().toLowerCase();
@@ -1378,6 +1499,26 @@ export default function GeospatialMap() {
                     activeDot="bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.7)]"
                     onClick={() => toggleLayer('boundaries')}
                   />
+                  <LayerToggle
+                    active={layers.dispatchArcs ?? true}
+                    label="Arcs"
+                    activeDot="bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.8)]"
+                    onClick={() => toggleLayer('dispatchArcs')}
+                  />
+                  <div className="w-[1px] h-4 bg-slate-300 dark:bg-white/10 mx-0.5 hidden sm:block" />
+                  <button
+                    type="button"
+                    onClick={toggle3DView}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-[0.96] ${
+                      is3DView
+                        ? 'bg-[#0071E3] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)]'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
+                    }`}
+                    title={is3DView ? 'Switch to 2D Top-Down View' : 'Switch to 3D Sideward View (Curved Upward Arcs)'}
+                  >
+                    <Box className="w-3.5 h-3.5" />
+                    <span>{is3DView ? '3D View' : '2D View'}</span>
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-1.5 text-xs font-semibold shrink-0">
@@ -1515,6 +1656,19 @@ export default function GeospatialMap() {
                     onViewInReports={() => navigate(`/incident-reports?focus=${selectedReport.id}`)}
                     onResolve={handleResolveReport}
                     onRemove={handleRemoveReport}
+                  />
+                )}
+                {selected?.type === 'mdrrmo' && (
+                  <MdrrmoDetailCard
+                    onClose={() => setSelected(null)}
+                    activeTargets={activeBarangayTargets}
+                    onFlyToMdrrmo={() => {
+                      window.dispatchEvent(
+                        new CustomEvent('map-fly-to', {
+                          detail: { center: MDRRMO_TALISAY_COORDS, zoom: 16 },
+                        })
+                      );
+                    }}
                   />
                 )}
               </AnimatePresence>

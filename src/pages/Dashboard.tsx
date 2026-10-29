@@ -16,6 +16,7 @@ import type { MapLayerState } from '../types/geospatial';
 import PageLoader from '../components/PageLoader';
 import { BarangayBarChart } from '../components/BarangayBarChart';
 import { apiRequest } from '../services/apiClient';
+import AnimatedNumber from '../components/AnimatedNumber';
 
 // ── Types ──
 interface ScraperItem {
@@ -407,7 +408,9 @@ export default function Dashboard() {
             <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
               <div className="space-y-1 min-w-0">
                 <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">Total Incidents</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">{totalIncidents}</p>
+                <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
+                  <AnimatedNumber value={totalIncidents} />
+                </p>
                 <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
                   <span className="truncate">Active pipeline</span>
@@ -422,12 +425,14 @@ export default function Dashboard() {
             <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
               <div className="space-y-1 min-w-0">
                 <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">Bot Conversations</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">{botConversations.length}</p>
+                <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
+                  <AnimatedNumber value={botConversations.length} />
+                </p>
                 <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-medium truncate">
                   {incompleteCount > 0 ? (
                     <>
                       <span className="w-1.5 h-1.5 rounded-full bg-[oklch(62.3%_0.214_259.815)] animate-pulse shrink-0" />
-                      <span className="text-[oklch(62.3%_0.214_259.815)] font-semibold truncate">{incompleteCount} incomplete</span>
+                      <span className="text-[oklch(62.3%_0.214_259.815)] font-semibold truncate"><AnimatedNumber value={incompleteCount} /> incomplete</span>
                     </>
                   ) : (
                     <>
@@ -446,7 +451,9 @@ export default function Dashboard() {
             <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
               <div className="space-y-1 min-w-0">
                 <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">Scraped Comments</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">{scraperItems.length}</p>
+                <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
+                  <AnimatedNumber value={scraperItems.length} />
+                </p>
                 <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-amber-600 dark:text-amber-400 font-medium truncate">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                   <span className="truncate">Social streams</span>
@@ -461,7 +468,9 @@ export default function Dashboard() {
             <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
               <div className="space-y-1 min-w-0">
                 <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">NLP Process Count</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">{nlpProcessCount}</p>
+                <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
+                  <AnimatedNumber value={nlpProcessCount} />
+                </p>
                 <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-purple-600 dark:text-purple-400 font-medium truncate">
                   <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
                   <span className="truncate">Automated triage</span>
