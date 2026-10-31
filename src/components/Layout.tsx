@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, FileText, MessageSquare, Globe, Map,
   BarChart3, Settings, Search, Bell, LogOut, Menu, X,
-  Globe2, MessageCircle, CheckCheck, Trash2, BellOff, ArrowRight,
-  Sun, Moon, Copy, Check,
+  Globe2, MessageCircle, CheckCheck, Trash2, BellOff, ArrowRight, ArrowDown,
+  Sun, Moon, Copy, Check, Siren, ShieldAlert, MapPin,
 } from 'lucide-react';
 import SignOutModal from './SignOutModal';
 import {
@@ -17,6 +17,11 @@ import {
 } from '../context/NotificationContext';
 import { useBotConversations } from '../context/BotConversationsContext';
 import { useTheme } from './ThemeContent';
+
+import {
+  formatPhilippineTimeOnly,
+  formatPhilippineDateOnly,
+} from '../utils/dateUtils';
 
 type FilterTab = 'all' | NotificationType;
 
@@ -33,6 +38,8 @@ const ROUTE_PRELOADERS: Record<string, () => Promise<unknown>> = {
 };
 
 const prefetchedRoutes = new Set<string>();
+
+const APPLE_DECEL_EASE = [0.25, 0.46, 0.45, 0.94] as const;
 
 export function prefetchRoute(path: string) {
   if (!path || prefetchedRoutes.has(path)) return;
@@ -134,12 +141,31 @@ function UserAvatar({
   );
 }
 
+function PhilippineClock() {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="text-right hidden sm:block">
+      <div className="text-sm font-mono font-semibold text-slate-700 dark:text-slate-200">
+        {formatPhilippineTimeOnly(time, true)}
+      </div>
+      <div className="text-xs text-slate-500 dark:text-slate-400">
+        {formatPhilippineDateOnly(time, 'short')}
+      </div>
+    </div>
+  );
+}
+
 export default function Layout() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -160,18 +186,109 @@ export default function Layout() {
     toasts,
     unreadCount,
     markAllRead,
+    markTypeRead,
     markNotificationRead,
+    markMultipleRead,
     deleteNotification,
     clearAll,
     dismissToast,
+    triggerPriorityAlert,
   } = useNotifications();
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      (window as any).__testPriorityAlert = () => {
+        triggerPriorityAlert({
+          barangay: 'Tranca',
+          type: 'Fire',
+          urgency: 'High',
+          title: 'Fire Emergency Alert',
+          message: 'May duguan pong bata dito sa tranca, malapit po sa harap ng simbahan dito ito din po ang contact...',
+          targetPath: '/incident-reports',
+        });
+      };
+    }
+  }, [triggerPriorityAlert]);
 
   const { incompleteCount } = useBotConversations();
 
+  // Scroll container ref for notification dropdown
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const [viewedNotifIds, setViewedNotifIds] = useState<Set<string>>(new Set());
+  const viewedNotifIdsRef = useRef<Set<string>>(new Set());
+  viewedNotifIdsRef.current = viewedNotifIds;
+
+  // Clear unread notifications when viewing the corresponding page
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    if (location.pathname === '/scraper-feed') {
+      markTypeRead('scraper');
+    } else if (location.pathname === '/messenger-bot-logs') {
+      markTypeRead('messenger');
+    }
+  }, [location.pathname, markTypeRead]);
+
+  // Keep notifications bold & highlighted while the notification panel is open.
+  // When the user closes the panel, mark ONLY the notifications that were actually scrolled/viewed as read.
+  const prevNotifOpenRef = useRef(notifOpen);
+  useEffect(() => {
+    if (prevNotifOpenRef.current && !notifOpen) {
+      if (viewedNotifIdsRef.current.size > 0) {
+        markMultipleRead(Array.from(viewedNotifIdsRef.current));
+      }
+    }
+    if (notifOpen && !prevNotifOpenRef.current) {
+      setViewedNotifIds(new Set());
+      viewedNotifIdsRef.current = new Set();
+    }
+    prevNotifOpenRef.current = notifOpen;
+  }, [notifOpen, markMultipleRead]);
+
+  // Option A: Track notifications that enter the viewport (IntersectionObserver with 50% threshold)
+  useEffect(() => {
+    if (!notifOpen || !listContainerRef.current) return;
+
+    const container = listContainerRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const newlySeen: string[] = [];
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            const notifId = entry.target.getAttribute('data-notif-id');
+            const isUnread = entry.target.getAttribute('data-unread') === 'true';
+            if (notifId && isUnread) {
+              newlySeen.push(notifId);
+            }
+          }
+        });
+
+        if (newlySeen.length > 0) {
+          setViewedNotifIds((prev) => {
+            let changed = false;
+            const next = new Set(prev);
+            for (const id of newlySeen) {
+              if (!next.has(id)) {
+                next.add(id);
+                changed = true;
+              }
+            }
+            return changed ? next : prev;
+          });
+        }
+      },
+      {
+        root: container,
+        threshold: [0.5],
+      }
+    );
+
+    const rows = container.querySelectorAll<HTMLElement>('[data-notif-id][data-unread="true"]');
+    rows.forEach((row) => observer.observe(row));
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [notifOpen, activeTab, notifications]);
+
 
   const handleCopyEmail = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -206,10 +323,11 @@ export default function Layout() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Close mobile sidebar and profile dropdown on route change
+  // Close mobile sidebar, notification dropdown, and profile dropdown on route change
   useEffect(() => {
     setMobileOpen(false);
     setProfileOpen(false);
+    setNotifOpen(false);
   }, [location.pathname]);
 
   // Handle escape key and desktop resize
@@ -251,12 +369,6 @@ export default function Layout() {
     }
   };
 
-  const formattedTime = currentTime.toLocaleTimeString('en-US', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-  });
-  const formattedDate = currentTime.toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
 
   const isActive = (p: string) => location.pathname === p;
 
@@ -273,10 +385,39 @@ export default function Layout() {
   const filteredNotifications =
     activeTab === 'all'
       ? notifications
+      : activeTab === 'priority'
+      ? notifications.filter((n) => n.type === 'priority' || n.isPriority)
       : notifications.filter((n) => n.type === activeTab);
 
+  const priorityUnread = notifications.filter(
+    (n) => (n.type === 'priority' || n.isPriority) && !n.read
+  ).length;
   const scraperUnread = notifications.filter((n) => n.type === 'scraper' && !n.read).length;
   const messengerUnread = notifications.filter((n) => n.type === 'messenger' && !n.read).length;
+
+  const unreadInTab = useMemo(() => {
+    return filteredNotifications.filter((n) => !n.read);
+  }, [filteredNotifications]);
+
+  const totalUnreadInTab = unreadInTab.length;
+  const viewedUnreadInTabCount = useMemo(() => {
+    return unreadInTab.filter((n) => viewedNotifIds.has(n.id)).length;
+  }, [unreadInTab, viewedNotifIds]);
+
+  const remainingUnseenInTab = Math.max(0, totalUnreadInTab - viewedUnreadInTabCount);
+
+  const scrollToNextUnseen = () => {
+    if (!listContainerRef.current) return;
+    const container = listContainerRef.current;
+    const unviewedRow = container.querySelector<HTMLElement>(
+      '[data-notif-id][data-unread="true"]:not([data-viewed="true"])'
+    );
+    if (unviewedRow) {
+      unviewedRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+      container.scrollBy({ top: 120, behavior: 'smooth' });
+    }
+  };
 
   const handleBellClick = () => {
     setNotifOpen((prev) => !prev);
@@ -474,10 +615,11 @@ export default function Layout() {
         className={`
           flex-1 flex flex-col min-w-0 min-h-0 h-full transition-all duration-300
           ml-0 md:ml-[calc(16px+72px+8px)] ${collapsed ? 'lg:ml-[calc(16px+72px+8px)]' : 'lg:ml-[calc(16px+256px+8px)]'}
+          md:pb-4 lg:pb-4 md:pr-4 lg:pr-4
         `}
       >
         {/* ─── FLOATING HEADER (Frosted Glass) ─── */}
-        <div className="shrink-0 px-2 sm:px-4 pt-3 sm:pt-4 z-[100] relative">
+        <div className="shrink-0 px-2 sm:px-4 md:px-0 md:pl-2 pt-3 sm:pt-4 z-[100] relative">
           <header className="
             h-16.25 flex items-center justify-between px-4
             backdrop-blur-xl backdrop-saturate-180
@@ -551,7 +693,7 @@ export default function Layout() {
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         exit={{ scale: 0 }}
-                        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
                         className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-[#0F1525]"
                       >
                         {unreadCount > 9 ? '9+' : unreadCount}
@@ -565,14 +707,19 @@ export default function Layout() {
                   {notifOpen && (
                     <motion.div
                       id="notification-dropdown"
-                      initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                      initial={{ opacity: 0, y: -12, scale: 0.98 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                      className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-20 sm:top-full mt-0 sm:mt-2 w-auto sm:w-100 max-w-[calc(100vw-1.5rem)] sm:max-w-none backdrop-blur-2xl backdrop-saturate-180 bg-white/95 dark:bg-slate-900/95 rounded-2xl border border-white/70 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-black/70 z-[110] overflow-hidden flex flex-col"
+                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                      transition={{ duration: 0.28, ease: APPLE_DECEL_EASE }}
+                      className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-20 sm:top-full mt-0 sm:mt-2 w-auto sm:w-100 max-w-[calc(100vw-1.5rem)] sm:max-w-none bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-[0_24px_60px_rgba(0,0,0,0.25)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.85)] z-[110] overflow-hidden flex flex-col"
                     >
-                      {/* ── Header ── */}
-                      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                      {/* ── Stage 1: Header (Ambatubazz Cascade) ── */}
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.22, delay: 0.03, ease: APPLE_DECEL_EASE }}
+                        className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900"
+                      >
                         <div className="flex items-center gap-2">
                           <Bell className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                           <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -584,112 +731,206 @@ export default function Layout() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1">
-                          {notifications.length > 0 && (
-                            <>
-                              <button
-                                onClick={markAllRead}
-                                className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors cursor-pointer"
-                                title="Mark all as read"
-                                aria-label="Mark all as read"
-                              >
-                                <CheckCheck className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => setConfirmDeleteTarget('all')}
-                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer"
-                                title="Clear all notifications"
-                                aria-label="Clear all notifications"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
+                        <div className="flex items-center gap-1.5">
+                          {unreadCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={markAllRead}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#0071E3] dark:text-sky-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-all active:scale-95 cursor-pointer"
+                              title="Mark all notifications as read"
+                              aria-label="Mark all notifications as read"
+                            >
+                              <CheckCheck className="w-3.5 h-3.5" />
+                              <span>Mark all read</span>
+                            </button>
                           )}
+                          {notifications.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteTarget('all')}
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer"
+                              title="Clear all notifications"
+                              aria-label="Clear all notifications"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setNotifOpen(false)}
+                            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                            title="Close notification panel"
+                            aria-label="Close notification panel"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                      </div>
+                      </motion.div>
 
-                      {/* ── Filter Tabs ── */}
-                      <div className="flex gap-1 px-3 pt-2.5 pb-1">
+                      {/* ── Stage 2: Filter Tabs (Segmented Control - Ambatubazz Cascade) ── */}
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.22, delay: 0.06, ease: APPLE_DECEL_EASE }}
+                        className="flex gap-1 p-2 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50 dark:bg-slate-800/80"
+                      >
                         {([
                           { key: 'all', label: 'All', count: notifications.length },
+                          { key: 'priority', label: 'Priority', count: priorityUnread },
                           { key: 'scraper', label: 'Scraper', count: scraperUnread },
                           { key: 'messenger', label: 'Messenger', count: messengerUnread },
-                        ] as { key: FilterTab; label: string; count: number }[]).map((tab) => (
-                          <button
-                            key={tab.key}
-                            onClick={() => setActiveTab(tab.key)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 cursor-pointer
-                            ${activeTab === tab.key
-                                ? 'bg-blue-600 text-white shadow-sm'
-                                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                              }
-                          `}
-                          >
-                            {tab.label}
-                            {tab.count > 0 && (
-                              <span className={`text-[10px] font-bold px-1 rounded-full ${activeTab === tab.key
-                                ? 'bg-white/20 text-white'
-                                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                                }`}>
-                                {tab.count}
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* ── Notification List ── */}
-                      <div className="max-h-[min(24rem,calc(100dvh-16rem))] sm:max-h-90 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/60 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-                        <AnimatePresence initial={false}>
-                          {filteredNotifications.length === 0 ? (
-                            <motion.div
-                              key="empty"
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400"
+                        ] as { key: FilterTab; label: string; count: number }[]).map((tab) => {
+                          const isPriorityTab = tab.key === 'priority';
+                          const isSelected = activeTab === tab.key;
+                          return (
+                            <button
+                              key={tab.key}
+                              type="button"
+                              onClick={() => {
+                                setActiveTab(tab.key);
+                                if (listContainerRef.current) {
+                                  listContainerRef.current.scrollTop = 0;
+                                }
+                              }}
+                              className={`relative flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150 cursor-pointer select-none ${
+                                isSelected
+                                  ? 'text-white font-semibold'
+                                  : isPriorityTab && tab.count > 0
+                                  ? 'text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-950/40'
+                                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                              }`}
                             >
-                              <BellOff className="w-8 h-8" />
-                              <p className="text-sm font-medium">No notifications yet</p>
-                              <p className="text-xs text-slate-300 dark:text-slate-600">
-                                New scraper &amp; messenger events will appear here in real-time
-                              </p>
+                              {isSelected && (
+                                <motion.div
+                                  layoutId="activeNotifTabIndicator"
+                                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                                  className={`absolute inset-0 rounded-lg ${
+                                    isPriorityTab ? 'bg-red-600 shadow-xs' : 'bg-[#0071E3] shadow-xs'
+                                  }`}
+                                />
+                              )}
+                              <span className="relative z-10 flex items-center gap-1 truncate">
+                                {isPriorityTab && (
+                                  <Siren className="w-3.5 h-3.5 shrink-0" />
+                                )}
+                                <span>{tab.label}</span>
+                                {tab.count > 0 && (
+                                  <span
+                                    className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full shrink-0 ${
+                                      isSelected
+                                        ? 'bg-white/20 text-white'
+                                        : isPriorityTab
+                                        ? 'bg-red-500 text-white'
+                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                    }`}
+                                  >
+                                    {tab.count}
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </motion.div>
+
+                      {/* ── Stage 3: Notification List Viewport (Fixed Height, Staggered Reveal) ── */}
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.24, delay: 0.09, ease: APPLE_DECEL_EASE }}
+                        className="relative flex-1 min-h-0 flex flex-col bg-white dark:bg-slate-900"
+                      >
+                        <div
+                          ref={listContainerRef}
+                          className="h-[340px] sm:h-[360px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700 bg-white dark:bg-slate-900"
+                        >
+                          <AnimatePresence initial={false} mode="wait">
+                            <motion.div
+                              key={activeTab}
+                              initial={{ opacity: 0, y: 4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -4 }}
+                              transition={{ duration: 0.16, ease: APPLE_DECEL_EASE }}
+                              className="divide-y divide-slate-100 dark:divide-slate-800/60"
+                            >
+                              {filteredNotifications.length === 0 ? (
+                                <div className="h-[340px] sm:h-[360px] flex flex-col items-center justify-center py-12 px-4 gap-2 text-slate-400 text-center">
+                                  <BellOff className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                                  <p className="text-sm font-medium">No notifications yet</p>
+                                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                                    New scraper &amp; messenger events will appear here in real-time
+                                  </p>
+                                </div>
+                              ) : (
+                                filteredNotifications.map((n) => (
+                                  <NotificationRow
+                                    key={n.id}
+                                    notification={n}
+                                    isViewed={viewedNotifIds.has(n.id)}
+                                    onClick={() => handleNotifClick(n)}
+                                    onDelete={() => setConfirmDeleteTarget(n.id)}
+                                  />
+                                ))
+                              )}
                             </motion.div>
-                          ) : (
-                            filteredNotifications.map((n) => (
-                              <NotificationRow
-                                key={n.id}
-                                notification={n}
-                                onClick={() => handleNotifClick(n)}
-                                onDelete={() => setConfirmDeleteTarget(n.id)}
-                              />
-                            ))
+                          </AnimatePresence>
+                        </div>
+
+                        {/* Floating "more new below" scroll pill */}
+                        <AnimatePresence>
+                          {remainingUnseenInTab > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                              transition={{ duration: 0.22, ease: APPLE_DECEL_EASE }}
+                              className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 pointer-events-auto"
+                            >
+                              <button
+                                type="button"
+                                onClick={scrollToNextUnseen}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0071E3] hover:bg-[#0077ED] active:scale-95 text-white text-[11px] font-semibold shadow-md shadow-blue-500/25 transition-all cursor-pointer backdrop-blur-md"
+                              >
+                                <ArrowDown className="w-3 h-3" />
+                                <span>{remainingUnseenInTab} more new</span>
+                              </button>
+                            </motion.div>
                           )}
                         </AnimatePresence>
-                      </div>
+                      </motion.div>
 
-                      {/* ── Footer ── */}
-                      {filteredNotifications.length > 0 && (
-                        <div className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                          <span className="text-xs text-slate-400">
-                            {filteredNotifications.length} notification
-                            {filteredNotifications.length !== 1 ? 's' : ''}
+                      {/* ── Stage 4: Stable Footer (Ambatubazz Cascade) ── */}
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2, delay: 0.12, ease: APPLE_DECEL_EASE }}
+                        className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-slate-50 dark:bg-slate-800/80 text-xs text-slate-400"
+                      >
+                        <span>
+                          {filteredNotifications.length} notification
+                          {filteredNotifications.length !== 1 ? 's' : ''}
+                        </span>
+                        {unreadInTab.length > 0 && (
+                          <span className="font-medium text-[#0071E3] dark:text-sky-400">
+                            {unreadInTab.length} unread
                           </span>
-                        </div>
-                      )}
+                        )}
+                      </motion.div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
 
               <div ref={profileRef} className="relative flex items-center gap-3 pl-4 border-l border-white/60 dark:border-white/10 z-10">
-                <div className="text-right hidden sm:block">
-                  <div className="text-sm font-mono font-semibold text-slate-700 dark:text-slate-200">{formattedTime}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{formattedDate}</div>
-                </div>
+                <PhilippineClock />
                 <button
                   id="user-profile-menu-btn"
                   onClick={() => setProfileOpen((prev) => !prev)}
-                  className="w-9 h-9 rounded-full ring-2 ring-white/80 dark:ring-white/10 hover:ring-blue-500/50 dark:hover:ring-blue-400/50 shadow-sm transition-all active:scale-95 cursor-pointer focus:outline-none flex items-center justify-center overflow-hidden"
+                  className={`w-9 h-9 rounded-full ring-2 transition-all duration-200 cursor-pointer focus:outline-none flex items-center justify-center overflow-hidden active:scale-95 ${
+                    profileOpen
+                      ? 'ring-blue-500 shadow-md shadow-blue-500/25 scale-[1.04]'
+                      : 'ring-white/80 dark:ring-white/10 hover:ring-blue-500/50 dark:hover:ring-blue-400/50 shadow-sm'
+                  }`}
                   aria-label="User profile menu"
                   aria-expanded={profileOpen}
                 >
@@ -701,19 +942,24 @@ export default function Layout() {
                   />
                 </button>
 
-                {/* Profile Dropdown */}
+                {/* Profile Dropdown (Ambatubazz Cascade) */}
                 <AnimatePresence>
                   {profileOpen && (
                     <motion.div
                       id="profile-dropdown-menu"
-                      initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                      initial={{ opacity: 0, y: -12, scale: 0.98 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                      transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                      className="absolute right-0 top-full mt-2 w-72 backdrop-blur-2xl backdrop-saturate-180 bg-white/95 dark:bg-slate-900/95 rounded-2xl border border-white/70 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-black/70 z-[110] p-2.5 overflow-hidden flex flex-col"
+                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                      transition={{ duration: 0.28, ease: APPLE_DECEL_EASE }}
+                      className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-[0_24px_60px_rgba(0,0,0,0.25)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.85)] z-[110] p-2.5 overflow-hidden flex flex-col"
                     >
-                      {/* Identity Card */}
-                      <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-white/[0.03] border border-slate-100 dark:border-white/5 mb-2">
+                      {/* ── Stage 1: Identity Card ── */}
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.22, delay: 0.03, ease: APPLE_DECEL_EASE }}
+                        className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-100 dark:border-slate-700/60 mb-2"
+                      >
                         <div className="flex items-center gap-3">
                           <UserAvatar
                             src={user?.avatar_url}
@@ -747,7 +993,7 @@ export default function Layout() {
 
                         {/* Email with 1-click copy */}
                         {user?.email && (
-                          <div className="mt-2.5 flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5">
+                          <div className="mt-2.5 flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80">
                             <span
                               className="text-[11px] text-slate-600 dark:text-slate-300 truncate font-mono select-all"
                               title={user.email}
@@ -757,7 +1003,7 @@ export default function Layout() {
                             <button
                               type="button"
                               onClick={handleCopyEmail}
-                              className="shrink-0 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors"
+                              className="shrink-0 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                               title={copiedEmail ? 'Copied to clipboard!' : 'Copy email'}
                               aria-label="Copy email address"
                             >
@@ -772,16 +1018,21 @@ export default function Layout() {
                             </button>
                           </div>
                         )}
-                      </div>
+                      </motion.div>
 
-                      {/* Quick Actions */}
-                      <div className="space-y-0.5">
+                      {/* ── Stage 2: Quick Actions ── */}
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.22, delay: 0.06, ease: APPLE_DECEL_EASE }}
+                        className="space-y-0.5"
+                      >
                         <Link
                           to="/settings"
                           onClick={() => setProfileOpen(false)}
                           onMouseEnter={() => prefetchRoute('/settings')}
                           onPointerDown={() => prefetchRoute('/settings')}
-                          className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-white/10 rounded-xl transition-colors"
+                          className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-[0.98] rounded-xl transition-all"
                         >
                           <Settings className="w-4 h-4 text-slate-400" />
                           <span>Account Settings</span>
@@ -790,7 +1041,7 @@ export default function Layout() {
                         <button
                           type="button"
                           onClick={toggleTheme}
-                          className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                          className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-[0.98] rounded-xl transition-all cursor-pointer"
                         >
                           <div className="flex items-center gap-2.5">
                             {theme === 'dark' ? (
@@ -812,10 +1063,15 @@ export default function Layout() {
                             />
                           </div>
                         </button>
-                      </div>
+                      </motion.div>
 
-                      {/* Sign Out */}
-                      <div className="border-t border-slate-100 dark:border-slate-800/80 mt-1 pt-1">
+                      {/* ── Stage 3: Sign Out ── */}
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2, delay: 0.09, ease: APPLE_DECEL_EASE }}
+                        className="border-t border-slate-100 dark:border-slate-800/80 mt-1 pt-1"
+                      >
                         <button
                           type="button"
                           id="header-signout-btn"
@@ -823,12 +1079,12 @@ export default function Layout() {
                             setProfileOpen(false);
                             setSignOutModalOpen(true);
                           }}
-                          className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors cursor-pointer text-left w-full"
+                          className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-[0.98] rounded-xl transition-all cursor-pointer text-left w-full"
                         >
                           <LogOut className="w-4 h-4 text-red-500" />
                           <span>Sign Out</span>
                         </button>
-                      </div>
+                      </motion.div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -837,7 +1093,7 @@ export default function Layout() {
           </header>
         </div>
 
-        <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden px-3.5 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-5 sm:pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] md:pb-5 md:pt-4 lg:px-6 lg:pb-6 lg:pt-4">
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden px-3.5 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-5 sm:pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 md:pt-3.5 md:pr-0 md:pl-2 lg:pb-0 lg:pt-3.5 lg:pr-0 lg:pl-2">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
@@ -848,7 +1104,7 @@ export default function Layout() {
                 duration: 0.22,
                 ease: [0.23, 1, 0.32, 1],
               }}
-              className="flex flex-col min-h-full w-full"
+              className="flex-1 flex flex-col min-h-full h-full w-full"
             >
               <Outlet />
             </motion.div>
@@ -965,47 +1221,54 @@ export default function Layout() {
 
 function NotificationRow({
   notification: n,
+  isViewed = false,
   onClick,
   onDelete,
 }: {
   notification: AppNotification;
+  isViewed?: boolean;
   onClick: () => void;
   onDelete: () => void;
 }) {
+  const isPriority = n.type === 'priority' || n.isPriority;
   const isMessenger = n.type === 'messenger';
   const timeAgo = formatTimeAgo(n.timestamp);
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -10, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }}
-      transition={{ duration: 0.2 }}
-      className={
-        'group relative flex items-start gap-3 px-4 py-3.5 cursor-pointer transition-colors ' +
-        (!n.read ? 'bg-blue-50/60 dark:bg-blue-950/10 ' : '') +
-        'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-      }
+      data-notif-id={n.id}
+      data-unread={!n.read}
+      data-viewed={isViewed}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15, ease: APPLE_DECEL_EASE }}
+      className={`group relative flex items-start gap-3 px-4 py-3.5 cursor-pointer transition-colors duration-150 active:scale-[0.99] select-none ${
+        !n.read
+          ? isPriority
+            ? 'bg-red-50/70 dark:bg-red-950/25 hover:bg-red-100/60 dark:hover:bg-red-950/40'
+            : 'bg-blue-50/70 dark:bg-blue-950/25 hover:bg-blue-100/60 dark:hover:bg-blue-950/40'
+          : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 opacity-80 hover:opacity-100'
+      }`}
       onClick={onClick}
       onMouseEnter={() => prefetchRoute(n.targetPath)}
       onPointerDown={() => prefetchRoute(n.targetPath)}
     >
-      {/* Left blue unread bar */}
-      {!n.read && (
-        <span className="absolute left-0 top-3 bottom-3 w-0.75 bg-blue-500 rounded-r-full" />
-      )}
-
       {/* Icon */}
       <div
-        className={
-          'shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center ' +
-          (isMessenger
-            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-500'
-            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-500')
-        }
+        className={`shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+          !n.read
+            ? isPriority
+              ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300 ring-2 ring-red-500/20'
+              : isMessenger
+              ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 ring-2 ring-purple-500/20'
+              : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 ring-2 ring-blue-500/20'
+            : 'bg-slate-100/80 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500'
+        }`}
       >
-        {isMessenger ? (
+        {isPriority ? (
+          <Siren className="w-4 h-4 text-red-600 dark:text-red-400" />
+        ) : isMessenger ? (
           <MessageCircle className="w-4 h-4" />
         ) : (
           <Globe2 className="w-4 h-4" />
@@ -1014,16 +1277,58 @@ function NotificationRow({
 
       {/* Content */}
       <div className="flex-1 min-w-0 pr-6">
-        <div className="flex items-center gap-2 mb-0.5">
-          <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+        <div className="flex items-center gap-2 mb-1">
+          <p
+            className={`text-xs truncate tracking-tight transition-colors ${
+              !n.read
+                ? isPriority
+                  ? 'font-bold text-red-950 dark:text-red-100'
+                  : 'font-bold text-slate-900 dark:text-white'
+                : 'font-medium text-slate-500 dark:text-slate-400'
+            }`}
+          >
             {n.title}
           </p>
-          {isMessenger ? (
-            <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+
+          {!n.read && (
+            <span
+              className={`w-2 h-2 rounded-full shrink-0 ${
+                isPriority
+                  ? 'bg-red-600 ring-2 ring-red-500/30'
+                  : 'bg-[#0071E3] ring-2 ring-blue-500/30'
+              }`}
+            />
+          )}
+
+          {isPriority ? (
+            <span
+              className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full transition-colors flex items-center gap-1 ${
+                !n.read
+                  ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 font-bold border border-red-500/30'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-normal border border-slate-200/50 dark:border-slate-700/50'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-red-600 shrink-0" />
+              Priority
+            </span>
+          ) : isMessenger ? (
+            <span
+              className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                !n.read
+                  ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-semibold border border-purple-500/30'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-normal border border-slate-200/50 dark:border-slate-700/50'
+              }`}
+            >
               Messenger
             </span>
           ) : (
-            <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+            <span
+              className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+                !n.read
+                  ? 'bg-blue-100 dark:bg-blue-900/40 text-[#0071E3] dark:text-blue-300 font-semibold border border-blue-500/30'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-normal border border-slate-200/50 dark:border-slate-700/50'
+              }`}
+            >
               Scraper
             </span>
           )}
@@ -1031,16 +1336,37 @@ function NotificationRow({
 
         {/* Barangay / Sender meta */}
         {(n.barangay || n.sender) && (
-          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-0.5">
+          <p
+            className={`text-[11px] mb-1 transition-colors ${
+              !n.read
+                ? 'font-semibold text-slate-700 dark:text-slate-200'
+                : 'font-normal text-slate-400 dark:text-slate-500'
+            }`}
+          >
             {n.barangay ? `📍 ${n.barangay}` : `👤 ${n.sender}`}
           </p>
         )}
 
-        {/* Message snippet */}
-        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+        {/* Message snippet: Bold & highlighted when new, Gray & faded when seen */}
+        <p
+          className={`text-xs line-clamp-2 leading-relaxed transition-colors ${
+            !n.read
+              ? 'font-semibold text-slate-900 dark:text-slate-100'
+              : 'font-normal text-slate-400 dark:text-slate-500'
+          }`}
+        >
           {n.message}
         </p>
-        <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-1">{timeAgo}</p>
+
+        <p
+          className={`text-[10px] mt-1.5 transition-colors tabular-nums ${
+            !n.read
+              ? 'font-semibold text-[#0071E3] dark:text-blue-400'
+              : 'font-normal text-slate-400/70 dark:text-slate-500'
+          }`}
+        >
+          {timeAgo}
+        </p>
       </div>
 
       {/* Dismiss / Delete button */}
@@ -1071,33 +1397,146 @@ function GlobalToast({
   onDismiss: (id: number) => void;
   onView: (path: string) => void;
 }) {
-  useEffect(() => {
-    const timer = setTimeout(() => onDismiss(toast.id), 5500);
-    return () => clearTimeout(timer);
-  }, [toast.id, onDismiss]);
-
+  const isPriority = toast.isPriority || toast.type === 'priority';
   const isMessenger = toast.type === 'messenger';
+  const duration = isPriority ? 10000 : 5500;
+
+  useEffect(() => {
+    const timer = setTimeout(() => onDismiss(toast.id), duration);
+    return () => clearTimeout(timer);
+  }, [toast.id, onDismiss, duration]);
+
+  const cleanTitle = useMemo(() => {
+    let t = toast.title || '';
+    t = t.replace(/^[🚨\s]*/g, '').replace(/^PRIORITY ALERT:\s*/i, '').trim();
+    if (!t || t.toLowerCase() === 'high-urgency incident') {
+      return toast.incidentType
+        ? `${toast.incidentType} Emergency Alert`
+        : 'High-Urgency Incident';
+    }
+    return t;
+  }, [toast.title, toast.incidentType]);
+
+  if (isPriority) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 10, scale: 0.96 }}
+        transition={{ duration: 0.32, ease: APPLE_DECEL_EASE }}
+        className="pointer-events-auto relative w-full sm:w-[420px] rounded-3xl p-4.5 bg-white/95 dark:bg-[#150a0d]/95 backdrop-blur-2xl border border-red-500/25 dark:border-red-500/35 border-t-white/80 dark:border-t-red-400/20 shadow-[0_20px_50px_-10px_rgba(239,68,68,0.28),0_0_0_1px_rgba(239,68,68,0.08)] overflow-hidden"
+      >
+        {/* Ambient radial emergency glow in top-left */}
+        <div className="pointer-events-none absolute -top-12 -left-12 w-40 h-40 bg-red-500/15 dark:bg-red-500/20 rounded-full blur-2xl" />
+
+        {/* Header Row: Beacon + Pill Badges + Close Button */}
+        <div className="flex items-start gap-3 relative z-10">
+          {/* Apple-style Concentric Glowing Beacon */}
+          <div className="relative shrink-0 mt-0.5">
+            <span className="absolute -inset-1 rounded-2xl bg-red-500/20 dark:bg-red-500/30 blur-xs" />
+            <div className="relative w-10 h-10 rounded-2xl flex items-center justify-center bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-md shadow-red-500/30">
+              <Siren className="w-5 h-5 text-white" />
+            </div>
+          </div>
+
+          {/* Details & Badges */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Priority Pill */}
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-600 text-white shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+                Priority Alert
+              </span>
+
+              {/* Barangay Pill */}
+              {toast.barangay && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/60 border border-red-200/80 dark:border-red-900/60">
+                  <MapPin className="w-2.5 h-2.5 text-red-500" />
+                  {toast.barangay}
+                </span>
+              )}
+
+              {/* Incident Type Pill */}
+              {toast.incidentType && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/10 border border-slate-200/70 dark:border-white/10">
+                  {toast.incidentType}
+                </span>
+              )}
+            </div>
+
+            {/* Headline */}
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight mt-1.5 leading-snug">
+              {cleanTitle}
+            </h4>
+          </div>
+
+          {/* Frosted Circular Close Button */}
+          <button
+            onClick={() => onDismiss(toast.id)}
+            className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
+            title="Dismiss alert"
+            aria-label="Dismiss alert"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Message Bubble: Frosted, high legibility */}
+        {toast.message && (
+          <div className="mt-2.5 p-3 rounded-2xl bg-slate-50/90 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-normal line-clamp-2 select-text relative z-10">
+            &ldquo;{toast.message}&rdquo;
+          </div>
+        )}
+
+        {/* Action Buttons Row */}
+        <div className="mt-3.5 flex items-center gap-2 relative z-10">
+          <button
+            onClick={() => onView(toast.targetPath)}
+            onMouseEnter={() => prefetchRoute(toast.targetPath)}
+            onPointerDown={() => prefetchRoute(toast.targetPath)}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-500 hover:to-rose-500 active:scale-[0.98] transition-all duration-150 shadow-md shadow-red-500/25 hover:shadow-lg hover:shadow-red-500/35 cursor-pointer"
+          >
+            <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+            <span>View Immediate Incident</span>
+            <ArrowRight className="w-3 h-3" />
+          </button>
+
+          <button
+            onClick={() => onDismiss(toast.id)}
+            className="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 active:scale-[0.97] transition-all cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+
+        {/* Sleek Sub-millimeter Countdown Bar */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-red-100 dark:bg-red-950/40 overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-red-600 via-rose-500 to-amber-500"
+            initial={{ width: '100%' }}
+            animate={{ width: '0%' }}
+            transition={{ duration: 10, ease: 'linear' }}
+          />
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 80, scale: 0.94 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 80, scale: 0.94 }}
-      transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
-      className="pointer-events-auto relative flex items-start gap-3 pl-4 pr-3 pt-3.5 pb-5 rounded-2xl border shadow-xl min-w-[310px] max-w-97.5 bg-white dark:bg-[#111827] border-slate-200 dark:border-slate-700 overflow-hidden"
+      initial={{ opacity: 0, y: 20, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 10, scale: 0.96 }}
+      transition={{ duration: 0.32, ease: APPLE_DECEL_EASE }}
+      className="pointer-events-auto relative flex items-start gap-3 pl-4 pr-3 pt-3.5 pb-5 rounded-2xl border shadow-xl min-w-[310px] max-w-97.5 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-2xl border-slate-200/80 dark:border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.12)] overflow-hidden"
     >
-      {/* Accent bar */}
-      <div
-        className={`absolute left-0 top-0 bottom-0 w-1 ${isMessenger ? 'bg-purple-500' : 'bg-blue-500'
-          }`}
-      />
-
       {/* Icon */}
       <div
-        className={`shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center ${isMessenger
-          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-500'
-          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-500'
-          }`}
+        className={`shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center ${
+          isMessenger
+            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+            : 'bg-blue-100 dark:bg-blue-900/30 text-[#0071E3] dark:text-sky-400'
+        }`}
       >
         {isMessenger ? (
           <MessageCircle className="w-4 h-4" />
@@ -1117,10 +1556,11 @@ function GlobalToast({
           onClick={() => onView(toast.targetPath)}
           onMouseEnter={() => prefetchRoute(toast.targetPath)}
           onPointerDown={() => prefetchRoute(toast.targetPath)}
-          className={`mt-2 flex items-center gap-1 text-xs font-semibold transition-colors ${isMessenger
-            ? 'text-purple-500 hover:text-purple-600'
-            : 'text-blue-500 hover:text-blue-600'
-            }`}
+          className={`mt-2 flex items-center gap-1 text-xs font-semibold transition-colors cursor-pointer ${
+            isMessenger
+              ? 'text-purple-600 dark:text-purple-400 hover:text-purple-700'
+              : 'text-[#0071E3] dark:text-sky-400 hover:text-[#0077ED]'
+          }`}
         >
           View
           <ArrowRight className="w-3 h-3" />
@@ -1130,15 +1570,14 @@ function GlobalToast({
       {/* Dismiss */}
       <button
         onClick={() => onDismiss(toast.id)}
-        className="shrink-0 mt-0.5 p-1 text-slate-300 hover:text-slate-500 dark:hover:text-slate-300 rounded-lg transition-colors"
+        className="shrink-0 mt-0.5 p-1 text-slate-300 hover:text-slate-500 dark:hover:text-slate-300 rounded-lg transition-colors cursor-pointer"
       >
         <X className="w-4 h-4" />
       </button>
 
       {/* Progress bar */}
       <motion.div
-        className={`absolute bottom-0 left-0 h-[3px] ${isMessenger ? 'bg-purple-400' : 'bg-blue-400'
-          }`}
+        className={`absolute bottom-0 left-0 h-[3px] ${isMessenger ? 'bg-purple-500' : 'bg-[#0071E3]'}`}
         initial={{ width: '100%' }}
         animate={{ width: '0%' }}
         transition={{ duration: 5.5, ease: 'linear' }}
@@ -1184,7 +1623,7 @@ function DeleteNotificationModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.16 }}
+          transition={{ duration: 0.18, ease: APPLE_DECEL_EASE }}
           className="fixed inset-0 z-[220] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
           onClick={onClose}
         >
@@ -1194,12 +1633,12 @@ function DeleteNotificationModal({
             aria-modal="true"
             aria-labelledby="delete-notification-title"
             aria-describedby="delete-notification-desc"
-            initial={{ scale: 0.94, opacity: 0, y: 8 }}
+            initial={{ scale: 0.95, opacity: 0, y: 12 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.94, opacity: 0, y: 8 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+            exit={{ scale: 0.95, opacity: 0, y: 8 }}
+            transition={{ duration: 0.25, ease: APPLE_DECEL_EASE }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl border border-white/80 dark:border-white/10 shadow-[0_24px_50px_rgba(0,0,0,0.25)] p-5 sm:p-6 text-center relative overflow-hidden"
+            className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-[0_24px_60px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.9)] p-5 sm:p-6 text-center relative overflow-hidden"
           >
             {/* Ambient Red Glow */}
             <div className="absolute -top-10 -right-10 w-28 h-28 bg-red-500/10 dark:bg-red-500/15 rounded-full blur-xl pointer-events-none" />

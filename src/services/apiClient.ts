@@ -2,10 +2,12 @@
  * src/services/apiClient.ts
  *
  * Resilient API client for Responde frontend with:
- * 1. In-flight request deduplication (prevents multiple components firing duplicate requests)
+ * 1. Decoupled In-flight request deduplication (prevents multiple components firing duplicate requests
+ *    without letting an unmounting caller cancel shared requests for active callers)
  * 2. Short-term in-memory response cache (8s TTL)
  * 3. Exponential backoff retry on HTTP 429 (Rate Limit) and transient network drops
- * 4. AbortSignal integration to cancel stale fetches on unmount or filter changes
+ * 4. Per-caller AbortSignal integration to cancel only the caller's interest, canceling the underlying
+ *    network fetch ONLY when all interested callers have aborted.
  */
 
 export interface ApiClientOptions extends RequestInit {
@@ -24,11 +26,22 @@ interface CacheEntry<T = any> {
   data: T;
 }
 
+interface InFlightSubscriber {
+  signal?: AbortSignal | null;
+  onAbort?: () => void;
+}
+
+interface InFlightEntry<T = any> {
+  promise: Promise<T>;
+  internalController: AbortController;
+  subscribers: Set<InFlightSubscriber>;
+}
+
 // In-memory cache for GET responses
 const queryCache = new Map<string, CacheEntry>();
 
-// In-flight pending requests map to deduplicate identical concurrent queries
-const inFlightRequests = new Map<string, Promise<any>>();
+// In-flight pending requests map with decoupled subscriber tracking
+const inFlightRequests = new Map<string, InFlightEntry>();
 
 export class ApiError extends Error {
   status: number;
@@ -133,107 +146,171 @@ export async function apiRequest<T = any>(
     }
   }
 
-  // 2. Deduplicate in-flight GET requests
-  if (isGet && inFlightRequests.has(cacheKey)) {
-    return inFlightRequests.get(cacheKey) as Promise<T>;
+  // If the caller's signal is already aborted before starting, fail fast
+  if (signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
   }
 
-  // 3. Perform network call with exponential backoff on 429 or 503
-  const executeCall = async (): Promise<T> => {
-    let attempt = 0;
+  // 2. Manage in-flight deduplication with per-caller abort decoupling
+  let entry = isGet ? inFlightRequests.get(cacheKey) : undefined;
+  if (entry && entry.internalController.signal.aborted) {
+    inFlightRequests.delete(cacheKey);
+    entry = undefined;
+  }
 
-    while (attempt <= maxRetries) {
-      if (signal?.aborted) {
-        throw new DOMException('Aborted', 'AbortError');
-      }
+  if (!entry) {
+    const internalController = new AbortController();
+    const subscribers = new Set<InFlightSubscriber>();
 
-      try {
-        const response = await fetch(url, {
-          ...restFetchOptions,
-          method,
-          headers,
-          credentials: 'include',
-          signal,
-        });
+    // 3. Perform network call with exponential backoff on 429 or 503
+    const executeCall = async (): Promise<T> => {
+      let attempt = 0;
 
-        if (response.ok) {
-          const json = await response.json();
-          if (isGet && cacheTtlMs > 0) {
-            queryCache.set(cacheKey, { timestamp: Date.now(), data: json });
-          }
-          return json as T;
+      while (attempt <= maxRetries) {
+        if (internalController.signal.aborted) {
+          throw new DOMException('Aborted', 'AbortError');
         }
 
-        // Handle Rate Limit (HTTP 429) or Service Overload (HTTP 503)
-        if (response.status === 429 || response.status === 503) {
-          const is429 = response.status === 429;
-          const retryAfterHeader = response.headers.get('retry-after');
-          const resetHeader = response.headers.get('ratelimit-reset');
-          let delayMs = initialBackoffMs * Math.pow(2, attempt) + Math.random() * 300;
+        try {
+          const response = await fetch(url, {
+            ...restFetchOptions,
+            method,
+            headers,
+            credentials: 'include',
+            signal: internalController.signal,
+          });
 
-          if (retryAfterHeader) {
-            const parsedSeconds = parseInt(retryAfterHeader, 10);
-            if (!isNaN(parsedSeconds) && parsedSeconds > 0) {
-              delayMs = Math.min(parsedSeconds * 1000, 15000);
+          if (response.ok) {
+            const json = await response.json();
+            if (isGet && cacheTtlMs > 0) {
+              queryCache.set(cacheKey, { timestamp: Date.now(), data: json });
             }
-          } else if (resetHeader) {
-            const parsedReset = parseInt(resetHeader, 10);
-            if (!isNaN(parsedReset) && parsedReset > 0 && parsedReset < 60) {
-              delayMs = Math.min(parsedReset * 1000, 10000);
-            }
+            return json as T;
           }
 
-          if (attempt < maxRetries) {
-            attempt++;
-            if (import.meta.env.DEV) {
-              console.warn(
-                `[apiClient] ${response.status} on ${path}. Retrying in ${Math.round(delayMs)}ms (attempt ${attempt}/${maxRetries})...`
-              );
+          // Handle Rate Limit (HTTP 429) or Service Overload (HTTP 503)
+          if (response.status === 429 || response.status === 503) {
+            const is429 = response.status === 429;
+            const retryAfterHeader = response.headers.get('retry-after');
+            const resetHeader = response.headers.get('ratelimit-reset');
+            let delayMs = initialBackoffMs * Math.pow(2, attempt) + Math.random() * 300;
+
+            if (retryAfterHeader) {
+              const parsedSeconds = parseInt(retryAfterHeader, 10);
+              if (!isNaN(parsedSeconds) && parsedSeconds > 0) {
+                delayMs = Math.min(parsedSeconds * 1000, 15000);
+              }
+            } else if (resetHeader) {
+              const parsedReset = parseInt(resetHeader, 10);
+              if (!isNaN(parsedReset) && parsedReset > 0 && parsedReset < 60) {
+                delayMs = Math.min(parsedReset * 1000, 10000);
+              }
             }
-            await wait(delayMs, signal);
+
+            if (attempt < maxRetries) {
+              attempt++;
+              if (import.meta.env.DEV) {
+                console.warn(
+                  `[apiClient] ${response.status} on ${path}. Retrying in ${Math.round(delayMs)}ms (attempt ${attempt}/${maxRetries})...`
+                );
+              }
+              await wait(delayMs, internalController.signal);
+              continue;
+            }
+
+            const errBody = await response.json().catch(() => ({}));
+            const errMsg =
+              errBody.error ||
+              (is429 ? 'Too many requests, please try again in a few moments.' : 'Server temporarily unavailable.');
+            throw new ApiError(errMsg, response.status, is429);
+          }
+
+          // Other HTTP error statuses
+          const errJson = await response.json().catch(() => ({}));
+          const message = errJson.error || errJson.message || `Request failed with status ${response.status}`;
+          throw new ApiError(message, response.status, false);
+        } catch (err: any) {
+          if (err.name === 'AbortError') {
+            throw err;
+          }
+
+          // Network connection error - retry once or twice
+          if (err.name === 'TypeError' && err.message.includes('fetch') && attempt < maxRetries) {
+            attempt++;
+            const delay = initialBackoffMs * Math.pow(1.5, attempt);
+            await wait(delay, internalController.signal);
             continue;
           }
 
-          const errBody = await response.json().catch(() => ({}));
-          const errMsg =
-            errBody.error ||
-            (is429 ? 'Too many requests, please try again in a few moments.' : 'Server temporarily unavailable.');
-          throw new ApiError(errMsg, response.status, is429);
-        }
-
-        // Other HTTP error statuses
-        const errJson = await response.json().catch(() => ({}));
-        const message = errJson.error || errJson.message || `Request failed with status ${response.status}`;
-        throw new ApiError(message, response.status, false);
-      } catch (err: any) {
-        if (err.name === 'AbortError') {
           throw err;
         }
-
-        // Network connection error - retry once or twice
-        if (err.name === 'TypeError' && err.message.includes('fetch') && attempt < maxRetries) {
-          attempt++;
-          const delay = initialBackoffMs * Math.pow(1.5, attempt);
-          await wait(delay, signal);
-          continue;
-        }
-
-        throw err;
       }
-    }
 
-    throw new ApiError('Request timed out after retries', 429, true);
-  };
+      throw new ApiError('Request timed out after retries', 429, true);
+    };
 
-  const promise = executeCall().finally(() => {
+    const sharedPromise = executeCall().finally(() => {
+      if (isGet) {
+        inFlightRequests.delete(cacheKey);
+      }
+    });
+
+    entry = {
+      promise: sharedPromise,
+      internalController,
+      subscribers,
+    };
+
     if (isGet) {
-      inFlightRequests.delete(cacheKey);
+      inFlightRequests.set(cacheKey, entry);
     }
-  });
-
-  if (isGet) {
-    inFlightRequests.set(cacheKey, promise);
   }
 
-  return promise;
+  // Non-GET requests run without subscriber wrapping
+  if (!isGet) {
+    return entry.promise;
+  }
+
+  // Wrap the shared in-flight promise for this specific caller
+  return new Promise<T>((resolve, reject) => {
+    const currentEntry = entry!;
+    let sub: InFlightSubscriber;
+
+    const onAbort = () => {
+      currentEntry.subscribers.delete(sub);
+      console.log(`[apiClient:AbortTrace] Caller signal aborted for ${path}. Remaining subscribers: ${currentEntry.subscribers.size}`);
+      // Cancel underlying fetch ONLY if all subscribers have aborted
+      if (currentEntry.subscribers.size === 0) {
+        console.log(`[apiClient:AbortTrace] All subscribers aborted for ${path} - canceling underlying network fetch`);
+        currentEntry.internalController.abort();
+        inFlightRequests.delete(cacheKey);
+      }
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+
+    if (signal) {
+      sub = { signal, onAbort };
+      currentEntry.subscribers.add(sub);
+      signal.addEventListener('abort', onAbort, { once: true });
+    } else {
+      sub = { signal: null, onAbort: undefined };
+      currentEntry.subscribers.add(sub);
+    }
+
+    currentEntry.promise
+      .then((result) => {
+        if (signal && sub.onAbort) {
+          signal.removeEventListener('abort', sub.onAbort);
+        }
+        currentEntry.subscribers.delete(sub);
+        resolve(result);
+      })
+      .catch((err) => {
+        if (signal && sub.onAbort) {
+          signal.removeEventListener('abort', sub.onAbort);
+        }
+        currentEntry.subscribers.delete(sub);
+        reject(err);
+      });
+  });
 }

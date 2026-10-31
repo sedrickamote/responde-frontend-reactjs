@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { apiFetch } from './authService';
+import { apiRequest } from './apiClient';
+import { formatTimestampPHT } from '../utils/dateUtils';
 
 export type ReportStatus = 'pending' | 'under_review' | 'verified' | 'rejected' | 'resolved';
 
@@ -92,15 +94,17 @@ export function formatReportCode(id?: string | null, source?: string | null): st
  * Backend aggregates Messenger bot conversations, Facebook comments, and persisted officer triages.
  */
 export async function fetchReports(): Promise<Report[]> {
-  const res = await apiFetch('/api/auth/data/incident-reports');
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || errData.message || 'Failed to fetch incident reports from API');
-  }
-
-  const json = await res.json();
-  const rawReports: Report[] = json.data ?? [];
-  return rawReports.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  const json = await apiRequest<{ data?: Report[] }>('/api/auth/data/incident-reports', {
+    cacheTtlMs: 8000,
+  });
+  const rawReports: Report[] = json?.data ?? [];
+  return rawReports
+    .map((r: any) => ({
+      ...r,
+      time: (r.createdAt ? formatTimestampPHT(r.createdAt) : null) || (r.time ? formatTimestampPHT(r.time) : '') || r.time,
+      verifiedAt: r.verifiedAt ? (formatTimestampPHT(r.verifiedAt) || r.verifiedAt) : null,
+    }))
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 }
 
 /** Update an incident report action, triage status, notes, and coordinates via backend API. */

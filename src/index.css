@@ -68,6 +68,314 @@ button:not(:disabled),
 }
 
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   SOFT UI EVOLUTION SCOPED DESIGN TOKENS (Settings)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.settings-soft {
+  --soft-surface: #FFFFFF;
+  --soft-surface-subtle: #F8FAFC;
+  --soft-surface-pressed: #F1F5F9;
+  --soft-border: rgba(15, 23, 42, 0.08);
+  --soft-border-subtle: rgba(15, 23, 42, 0.05);
+
+  --soft-text-main: #0F172A;
+  --soft-text-muted: #64748B;
+  --soft-text-subtle: #94A3B8;
+
+  --soft-accent: #2563EB;
+  --soft-accent-subtle: #EFF6FF;
+
+  --soft-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 14px rgba(15, 23, 42, 0.03);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-tactile: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dark .settings-soft {
+  --soft-surface: #111827;
+  --soft-surface-subtle: #0B0F19;
+  --soft-surface-pressed: #1E293B;
+  --soft-border: rgba(255, 255, 255, 0.08);
+  --soft-border-subtle: rgba(255, 255, 255, 0.04);
+
+  --soft-text-main: #F8FAFC;
+  --soft-text-muted: #94A3B8;
+  --soft-text-subtle: #64748B;
+
+  --soft-accent: #3B82F6;
+  --soft-accent-subtle: rgba(59, 130, 246, 0.12);
+
+  --soft-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SOFT UI EVOLUTION SCOPED DESIGN TOKENS (Analytics)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.analytics-soft {
+  --soft-surface: #FFFFFF;
+  --soft-surface-subtle: #F8FAFC;
+  --soft-surface-pressed: #F1F5F9;
+  --soft-border: rgba(15, 23, 42, 0.08);
+  --soft-border-subtle: rgba(15, 23, 42, 0.05);
+
+  --soft-text-main: #0F172A;
+  --soft-text-muted: #64748B;
+  --soft-text-subtle: #94A3B8;
+
+  --soft-accent: #2563EB;
+  --soft-accent-subtle: #EFF6FF;
+
+  --soft-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 14px rgba(15, 23, 42, 0.03);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-tactile: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dark .analytics-soft {
+  --soft-surface: #111827;
+  --soft-surface-subtle: #0B0F19;
+  --soft-surface-pressed: #1E293B;
+  --soft-border: rgba(255, 255, 255, 0.08);
+  --soft-border-subtle: rgba(255, 255, 255, 0.04);
+
+  --soft-text-main: #F8FAFC;
+  --soft-text-muted: #94A3B8;
+  --soft-text-subtle: #64748B;
+
+  --soft-accent: #3B82F6;
+  --soft-accent-subtle: rgba(59, 130, 246, 0.12);
+
+  --soft-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SOFT UI EVOLUTION SCOPED DESIGN TOKENS (Geospatial)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.geospatial-soft {
+  --soft-surface: #FFFFFF;
+  --soft-surface-subtle: #F8FAFC;
+  --soft-surface-pressed: #F1F5F9;
+  --soft-border: rgba(15, 23, 42, 0.08);
+  --soft-border-subtle: rgba(15, 23, 42, 0.05);
+
+  --soft-text-main: #0F172A;
+  --soft-text-muted: #64748B;
+  --soft-text-subtle: #94A3B8;
+
+  --soft-accent: #2563EB;
+  --soft-accent-subtle: #EFF6FF;
+
+  --soft-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.04);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-tactile: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dark .geospatial-soft {
+  --soft-surface: #111827;
+  --soft-surface-subtle: #0B0F19;
+  --soft-surface-pressed: #1E293B;
+  --soft-border: rgba(255, 255, 255, 0.08);
+  --soft-border-subtle: rgba(255, 255, 255, 0.04);
+
+  --soft-text-main: #F8FAFC;
+  --soft-text-muted: #94A3B8;
+  --soft-text-subtle: #64748B;
+
+  --soft-accent: #3B82F6;
+  --soft-accent-subtle: rgba(59, 130, 246, 0.12);
+
+  --soft-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SOFT UI EVOLUTION SCOPED DESIGN TOKENS (Scraper Feed)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.scraper-soft {
+  --soft-surface: #FFFFFF;
+  --soft-surface-subtle: #F8FAFC;
+  --soft-surface-pressed: #F1F5F9;
+  --soft-border: rgba(15, 23, 42, 0.08);
+  --soft-border-subtle: rgba(15, 23, 42, 0.05);
+
+  --soft-text-main: #0F172A;
+  --soft-text-muted: #64748B;
+  --soft-text-subtle: #94A3B8;
+
+  --soft-accent: #2563EB;
+  --soft-accent-subtle: #EFF6FF;
+
+  --soft-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.03);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-tactile: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dark .scraper-soft {
+  --soft-surface: #111827;
+  --soft-surface-subtle: #0B0F19;
+  --soft-surface-pressed: #1E293B;
+  --soft-border: rgba(255, 255, 255, 0.08);
+  --soft-border-subtle: rgba(255, 255, 255, 0.04);
+
+  --soft-text-main: #F8FAFC;
+  --soft-text-muted: #94A3B8;
+  --soft-text-subtle: #64748B;
+
+  --soft-accent: #3B82F6;
+  --soft-accent-subtle: rgba(59, 130, 246, 0.12);
+
+  --soft-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SOFT UI EVOLUTION SCOPED DESIGN TOKENS (Messenger Bot Logs)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.messenger-soft {
+  --soft-surface: #FFFFFF;
+  --soft-surface-subtle: #F8FAFC;
+  --soft-surface-pressed: #F1F5F9;
+  --soft-border: rgba(15, 23, 42, 0.08);
+  --soft-border-subtle: rgba(15, 23, 42, 0.05);
+
+  --soft-text-main: #0F172A;
+  --soft-text-muted: #64748B;
+  --soft-text-subtle: #94A3B8;
+
+  --soft-accent: #2563EB;
+  --soft-accent-subtle: #EFF6FF;
+
+  --soft-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.03);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-tactile: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dark .messenger-soft {
+  --soft-surface: #111827;
+  --soft-surface-subtle: #0B0F19;
+  --soft-surface-pressed: #1E293B;
+  --soft-border: rgba(255, 255, 255, 0.08);
+  --soft-border-subtle: rgba(255, 255, 255, 0.04);
+
+  --soft-text-main: #F8FAFC;
+  --soft-text-muted: #94A3B8;
+  --soft-text-subtle: #64748B;
+
+  --soft-accent: #3B82F6;
+  --soft-accent-subtle: rgba(59, 130, 246, 0.12);
+
+  --soft-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SOFT UI EVOLUTION SCOPED DESIGN TOKENS (Incident Reports)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.incidents-soft {
+  --soft-surface: #FFFFFF;
+  --soft-surface-subtle: #F8FAFC;
+  --soft-surface-pressed: #F1F5F9;
+  --soft-border: rgba(15, 23, 42, 0.08);
+  --soft-border-subtle: rgba(15, 23, 42, 0.05);
+
+  --soft-text-main: #0F172A;
+  --soft-text-muted: #64748B;
+  --soft-text-subtle: #94A3B8;
+
+  --soft-accent: #2563EB;
+  --soft-accent-subtle: #EFF6FF;
+
+  --soft-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.03);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-tactile: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dark .incidents-soft {
+  --soft-surface: #111827;
+  --soft-surface-subtle: #0B0F19;
+  --soft-surface-pressed: #1E293B;
+  --soft-border: rgba(255, 255, 255, 0.08);
+  --soft-border-subtle: rgba(255, 255, 255, 0.04);
+
+  --soft-text-main: #F8FAFC;
+  --soft-text-muted: #94A3B8;
+  --soft-text-subtle: #64748B;
+
+  --soft-accent: #3B82F6;
+  --soft-accent-subtle: rgba(59, 130, 246, 0.12);
+
+  --soft-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SOFT UI EVOLUTION SCOPED DESIGN TOKENS (Dashboard)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.dashboard-soft {
+  --soft-surface: #FFFFFF;
+  --soft-surface-subtle: #F8FAFC;
+  --soft-surface-pressed: #F1F5F9;
+  --soft-border: rgba(15, 23, 42, 0.08);
+  --soft-border-subtle: rgba(15, 23, 42, 0.05);
+
+  --soft-text-main: #0F172A;
+  --soft-text-muted: #64748B;
+  --soft-text-subtle: #94A3B8;
+
+  --soft-accent: #2563EB;
+  --soft-accent-subtle: #EFF6FF;
+
+  --soft-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.03);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-tactile: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dark .dashboard-soft {
+  --soft-surface: #111827;
+  --soft-surface-subtle: #0B0F19;
+  --soft-surface-pressed: #1E293B;
+  --soft-border: rgba(255, 255, 255, 0.08);
+  --soft-border-subtle: rgba(255, 255, 255, 0.04);
+
+  --soft-text-main: #F8FAFC;
+  --soft-text-muted: #94A3B8;
+  --soft-text-subtle: #64748B;
+
+  --soft-accent: #3B82F6;
+  --soft-accent-subtle: rgba(59, 130, 246, 0.12);
+
+  --soft-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --soft-shadow-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+
 /* MDRRMO Talisay Command Center Radar Pulse */
 @keyframes mdrrmo-radar-wave {
   0% {

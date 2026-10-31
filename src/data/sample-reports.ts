@@ -1,6 +1,7 @@
 // src/data/sample-reports.ts
-// Initial empty reports array — populated dynamically via Supabase backend
-// Barangay names updated to match talisay-barangays.ts GeoJSON
+// Data structures and initial empty state for Incident Reports
+// Barangay names match talisay-barangays.ts GeoJSON
+// Formatted in Philippine Standard Time (12-hour format with AM/PM)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type ReportStatus = 'pending' | 'under_review' | 'verified' | 'rejected' | 'resolved';
@@ -25,4 +26,5 @@ export interface Report {
     possibleDuplicateOf: string | null;
 }
 
+// Initial empty reports array — populated dynamically via Supabase backend
 export const sampleReports: Report[] = [];

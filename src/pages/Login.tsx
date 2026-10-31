@@ -4,6 +4,7 @@ import { motion, AnimatePresence, useReducedMotion, type Variants } from 'framer
 import { Lock, User, Eye, EyeOff, AlertCircle, Mail, ArrowLeft, ArrowRight, RefreshCw, CheckCircle2, KeyRound } from 'lucide-react';
 import { useAuth, AuthError } from '../context/AuthContext';
 import { authService } from '../services/authService';
+import { formatPhilippineTimeOnly } from '../utils/dateUtils';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -139,7 +140,7 @@ export default function Login() {
 
         if (reason === 'account_locked') {
           const until = locked_until
-            ? new Date(locked_until).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            ? formatPhilippineTimeOnly(locked_until)
             : 'later';
           setErrorMessage(`Account locked after too many failed attempts. Try again after ${until}.`);
         } else if (reason === 'user_not_found') {
