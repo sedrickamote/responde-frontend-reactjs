@@ -612,7 +612,7 @@ export default function Analytics() {
 
           {/* ── 2. 4-STAT SOFT METRIC CARDS ── */}
           <motion.div variants={itemVariants} className="relative z-10">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
               {[
                 {
                   icon: Layers,
@@ -649,24 +649,24 @@ export default function Analytics() {
               ].map(({ icon: Icon, iconColor, iconBg, value, label, desc }) => (
                 <SoftCard
                   key={label}
-                  className="p-5 flex flex-col justify-between hover:-translate-y-0.5 transition-all duration-300"
+                  className="p-3.5 sm:p-5 flex flex-col justify-between hover:-translate-y-0.5 transition-all duration-300"
                 >
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+                  <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
+                    <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
                       {label}
                     </p>
                     <div
-                      className="w-8 h-8 rounded-xl border flex items-center justify-center shrink-0"
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl border flex items-center justify-center shrink-0"
                       style={{ background: iconBg, borderColor: `${iconColor}25`, color: iconColor }}
                     >
-                      <Icon className="w-4 h-4" strokeWidth={1.75} />
+                      <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={1.75} />
                     </div>
                   </div>
                   <div>
-                    <p className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white tabular-nums leading-none">
+                    <p className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white tabular-nums leading-none">
                       {value}
                     </p>
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 font-medium truncate">
+                    <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 sm:mt-2 font-medium truncate">
                       {desc}
                     </p>
                   </div>

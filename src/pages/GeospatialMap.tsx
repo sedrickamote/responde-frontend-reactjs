@@ -1327,8 +1327,8 @@ export default function GeospatialMap() {
   if (loading) return <PageLoader variant="geospatial" />;
 
   return (
-    <div className="geospatial-soft flex flex-col flex-1 min-h-0 gap-3 sm:gap-4 h-full">
-      <StaggerContainer className="flex flex-col flex-1 min-h-0 gap-3 sm:gap-4 h-full">
+    <div className="geospatial-soft flex flex-col flex-1 min-h-full gap-3 sm:gap-4 relative">
+      <StaggerContainer className="flex flex-col flex-1 gap-3 sm:gap-4">
         {/* ── Floating Command Toolbar Capsule with Soft Header ── */}
         <StaggerItem className="shrink-0">
           <SoftPanel className="p-4 sm:p-5 relative z-30 space-y-4">
@@ -1443,7 +1443,7 @@ export default function GeospatialMap() {
         </StaggerItem>
 
         {/* ── Main Canvas: Map + Side Panel ── */}
-        <StaggerItem className="flex-1 min-h-[360px] sm:min-h-[460px] md:min-h-0 h-[calc(100dvh-18rem-env(safe-area-inset-bottom,0px))] md:h-full flex flex-row relative">
+        <StaggerItem className="flex-1 min-h-[420px] sm:min-h-[480px] md:min-h-0 h-[calc(100dvh-17rem-env(safe-area-inset-bottom,0px))] md:h-full flex flex-row relative">
 
           {/* Desktop Sidebar (inline, animated width & margin) */}
           <AnimatePresence initial={false}>
