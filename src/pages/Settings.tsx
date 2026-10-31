@@ -3,17 +3,38 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../components/ThemeContent';
 import { useAuth } from '../context/AuthContext';
 import {
-  Moon, Sun, Bell, Shield, Database, Users,
-  RefreshCw, Wifi, Check, X, UserPlus, Copy,
-  CheckCircle2, AlertCircle, ShieldCheck,
-  Search, Lock, Loader2, Eye, EyeOff, KeyRound,
-  Trash2, AlertTriangle, UserCircle, Pencil, Phone, Briefcase, Mail,
-  History, ArrowRight, ArrowLeft, AtSign, LogOut,
-  Bot
+  Settings as SettingsIcon,
+  UserCircle,
+  Shield,
+  Lock,
+  Bell,
+  Pencil,
+  Trash2,
+  RefreshCw,
+  UserPlus,
+  Search,
+  Eye,
+  EyeOff,
+  Check,
+  X,
+  AlertTriangle,
+  AlertCircle,
+  ArrowRight,
+  ArrowLeft,
+  Mail,
+  Sun,
+  Moon,
+  Volume2,
+  Globe,
+  Copy,
+  Loader2,
 } from 'lucide-react';
 import SignOutModal from '../components/SignOutModal';
+import { StaggerContainer, StaggerItem } from '../components/Stagger';
 import { authService, type AuthUser, type UserRole, AuthError } from '../services/authService';
 import { formatPhilippineDateTime } from '../utils/dateUtils';
+
+type TabKey = 'profile' | 'team' | 'security' | 'preferences';
 
 type AuditAction = 'invite' | 'signup' | 'role_change' | 'user_deleted' | 'password_change' | 'login';
 
@@ -25,13 +46,14 @@ type AuditEntry = {
   timestamp: string;
 };
 
-const AUDIT_META: Record<AuditAction, { label: string; className: string }> = {
-  invite: { label: 'Invite Generated', className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300' },
-  signup: { label: 'Personnel Sign Up', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' },
-  role_change: { label: 'Role Change', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
-  user_deleted: { label: 'User Deleted', className: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
-  password_change: { label: 'Password Changed', className: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300' },
-  login: { label: 'Sign In', className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
+/* Calm, low-saturation neutral badges with micro-dot indicator */
+const AUDIT_META: Record<AuditAction, { label: string; dotColor: string }> = {
+  invite: { label: 'Invite Generated', dotColor: 'bg-purple-500' },
+  signup: { label: 'Personnel Sign Up', dotColor: 'bg-emerald-500' },
+  role_change: { label: 'Role Changed', dotColor: 'bg-sky-500' },
+  user_deleted: { label: 'User Deleted', dotColor: 'bg-rose-500' },
+  password_change: { label: 'Password Changed', dotColor: 'bg-indigo-500' },
+  login: { label: 'Sign In', dotColor: 'bg-slate-400' },
 };
 
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
@@ -39,51 +61,154 @@ const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString(
 const formatRelative = (iso: string) => {
   const diff = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
   if (diff < 1) return 'Just now';
-  if (diff < 60) return `${diff} min ago`;
-  if (diff < 1440) return `${Math.floor(diff / 60)} hr ago`;
+  if (diff < 60) return `${diff}m ago`;
+  if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
   return formatPhilippineDateTime(iso, { includeYear: true });
 };
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onChange}
-      className={`relative w-11 h-6 rounded-full transition-colors ${checked ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'
-        }`}
-    >
-      <span
-        className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'
-          }`}
-      />
-    </button>
-  );
-}
+/* =========================================================================
+   CLEAN MINIMALIST SOFT UI BUILDING BLOCKS
+   ========================================================================= */
 
-function Card({ icon: Icon, title, children }: {
-  icon: React.ElementType;
-  title: string;
+/**
+ * SoftCard: Clean surface card with subtle border and soft ambient shadow.
+ */
+function SoftCard({
+  children,
+  className = '',
+}: {
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-6">
-      <div className="flex items-center gap-2 mb-5">
-        <Icon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-        <h3 className="font-semibold text-slate-800 dark:text-slate-100">{title}</h3>
-      </div>
+    <div
+      className={`rounded-2xl border transition-all duration-300 p-6 sm:p-7 ${className}`}
+      style={{
+        backgroundColor: 'var(--soft-surface)',
+        borderColor: 'var(--soft-border)',
+        boxShadow: 'var(--soft-shadow-card)',
+      }}
+    >
       {children}
     </div>
   );
 }
 
-function StatusBadge({ active }: { active: boolean }) {
+/**
+ * CleanButton: Tactile button with subtle borders and gentle scale feedback.
+ */
+function CleanButton({
+  variant = 'primary',
+  icon: Icon,
+  children,
+  onClick,
+  type = 'button',
+  disabled = false,
+  className = '',
+  title,
+}: {
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  icon?: React.ElementType;
+  children: React.ReactNode;
+  onClick?: () => void;
+  type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
+  className?: string;
+  title?: string;
+}) {
+  let styles = '';
+  if (variant === 'primary') {
+    styles = 'bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100 shadow-xs';
+  } else if (variant === 'secondary') {
+    styles = 'bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700/70 border border-slate-200/80 dark:border-slate-700/80 shadow-xs';
+  } else if (variant === 'danger') {
+    styles = 'bg-rose-50 text-rose-700 hover:bg-rose-100/80 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-900/40 border border-rose-200/70 dark:border-rose-900/50';
+  } else {
+    styles = 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/60';
+  }
+
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${active
-      ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800'
-      : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800'
-      }`}>
-      <Wifi className="w-3 h-3" />
-      {active ? 'Connected' : 'Disconnected'}
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 min-h-[42px] sm:min-h-[38px] text-xs sm:text-sm font-medium transition-all duration-150 cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed select-none ${styles} ${className}`}
+    >
+      {Icon && <Icon className="w-4 h-4 shrink-0" strokeWidth={1.75} />}
+      <span>{children}</span>
+    </button>
+  );
+}
+
+/**
+ * SoftToggle: Clean, simple toggle with smooth track transition.
+ */
+function SoftToggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label || 'Toggle switch'}
+      onClick={onChange}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500/20 border ${
+        checked
+          ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500'
+          : 'bg-slate-200 dark:bg-slate-700 border-slate-300/80 dark:border-slate-600/80'
+      }`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-xs transform transition duration-200 ease-in-out ${
+          checked ? 'translate-x-5' : 'translate-x-0.5'
+        }`}
+        style={{ marginTop: '1px' }}
+      />
+    </button>
+  );
+}
+
+/**
+ * UserRoleBadge: Clean, low-saturation pill badge with a subtle 6px status dot.
+ */
+function UserRoleBadge({ role }: { role: string }) {
+  let dotColor = 'bg-slate-400';
+  let label = 'Staff';
+
+  if (role === 'super_admin') {
+    dotColor = 'bg-purple-500';
+    label = 'Super Admin';
+  } else if (role === 'admin') {
+    dotColor = 'bg-sky-500';
+    label = 'Admin';
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 whitespace-nowrap">
+      <span className={`w-1.5 h-1.5 rounded-full ${dotColor} shrink-0`} />
+      <span>{label}</span>
+    </span>
+  );
+}
+
+/**
+ * AuditActionBadge: Neutral pill badge with a 6px semantic color indicator dot.
+ */
+function AuditActionBadge({ action }: { action: AuditAction }) {
+  const meta = AUDIT_META[action] || { label: action, dotColor: 'bg-slate-400' };
+
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 whitespace-nowrap">
+      <span className={`w-1.5 h-1.5 rounded-full ${meta.dotColor} shrink-0`} />
+      <span>{meta.label}</span>
     </span>
   );
 }
@@ -96,27 +221,29 @@ export default function Settings() {
   const userRole = (currentUser?.role || '').toLowerCase().trim();
   const canViewUsers = userRole === 'super_admin' || userRole === 'admin';
 
+  // Navigation Tab State (defaults to Profile)
+  const [activeTab, setActiveTab] = useState<TabKey>('profile');
+
+  // Preferences State
   const [pushNotif, setPushNotif] = useState(true);
   const [criticalAlerts, setCriticalAlerts] = useState(true);
-  const [botConnected] = useState(true);
-  const [scraperConnected] = useState(true);
-  const [nlpConnected] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // -- User Management State --
+  // User Management State
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [userError, setUserError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
-  // Invite Modal
+  // Invite Modal State
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteRole, setInviteRole] = useState<'staff' | 'admin'>('staff');
   const [generatedInvite, setGeneratedInvite] = useState<{ invite_url: string; expires_in: string } | null>(null);
   const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Role Edit Modal (Password confirmation required)
+  // Role Edit Modal State
   const [roleModalUser, setRoleModalUser] = useState<AuthUser | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>('staff');
   const [rolePassword, setRolePassword] = useState('');
@@ -147,7 +274,6 @@ export default function Settings() {
   });
   const [profileDraft, setProfileDraft] = useState(profile);
 
-  // Sync profile when currentUser finishes loading or changes
   useEffect(() => {
     if (currentUser) {
       const currentPhone = currentUser.phone_number || '';
@@ -190,21 +316,20 @@ export default function Settings() {
       setIsEditingProfile(false);
       showSuccessFeedback('Profile updated successfully.');
     } catch (err: any) {
-      const msg = err.message || 'Failed to update profile.';
-      setProfileError(msg);
+      setProfileError(err.message || 'Failed to update profile.');
     } finally {
       setIsSavingProfile(false);
     }
   };
 
-  // Audit Log (mock, Super Admin only)
+  // Audit Log State
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([
-    { id: 'a1', actor: currentUser?.full_name || 'Super Admin', action: 'login', target: 'Authenticated via 2FA from Windows PC (Chrome)', timestamp: minutesAgo(4) },
-    { id: 'a2', actor: 'Sedrick Amote', action: 'signup', target: 'Completed registration via Staff invite token', timestamp: minutesAgo(35) },
-    { id: 'a3', actor: currentUser?.full_name || 'Super Admin', action: 'role_change', target: 'Promoted Juan Dela Cruz: Staff → Admin', timestamp: minutesAgo(110) },
-    { id: 'a4', actor: currentUser?.full_name || 'Super Admin', action: 'invite', target: 'Generated 24-hr Staff invite URL', timestamp: minutesAgo(60 * 3) },
-    { id: 'a5', actor: 'Maria Santos', action: 'password_change', target: 'Account password updated securely', timestamp: minutesAgo(60 * 8) },
-    { id: 'a6', actor: currentUser?.full_name || 'Super Admin', action: 'invite', target: 'Generated 24-hr Admin invite URL', timestamp: minutesAgo(60 * 28) },
+    { id: 'a1', actor: currentUser?.full_name || 'Super Admin', action: 'login', target: 'Signed in from Windows PC', timestamp: minutesAgo(5) },
+    { id: 'a2', actor: 'Sedrick Amote', action: 'signup', target: 'Joined team via Staff invite', timestamp: minutesAgo(40) },
+    { id: 'a3', actor: currentUser?.full_name || 'Super Admin', action: 'role_change', target: 'Updated Juan Dela Cruz to Admin', timestamp: minutesAgo(120) },
+    { id: 'a4', actor: currentUser?.full_name || 'Super Admin', action: 'invite', target: 'Generated 24h Staff invitation link', timestamp: minutesAgo(180) },
+    { id: 'a5', actor: 'Maria Santos', action: 'password_change', target: 'Password updated securely', timestamp: minutesAgo(480) },
+    { id: 'a6', actor: currentUser?.full_name || 'Super Admin', action: 'invite', target: 'Generated 24h Admin invitation link', timestamp: minutesAgo(1440) },
   ]);
   const [auditFilter, setAuditFilter] = useState<AuditAction | 'all'>('all');
   const visibleAuditLogs = auditFilter === 'all' ? auditLogs : auditLogs.filter(l => l.action === auditFilter);
@@ -232,7 +357,7 @@ export default function Settings() {
         target: `${deletedName} (${deleteModalUser.role === 'admin' ? 'Admin' : 'Staff'})`,
         timestamp: new Date().toISOString(),
       }, ...prev]);
-      showSuccessFeedback(`${deletedName} has been deleted successfully.`);
+      showSuccessFeedback(`${deletedName} has been deleted.`);
     } catch (err: any) {
       alert(err.message || 'Failed to delete user.');
     } finally {
@@ -241,7 +366,7 @@ export default function Settings() {
     }
   };
 
-  // Mobile Sign Out State
+  // Sign Out State
   const [signOutModalOpen, setSignOutModalOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -258,7 +383,7 @@ export default function Settings() {
     }
   };
 
-  // Delete My Account (Self-Deletion via Password & Email OTP)
+  // Delete Account (Self-Deletion via Password & Email OTP)
   const [deleteSelfModalOpen, setDeleteSelfModalOpen] = useState(false);
   const [deleteSelfStep, setDeleteSelfStep] = useState<'password' | 'otp' | 'success'>('password');
   const [deleteSelfPassword, setDeleteSelfPassword] = useState('');
@@ -318,7 +443,7 @@ export default function Settings() {
     setDeleteSelfPasswordError(null);
 
     if (!deleteSelfPassword.trim()) {
-      setDeleteSelfPasswordError('Please enter your account password to continue.');
+      setDeleteSelfPasswordError('Please enter your account password.');
       return;
     }
     if (deleteSelfPassword.length < 6) {
@@ -431,7 +556,7 @@ export default function Settings() {
         id: `a${Date.now()}`,
         actor: actorName,
         action: 'user_deleted',
-        target: `${actorName} (${userDisplayRole} self-deleted account via Password & OTP)`,
+        target: `${actorName} (${userDisplayRole} self-deleted account)`,
         timestamp: new Date().toISOString(),
       }, ...prev]);
 
@@ -451,8 +576,7 @@ export default function Settings() {
     }
   };
 
-  // Change Password Modal State
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  // Change Password State
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -462,19 +586,6 @@ export default function Settings() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
-
-  const resetPasswordModal = () => {
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setShowCurrentPassword(false);
-    setShowNewPassword(false);
-    setShowConfirmPassword(false);
-    setPasswordError(null);
-    setPasswordSuccess(null);
-    setIsSubmittingPassword(false);
-    setPasswordModalOpen(false);
-  };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -492,12 +603,12 @@ export default function Settings() {
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError('New passwords do not match. Please re-enter.');
+      setPasswordError('New passwords do not match.');
       return;
     }
 
     if (currentPassword === newPassword) {
-      setPasswordError('New password must be different from your current password.');
+      setPasswordError('New password must be different from current password.');
       return;
     }
 
@@ -508,7 +619,7 @@ export default function Settings() {
         new_password: newPassword,
       });
 
-      setPasswordSuccess(res.message || 'Password successfully updated! Your credentials have been saved.');
+      setPasswordSuccess(res.message || 'Password updated successfully.');
       setAuditLogs(prev => [{
         id: `a${Date.now()}`,
         actor: currentUser?.full_name || 'Super Admin',
@@ -517,11 +628,11 @@ export default function Settings() {
         timestamp: new Date().toISOString(),
       }, ...prev]);
       showSuccessFeedback('Password changed successfully');
-      setTimeout(() => {
-        resetPasswordModal();
-      }, 1600);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
     } catch (err: any) {
-      setPasswordError(err.message || 'Failed to update password. Please check your current password and try again.');
+      setPasswordError(err.message || 'Failed to update password. Please check your current password.');
     } finally {
       setIsSubmittingPassword(false);
     }
@@ -595,7 +706,7 @@ export default function Settings() {
       return;
     }
     if (!rolePassword) {
-      setRoleError('Please confirm your current administrator password.');
+      setRoleError('Please confirm your administrator password.');
       return;
     }
 
@@ -639,7 +750,6 @@ export default function Settings() {
     const targetRole = (u.role || '').toLowerCase().trim();
     const isTargetSuperAdmin = targetRole === 'super_admin' || targetRole.includes('super_admin') || targetRole.includes('super admin');
 
-    // When the logged-in user is an Admin (not a Super Admin), filter out Super Admin users completely
     if (effectiveRole !== 'super_admin' && isTargetSuperAdmin) {
       return false;
     }
@@ -653,730 +763,948 @@ export default function Settings() {
   });
 
   return (
-    <div className="space-y-6 pb-28 sm:pb-32 md:pb-8">
+    <div className="settings-soft w-full">
+      <StaggerContainer className="space-y-6 max-w-6xl mx-auto pb-24 md:pb-0">
 
-      {/* PROFILE CARD */}
-      <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <UserCircle className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-            <h3 className="font-semibold text-slate-800 dark:text-slate-100">Profile</h3>
-          </div>
-          {!isEditingProfile && (
-            <button
-              type="button"
-              onClick={() => { setProfileDraft(profile); setIsEditingProfile(true); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors cursor-pointer"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              Edit Profile
-            </button>
-          )}
-        </div>
+        {/* 1. UNIFIED SOFT UI PAGE HEADER */}
+        <StaggerItem>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-500/20 shadow-xs">
+                <SettingsIcon className="w-5 h-5 sm:w-5.5 sm:h-5.5" strokeWidth={1.75} />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                  Settings
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                  Manage your personal profile, team members, security credentials, and system preferences.
+                </p>
+              </div>
+            </div>
 
-        <div className="flex flex-col sm:flex-row gap-5">
-          <div className="flex sm:flex-col items-center gap-3 sm:w-36 shrink-0">
-            {currentUser?.avatar_url ? (
-              <img
-                src={currentUser.avatar_url}
-                alt={profile.fullName || 'Profile'}
-                className="w-20 h-20 rounded-full object-cover border-2 border-white dark:border-slate-800 shadow-md"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 text-white font-bold text-2xl flex items-center justify-center shadow-md">
-                {(profile.fullName || currentUser?.email || 'U')[0].toUpperCase()}
+            {/* Global Success Feedback Banner */}
+            {actionSuccess && (
+              <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 text-xs font-medium text-emerald-700 dark:text-emerald-300 shadow-xs animate-in fade-in duration-200">
+                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" strokeWidth={2} />
+                <span>{actionSuccess}</span>
               </div>
             )}
-            <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${userRole === 'super_admin'
-                ? 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800'
-                : userRole === 'admin'
-                  ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800'
-                  : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+          </div>
+        </StaggerItem>
+
+        {/* 2. CALM MAC-OS SEGMENTED NAVIGATION TABS */}
+        <StaggerItem>
+          <div className="p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 flex flex-wrap sm:inline-flex items-center gap-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] w-full sm:w-auto overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+                activeTab === 'profile'
+                  ? 'bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40 font-medium'
+              }`}
+            >
+              <UserCircle className="w-4 h-4" strokeWidth={1.75} />
+              <span>Profile</span>
+            </button>
+
+            {canViewUsers && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('team')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+                  activeTab === 'team'
+                    ? 'bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40 font-medium'
                 }`}
+              >
+                <Shield className="w-4 h-4" strokeWidth={1.75} />
+                <span>Team &amp; Access</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('security')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+                activeTab === 'security'
+                  ? 'bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40 font-medium'
+              }`}
             >
-              {userRole === 'super_admin' ? 'Super Admin' : userRole === 'admin' ? 'Admin' : 'Staff'}
-            </span>
-          </div>
+              <Lock className="w-4 h-4" strokeWidth={1.75} />
+              <span>Security</span>
+            </button>
 
-          {isEditingProfile ? (
-            <form onSubmit={handleSaveProfile} className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Full Name</label>
-                <input
-                  type="text"
-                  value={profileDraft.fullName}
-                  onChange={(e) => setProfileDraft({ ...profileDraft, fullName: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                  Username <span className="text-[10px] text-slate-400 font-normal lowercase">(read-only)</span>
-                </label>
-                <input
-                  type="text"
-                  value={usernameDisplay}
-                  disabled
-                  readOnly
-                  title="Username cannot be changed"
-                  className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-500 dark:text-slate-400 cursor-not-allowed select-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                  Email <span className="text-[10px] text-slate-400 font-normal lowercase">(read-only)</span>
-                </label>
-                <input
-                  type="email"
-                  value={currentUser?.email || ''}
-                  disabled
-                  readOnly
-                  title="Email cannot be changed here"
-                  className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-500 dark:text-slate-400 cursor-not-allowed select-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Contact Number</label>
-                <input
-                  type="tel"
-                  value={profileDraft.phone}
-                  onChange={(e) => setProfileDraft({ ...profileDraft, phone: e.target.value })}
-                  placeholder="09XX-XXX-XXXX"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Position</label>
-                <input
-                  type="text"
-                  value={profileDraft.position}
-                  onChange={(e) => setProfileDraft({ ...profileDraft, position: e.target.value })}
-                  placeholder="e.g. Dispatcher, MDRRMO"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              {profileError && (
-                <div className="sm:col-span-2 p-2.5 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{profileError}</span>
-                </div>
-              )}
-              <div className="sm:col-span-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setIsEditingProfile(false); setProfileError(null); }}
-                  disabled={isSavingProfile}
-                  className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingProfile}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  {isSavingProfile && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          ) : (
-            <dl className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-              {[
-                { icon: UserCircle, label: 'Full Name', value: profile.fullName || currentUser?.full_name || 'Not set' },
-                { icon: AtSign, label: 'Username', value: usernameDisplay },
-                { icon: Mail, label: 'Email', value: currentUser?.email || 'Not set' },
-                { icon: Phone, label: 'Contact Number', value: profile.phone || currentUser?.phone_number || 'Not set' },
-                { icon: Briefcase, label: 'Position', value: profile.position || 'Not set' },
-              ].map(({ icon: Icon, label, value }) => (
-                <div key={label} className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800/60 flex items-center justify-center shrink-0">
-                    <Icon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">{label}</dt>
-                    <dd className={`text-sm truncate ${value === 'Not set' ? 'text-slate-400 italic' : 'text-slate-800 dark:text-slate-100 font-medium'}`}>
-                      {value}
-                    </dd>
-                  </div>
-                </div>
-              ))}
-            </dl>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card icon={isDark ? Moon : Sun} title="System Preferences">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {isDark
-                  ? <Moon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                  : <Sun className="w-4 h-4 text-slate-500" />}
-                <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Dark Mode</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Switch between light and dark themes</p>
-                </div>
-              </div>
-              <Toggle checked={isDark} onChange={toggleTheme} />
-            </div>
-          </div>
-        </Card>
-
-        <Card icon={Bell} title="Notifications">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Push Notification</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Browser alerts for new incidents</p>
-              </div>
-              <Toggle checked={pushNotif} onChange={() => setPushNotif(!pushNotif)} />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Critical Alerts</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Priority warnings for high-urgency reports</p>
-              </div>
-              <Toggle checked={criticalAlerts} onChange={() => setCriticalAlerts(!criticalAlerts)} />
-            </div>
-          </div>
-        </Card>
-
-        <Card icon={Shield} title="Security">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Two-Factor Authentication</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">6-digit email code on manual sign-in and password resets</p>
-              </div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Active
-              </span>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Change Password</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Update your account password to keep your credentials secure</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPasswordModalOpen(true)}
-                className="px-3.5 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow"
-              >
-                Change Password
-              </button>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Delete Account</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Permanently delete your personal account with password &amp; OTP</p>
-              </div>
-              <button
-                type="button"
-                onClick={openDeleteMyAccountModal}
-                className="px-3.5 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-900 rounded-xl transition-all cursor-pointer shadow-xs hover:shadow flex items-center gap-1.5"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete Account</span>
-              </button>
-            </div>
-          </div>
-        </Card>
-
-        <Card icon={Database} title="Data Sources">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-                  <RefreshCw className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Messenger Bot</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Facebook Messenger integration</p>
-                </div>
-              </div>
-              <StatusBadge active={botConnected} />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center">
-                  <Database className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Facebook Scraper</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">MDRRMO page monitor</p>
-                </div>
-              </div>
-              <StatusBadge active={scraperConnected} />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">NLP Engine</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">AI triage &amp; classification service</p>
-                </div>
-              </div>
-              <StatusBadge active={nlpConnected} />
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* USER MANAGEMENT SECTION */}
-      {canViewUsers && (
-        <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-lg">
-                  User Management &amp; Access Control
-                </h3>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Manage personnel, generate invitation links, and assign administrative roles.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={fetchUsers}
-                disabled={loadingUsers}
-                className="p-2 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                title="Refresh user list"
-              >
-                <RefreshCw className={`w-4 h-4 ${loadingUsers ? 'animate-spin' : ''}`} />
-              </button>
-              {currentUser?.role === 'super_admin' && (
-                <button
-                  onClick={() => {
-                    setInviteModalOpen(true);
-                    setGeneratedInvite(null);
-                    setCopied(false);
-                  }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-600 hover:to-blue-700 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm shadow-blue-700/20 transition-all cursor-pointer"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Invite New User</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {userError && (
-            <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2 text-red-700 text-xs">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{userError}</span>
-            </div>
-          )}
-
-          {/* Search bar */}
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, email, or username..."
-                className="w-full pl-9 pr-4 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline-block">
-              {filteredUsers.length} {filteredUsers.length === 1 ? 'personnel' : 'personnel'}
-            </span>
-          </div>
-
-          {/* Users Table */}
-          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700/60">
-            <table className="w-full text-xs sm:text-sm text-left">
-              <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">User</th>
-                  <th className="px-4 py-3 font-semibold">Role</th>
-                  <th className="px-4 py-3 font-semibold hidden md:table-cell">Last Login</th>
-                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {loadingUsers ? (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-slate-500">
-                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-600 mb-2" />
-                      Loading system users...
-                    </td>
-                  </tr>
-                ) : filteredUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-slate-400">
-                      No users found.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredUsers.map((u) => {
-                    const isSelf = u.user_id === currentUser?.user_id;
-                    const isStaff = currentUser?.role === 'staff';
-
-                    let isEditDisabled = false;
-                    let disabledReason: string | undefined = undefined;
-
-                    if (isStaff) {
-                      isEditDisabled = true;
-                      disabledReason = 'Read-only view';
-                    }
-
-                    return (
-                      <tr key={u.user_id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            {u.avatar_url ? (
-                              <img
-                                src={u.avatar_url}
-                                alt={u.full_name}
-                                className="w-8 h-8 rounded-full object-cover border border-slate-200"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold text-xs flex items-center justify-center">
-                                {(u.full_name || u.email || 'U')[0].toUpperCase()}
-                              </div>
-                            )}
-                            <div>
-                              <div className="font-semibold text-slate-800 dark:text-slate-100">
-                                {u.full_name || 'Unnamed Personnel'}
-                                {isSelf && (
-                                  <span className="ml-2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                    You
-                                  </span>
-                                )}
-                              </div>
-                              {u.username && (
-                                <div className="text-xs text-slate-400 flex items-center gap-1.5">
-                                  <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                                    @{u.username}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.role === 'super_admin'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
-                              : u.role === 'admin'
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                              }`}
-                          >
-                            {u.role === 'super_admin' ? 'Super Admin' : u.role === 'admin' ? 'Admin' : 'Staff'}
-                          </span>
-                        </td>
-
-                        <td className="px-4 py-3 text-xs text-slate-400 hidden md:table-cell">
-                          {u.last_login_at
-                            ? formatPhilippineDateTime(u.last_login_at, { includeYear: true })
-                            : 'Never'}
-                        </td>
-
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {isEditDisabled ? (
-                              <div
-                                className="inline-flex items-center gap-1.5"
-                                title={disabledReason}
-                              >
-                                <button
-                                  type="button"
-                                  disabled
-                                  title={disabledReason}
-                                  className="px-2.5 py-1.5 text-xs font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 rounded-lg cursor-not-allowed opacity-60"
-                                >
-                                  Edit Role
-                                </button>
-                                <span className="text-[11px] text-slate-400 dark:text-slate-500 italic">
-                                  ({disabledReason})
-                                </span>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => openRoleModal(u)}
-                                title={
-                                  isSelf
-                                    ? 'You cannot edit your own role'
-                                    : currentUser?.role === 'admin' && u.role === 'super_admin'
-                                      ? 'Insufficient permissions'
-                                      : 'Edit Role'
-                                }
-                                className="px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors cursor-pointer"
-                              >
-                                Edit Role
-                              </button>
-                            )}
-
-                            {/* Super Admin Delete Action */}
-                            {currentUser?.role === 'super_admin' && (
-                              u.role === 'super_admin' ? (
-                                <button
-                                  type="button"
-                                  disabled
-                                  title="Super Admin accounts are protected and cannot be deleted"
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-300 dark:text-slate-600 bg-slate-100/50 dark:bg-slate-800/30 rounded-lg cursor-not-allowed opacity-50"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  <span>Delete</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setDeleteModalUser(u)}
-                                  title={`Delete ${u.role === 'admin' ? 'Admin' : 'Staff'} ${u.full_name || u.username}`}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-red-200 dark:hover:border-red-900/50"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  <span>Delete</span>
-                                </button>
-                              )
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* AUDIT LOG (Super Admin Only) */}
-      {userRole === 'super_admin' && (
-        <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-            <div>
-              <div className="flex items-center gap-2">
-                <History className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-lg">Audit Log</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                  Super Admin
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Record of security, authentication, and access control events across the system.
-              </p>
-            </div>
-            <select
-              value={auditFilter}
-              onChange={(e) => setAuditFilter(e.target.value as AuditAction | 'all')}
-              className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs sm:text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            <button
+              type="button"
+              onClick={() => setActiveTab('preferences')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+                activeTab === 'preferences'
+                  ? 'bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40 font-medium'
+              }`}
             >
-              <option value="all">All actions</option>
-              {(Object.keys(AUDIT_META) as AuditAction[]).map((key) => (
-                <option key={key} value={key}>{AUDIT_META[key].label}</option>
-              ))}
-            </select>
+              <Bell className="w-4 h-4" strokeWidth={1.75} />
+              <span>Preferences</span>
+            </button>
           </div>
+        </StaggerItem>
 
-          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700/60">
-            <table className="w-full text-xs sm:text-sm text-left">
-              <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Action</th>
-                  <th className="px-4 py-3 font-semibold">Details</th>
-                  <th className="px-4 py-3 font-semibold hidden sm:table-cell">Performed By</th>
-                  <th className="px-4 py-3 font-semibold text-right">When</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {visibleAuditLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-slate-400">No activity for this filter.</td>
-                  </tr>
-                ) : (
-                  visibleAuditLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${AUDIT_META[log.action].className}`}>
-                          {AUDIT_META[log.action].label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{log.target}</td>
-                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden sm:table-cell">{log.actor}</td>
-                      <td className="px-4 py-3 text-right text-xs text-slate-400 whitespace-nowrap">{formatRelative(log.timestamp)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+        {/* 3. TAB PANELS */}
 
-      {/* DANGER ZONE SECTION */}
-      <div className="bg-white dark:bg-[#111827] rounded-xl border border-rose-200 dark:border-rose-900/40 shadow-[0_4px_24px_rgba(244,63,94,0.06)] dark:shadow-[0_4px_24px_rgba(244,63,94,0.15)] p-6">
-        <div className="flex items-center gap-2 mb-2 text-rose-600 dark:text-rose-400">
-          <AlertTriangle className="w-5 h-5" />
-          <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-lg">Danger Zone</h3>
-        </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
-          Irreversible and permanent actions regarding your personal credentials and system access.
-        </p>
-
-        <div className="pt-4 border-t border-rose-100 dark:border-rose-950/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Delete My Account</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl mt-0.5">
-              Permanently delete your personal {userRole === 'super_admin' ? 'Super Admin' : userRole === 'admin' ? 'Admin' : 'Staff'} account ({currentUser?.email}). Because administrators cannot delete a Super Admin from the personnel directory, you can securely self-delete your account here after confirming your password and email OTP.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={openDeleteMyAccountModal}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-white bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-600 dark:hover:bg-rose-600 border border-rose-200 dark:border-rose-800 rounded-xl transition-all shadow-xs cursor-pointer shrink-0 active:scale-[0.98]"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>Delete My Account</span>
-          </button>
-        </div>
-      </div>
-
-      {/* MOBILE-ONLY SIGN OUT BUTTON (Cellphone view) */}
-      <div className="md:hidden pt-3 pb-8 mb-4">
-        <button
-          type="button"
-          onClick={() => setSignOutModalOpen(true)}
-          className="w-full flex items-center justify-center gap-2.5 px-4 py-3.5 text-sm font-semibold text-rose-600 dark:text-rose-400 bg-white dark:bg-[#111827] hover:bg-rose-50 dark:hover:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-xl transition-all shadow-xs active:scale-[0.98] cursor-pointer"
-        >
-          <LogOut className="w-4 h-4 text-rose-500 shrink-0" />
-          <span>Sign Out</span>
-        </button>
-      </div>
-
-      {/* SUCCESS TOAST */}
-      {actionSuccess && (
-        <div className="fixed bottom-6 right-6 z-[250] px-4 py-3 rounded-xl bg-white dark:bg-[#111827] border border-green-200 dark:border-green-800 shadow-xl flex items-center gap-2 text-green-700 dark:text-green-300 text-xs sm:text-sm font-medium">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>{actionSuccess}</span>
-        </div>
-      )}
-
-      {/* INVITE NEW USER MODAL */}
-      {canViewUsers && inviteModalOpen && (
-        <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#111827] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">
-                  Generate Invitation Link
-                </h3>
-              </div>
-              <button
-                onClick={() => setInviteModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-              Generate a secure 15-minute invitation link to send directly to new command center personnel.
-              Only personnel with an authorized invitation link can create an account.
-            </p>
-
-            {!generatedInvite ? (
-              <form onSubmit={handleGenerateInvite} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                    Assign Role for New User
-                  </label>
-                  <select
-                    value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as 'staff' | 'admin')}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="staff">Staff (Dashboard &amp; Incident Viewer)</option>
-                    <option value="admin">Admin (Manage Data, Reports, &amp; Staff)</option>
-                  </select>
-                  {currentUser?.role === 'admin' && (
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Note: Administrators can invite Staff or fellow Admins. Only Super Admins can assign the Super Admin role.
+        {/* TAB 1: PROFILE */}
+        {activeTab === 'profile' && (
+          <StaggerItem>
+            <div className="space-y-6">
+              <SoftCard>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">
+                      Profile Information
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Personal information associated with your command center account.
                     </p>
+                  </div>
+
+                  {!isEditingProfile && (
+                    <CleanButton
+                      variant="secondary"
+                      icon={Pencil}
+                      onClick={() => { setProfileDraft(profile); setIsEditingProfile(true); }}
+                    >
+                      Edit Profile
+                    </CleanButton>
                   )}
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setInviteModalOpen(false)}
-                    className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isGeneratingInvite}
-                    className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    {isGeneratingInvite ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                    <span>Generate Invite Link</span>
-                  </button>
+                {/* Profile Details Body */}
+                <div className="pt-6 flex flex-col md:flex-row gap-6 items-start">
+                  {/* Avatar & Role Tag */}
+                  <div className="flex sm:flex-row md:flex-col items-center gap-4 shrink-0">
+                    <div className="relative">
+                      {currentUser?.avatar_url ? (
+                        <img
+                          src={currentUser.avatar_url}
+                          alt={profile.fullName || 'User'}
+                          className="w-20 h-20 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shadow-xs"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 border border-blue-500/20 font-bold text-2xl flex items-center justify-center shadow-xs">
+                          {(profile.fullName || currentUser?.email || 'U')[0].toUpperCase()}
+                        </div>
+                      )}
+                      <span
+                        className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900"
+                        title="Active Status"
+                      />
+                    </div>
+                    <div className="text-left md:text-center">
+                      <UserRoleBadge role={userRole} />
+                      <p className="text-[11px] font-mono text-slate-400 dark:text-slate-500 mt-1.5 whitespace-nowrap">
+                        ID: {currentUser?.user_id ? String(currentUser.user_id).slice(0, 8) : 'ACTIVE'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Form or Info Display */}
+                  <div className="flex-1 w-full">
+                    {isEditingProfile ? (
+                      <form onSubmit={handleSaveProfile} className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                              Full Name <span className="text-rose-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={profileDraft.fullName}
+                              onChange={(e) => setProfileDraft({ ...profileDraft, fullName: e.target.value })}
+                              required
+                              className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 focus:bg-white dark:bg-slate-800/50 dark:focus:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-white/10 transition-colors"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                              Username
+                            </label>
+                            <input
+                              type="text"
+                              value={usernameDisplay}
+                              disabled
+                              readOnly
+                              className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-mono bg-slate-100/70 dark:bg-slate-800/30 border border-slate-200/60 dark:border-slate-800 text-slate-500 cursor-not-allowed select-none"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                              Email Address
+                            </label>
+                            <input
+                              type="email"
+                              value={currentUser?.email || ''}
+                              disabled
+                              readOnly
+                              className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-mono bg-slate-100/70 dark:bg-slate-800/30 border border-slate-200/60 dark:border-slate-800 text-slate-500 cursor-not-allowed select-none"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                              Phone Number
+                            </label>
+                            <input
+                              type="tel"
+                              value={profileDraft.phone}
+                              onChange={(e) => setProfileDraft({ ...profileDraft, phone: e.target.value })}
+                              placeholder="09XX-XXX-XXXX"
+                              className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 focus:bg-white dark:bg-slate-800/50 dark:focus:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-white/10 transition-colors"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2 space-y-1">
+                            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                              Title &amp; Unit
+                            </label>
+                            <input
+                              type="text"
+                              value={profileDraft.position}
+                              onChange={(e) => setProfileDraft({ ...profileDraft, position: e.target.value })}
+                              placeholder="e.g. Lead Dispatcher • MDRRMO Command"
+                              className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 focus:bg-white dark:bg-slate-800/50 dark:focus:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-white/10 transition-colors"
+                            />
+                          </div>
+                        </div>
+
+                        {profileError && (
+                          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200/70 text-xs text-rose-700 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                            <span>{profileError}</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 pt-2 justify-end">
+                          <CleanButton
+                            variant="secondary"
+                            onClick={() => { setIsEditingProfile(false); setProfileError(null); }}
+                            disabled={isSavingProfile}
+                          >
+                            Cancel
+                          </CleanButton>
+                          <CleanButton
+                            type="submit"
+                            variant="primary"
+                            disabled={isSavingProfile}
+                          >
+                            {isSavingProfile ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Saving...</span>
+                              </>
+                            ) : (
+                              'Save Changes'
+                            )}
+                          </CleanButton>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
+                          <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                            Full Name
+                          </span>
+                          <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-0.5 block">
+                            {profile.fullName || 'Not provided'}
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
+                          <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                            Username
+                          </span>
+                          <span className="text-sm font-mono text-slate-800 dark:text-slate-200 mt-0.5 block">
+                            @{usernameDisplay}
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
+                          <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                            Email Address
+                          </span>
+                          <span className="text-sm font-mono text-slate-800 dark:text-slate-200 mt-0.5 block truncate">
+                            {currentUser?.email || 'No email attached'}
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
+                          <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                            Contact Phone
+                          </span>
+                          <span className="text-sm font-mono text-slate-800 dark:text-slate-200 mt-0.5 block">
+                            {profile.phone || 'None recorded'}
+                          </span>
+                        </div>
+
+                        <div className="sm:col-span-2 p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
+                          <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                            Official Role &amp; Unit
+                          </span>
+                          <span className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-0.5 block">
+                            {profile.position}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                <div className="p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl text-xs text-green-800 dark:text-green-300">
-                  <p className="font-semibold mb-1">Invite link ready!</p>
-                  <p className="text-[11px] opacity-90">
-                    Share this link with the user. It expires in {generatedInvite.expires_in}.
+              </SoftCard>
+
+              {/* Danger Zone: Account Deletion */}
+              <SoftCard className="border-rose-200/60 dark:border-rose-900/30">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-semibold text-rose-700 dark:text-rose-400">
+                      Delete Account
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Permanently delete your profile and revoke system access. Requires password &amp; email OTP verification.
+                    </p>
+                  </div>
+                  <CleanButton
+                    variant="danger"
+                    icon={Trash2}
+                    onClick={openDeleteMyAccountModal}
+                  >
+                    Delete Account
+                  </CleanButton>
+                </div>
+              </SoftCard>
+            </div>
+          </StaggerItem>
+        )}
+
+        {/* TAB 2: TEAM & ACCESS (Admin / Super Admin Only) */}
+        {activeTab === 'team' && canViewUsers && (
+          <StaggerItem>
+            <div className="space-y-6">
+              <SoftCard>
+                {/* Header & Controls */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">
+                      Team Members
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Manage registered personnel accounts and role permissions.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={fetchUsers}
+                      disabled={loadingUsers}
+                      className="p-2.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl hover:bg-slate-50 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                      title="Refresh user list"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${loadingUsers ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+                    </button>
+
+                    {currentUser?.role === 'super_admin' && (
+                      <CleanButton
+                        variant="primary"
+                        icon={UserPlus}
+                        onClick={() => {
+                          setInviteModalOpen(true);
+                          setGeneratedInvite(null);
+                          setCopied(false);
+                        }}
+                      >
+                        Invite User
+                      </CleanButton>
+                    )}
+                  </div>
+                </div>
+
+                {/* Search Bar */}
+                <div className="pt-4 pb-2">
+                  <div className="relative max-w-sm">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" strokeWidth={1.75} />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search by name, email, or username..."
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50/70 focus:bg-white dark:bg-slate-800/40 dark:focus:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-white/10 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {userError && (
+                  <div className="mb-3 p-3 rounded-xl bg-rose-50 border border-rose-200/70 text-xs text-rose-700 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                    <span>{userError}</span>
+                  </div>
+                )}
+
+                {/* Clean, Non-Glaring User Table */}
+                <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/40">
+                  <table className="w-full text-xs sm:text-sm text-left border-collapse">
+                    <thead className="bg-slate-50/75 dark:bg-slate-800/40 border-b border-slate-200/70 dark:border-slate-800">
+                      <tr>
+                        <th className="px-4 py-3 font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px] whitespace-nowrap">
+                          User
+                        </th>
+                        <th className="px-4 py-3 font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px] whitespace-nowrap">
+                          Role
+                        </th>
+                        <th className="px-4 py-3 font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px] hidden md:table-cell whitespace-nowrap">
+                          Last Login
+                        </th>
+                        <th className="px-4 py-3 font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px] text-right whitespace-nowrap">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                      {loadingUsers ? (
+                        <tr>
+                          <td colSpan={4} className="py-10 text-center text-slate-400">
+                            <Loader2 className="w-5 h-5 animate-spin mx-auto text-blue-600 mb-2" />
+                            Loading team members...
+                          </td>
+                        </tr>
+                      ) : filteredUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-10 text-center text-slate-400">
+                            No team members found.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredUsers.map((u) => {
+                          const isSelf = u.user_id === currentUser?.user_id;
+                          const isStaff = currentUser?.role === 'staff';
+
+                          let isEditDisabled = false;
+                          let disabledReason: string | undefined = undefined;
+
+                          if (isStaff) {
+                            isEditDisabled = true;
+                            disabledReason = 'Read-only';
+                          }
+
+                          return (
+                            <tr key={u.user_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  {u.avatar_url ? (
+                                    <img
+                                      src={u.avatar_url}
+                                      alt={u.full_name}
+                                      className="w-8 h-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700"
+                                    />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 font-semibold text-xs flex items-center justify-center border border-blue-500/20">
+                                      {(u.full_name || u.email || 'U')[0].toUpperCase()}
+                                    </div>
+                                  )}
+                                  <div>
+                                    <div className="font-medium text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                                      <span>{u.full_name || 'Unnamed Personnel'}</span>
+                                      {isSelf && (
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                          You
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                      {u.username && <span>@{u.username} •</span>}
+                                      <span className="truncate max-w-xs">{u.email}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <UserRoleBadge role={u.role} />
+                              </td>
+
+                              <td className="px-4 py-3 text-xs text-slate-400 font-mono hidden md:table-cell whitespace-nowrap">
+                                {u.last_login_at
+                                  ? formatPhilippineDateTime(u.last_login_at, { includeYear: true })
+                                  : 'Never'}
+                              </td>
+
+                              <td className="px-4 py-3 text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-2">
+                                  {isEditDisabled ? (
+                                    <span className="text-xs text-slate-400 italic">
+                                      {disabledReason}
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => openRoleModal(u)}
+                                      title={
+                                        isSelf
+                                          ? 'You cannot edit your own role'
+                                          : currentUser?.role === 'admin' && u.role === 'super_admin'
+                                            ? 'Insufficient permissions'
+                                            : 'Edit Role'
+                                      }
+                                      disabled={
+                                        isSelf ||
+                                        (currentUser?.role === 'admin' && u.role === 'super_admin')
+                                      }
+                                      className="px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+                                    >
+                                      Edit Role
+                                    </button>
+                                  )}
+
+                                  {currentUser?.role === 'super_admin' && !isSelf && u.role !== 'super_admin' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeleteModalUser(u)}
+                                      className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition-colors cursor-pointer active:scale-95"
+                                      title="Delete personnel account"
+                                    >
+                                      <Trash2 className="w-4 h-4" strokeWidth={1.75} />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </SoftCard>
+
+              {/* Sub-Card: Activity & Audit Log */}
+              <SoftCard>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white">
+                      Activity Log
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      System records of logins, credential updates, and permission changes.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Filter:</span>
+                    <select
+                      value={auditFilter}
+                      onChange={(e) => setAuditFilter(e.target.value as any)}
+                      className="px-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">All Events</option>
+                      <option value="invite">Invites</option>
+                      <option value="signup">Signups</option>
+                      <option value="role_change">Role Changes</option>
+                      <option value="password_change">Password Updates</option>
+                      <option value="user_deleted">Deletions</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/40">
+                  <table className="w-full text-xs sm:text-sm text-left border-collapse">
+                    <thead className="bg-slate-50/75 dark:bg-slate-800/40 border-b border-slate-200/70 dark:border-slate-800">
+                      <tr>
+                        <th className="px-4 py-2.5 font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px] whitespace-nowrap">
+                          Action
+                        </th>
+                        <th className="px-4 py-2.5 font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px] whitespace-nowrap">
+                          Details
+                        </th>
+                        <th className="px-4 py-2.5 font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px] hidden sm:table-cell whitespace-nowrap">
+                          Actor
+                        </th>
+                        <th className="px-4 py-2.5 font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px] text-right whitespace-nowrap">
+                          When
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                      {visibleAuditLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-slate-400">
+                            No logs found for this filter.
+                          </td>
+                        </tr>
+                      ) : (
+                        visibleAuditLogs.map((log) => (
+                          <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                            <td className="px-4 py-2.5 whitespace-nowrap">
+                              <AuditActionBadge action={log.action} />
+                            </td>
+                            <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300 max-w-sm truncate">
+                              {log.target}
+                            </td>
+                            <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300 font-medium hidden sm:table-cell whitespace-nowrap">
+                              {log.actor}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono text-xs text-slate-400 whitespace-nowrap">
+                              {formatRelative(log.timestamp)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </SoftCard>
+            </div>
+          </StaggerItem>
+        )}
+
+        {/* TAB 3: SECURITY */}
+        {activeTab === 'security' && (
+          <StaggerItem>
+            <div className="space-y-6">
+              <SoftCard>
+                <div className="pb-5 border-b border-slate-100 dark:border-slate-800">
+                  <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">
+                    Password &amp; Authentication
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Update your account password to protect access to the incident dispatch console.
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                    Invitation Link
+                <form onSubmit={handlePasswordSubmit} className="pt-6 max-w-lg space-y-4">
+                  {/* Current Password */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                      Current Password <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Enter current password"
+                        required
+                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl text-xs sm:text-sm bg-slate-50/70 focus:bg-white dark:bg-slate-800/50 dark:focus:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-white/10 transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                      >
+                        {showCurrentPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* New Password */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                      New Password <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="At least 8 characters"
+                        required
+                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl text-xs sm:text-sm bg-slate-50/70 focus:bg-white dark:bg-slate-800/50 dark:focus:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-white/10 transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                      Confirm New Password <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter new password"
+                        required
+                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl text-xs sm:text-sm bg-slate-50/70 focus:bg-white dark:bg-slate-800/50 dark:focus:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-white/10 transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {passwordError && (
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200/70 text-xs text-rose-700 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                      <span>{passwordError}</span>
+                    </div>
+                  )}
+
+                  {passwordSuccess && (
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200/70 text-xs text-emerald-700 flex items-center gap-2">
+                      <Check className="w-4 h-4 shrink-0" strokeWidth={2} />
+                      <span>{passwordSuccess}</span>
+                    </div>
+                  )}
+
+                  <div className="pt-2">
+                    <CleanButton
+                      type="submit"
+                      variant="primary"
+                      disabled={isSubmittingPassword}
+                    >
+                      {isSubmittingPassword ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Updating...</span>
+                        </>
+                      ) : (
+                        'Update Password'
+                      )}
+                    </CleanButton>
+                  </div>
+                </form>
+              </SoftCard>
+            </div>
+          </StaggerItem>
+        )}
+
+        {/* TAB 4: PREFERENCES */}
+        {activeTab === 'preferences' && (
+          <StaggerItem>
+            <div className="space-y-6">
+              <SoftCard>
+                <div className="pb-5 border-b border-slate-100 dark:border-slate-800">
+                  <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">
+                    System Preferences
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Customize your local display mode, alert triggers, and refresh intervals.
+                  </p>
+                </div>
+
+                <div className="pt-4 divide-y divide-slate-100 dark:divide-slate-800">
+                  {/* Theme Mode */}
+                  <div className="py-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                        {isDark ? <Moon className="w-5 h-5" strokeWidth={1.75} /> : <Sun className="w-5 h-5" strokeWidth={1.75} />}
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200 block">
+                          Appearance Mode
+                        </span>
+                        <span className="text-xs text-slate-400 block">
+                          {isDark ? 'Dark theme active' : 'Light theme active'}
+                        </span>
+                      </div>
+                    </div>
+                    <CleanButton
+                      variant="secondary"
+                      onClick={toggleTheme}
+                    >
+                      {isDark ? 'Switch to Light' : 'Switch to Dark'}
+                    </CleanButton>
+                  </div>
+
+                  {/* Push Notifications */}
+                  <div className="py-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                        <Bell className="w-5 h-5" strokeWidth={1.75} />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200 block">
+                          Desktop Notifications
+                        </span>
+                        <span className="text-xs text-slate-400 block">
+                          Receive browser notifications when high-priority alerts are received.
+                        </span>
+                      </div>
+                    </div>
+                    <SoftToggle
+                      checked={pushNotif}
+                      onChange={() => setPushNotif(!pushNotif)}
+                      label="Toggle Push Notifications"
+                    />
+                  </div>
+
+                  {/* Sound Alerts */}
+                  <div className="py-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                        <Volume2 className="w-5 h-5" strokeWidth={1.75} />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200 block">
+                          Audio Alerts for Critical Incidents
+                        </span>
+                        <span className="text-xs text-slate-400 block">
+                          Play an audible alert when high-priority emergencies are filed.
+                        </span>
+                      </div>
+                    </div>
+                    <SoftToggle
+                      checked={criticalAlerts}
+                      onChange={() => setCriticalAlerts(!criticalAlerts)}
+                      label="Toggle Audio Alerts"
+                    />
+                  </div>
+
+                  {/* Live Auto-Refresh */}
+                  <div className="py-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                        <Globe className="w-5 h-5" strokeWidth={1.75} />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200 block">
+                          Live Auto-Refresh
+                        </span>
+                        <span className="text-xs text-slate-400 block">
+                          Automatically sync telemetry and feed every 30 seconds.
+                        </span>
+                      </div>
+                    </div>
+                    <SoftToggle
+                      checked={autoRefresh}
+                      onChange={() => setAutoRefresh(!autoRefresh)}
+                      label="Toggle Auto-Refresh"
+                    />
+                  </div>
+                </div>
+              </SoftCard>
+            </div>
+          </StaggerItem>
+        )}
+
+      </StaggerContainer>
+
+      {/* =========================================================================
+          MODALS & DIALOGS (100% Preserved)
+          ========================================================================= */}
+
+      {/* 1. INVITE USER MODAL */}
+      {inviteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 dark:bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 shadow-[0_24px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7)] space-y-4 relative">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                Invite New Personnel
+              </h3>
+              <button
+                type="button"
+                onClick={() => setInviteModalOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer active:scale-95"
+              >
+                <X className="w-5 h-5" strokeWidth={1.75} />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Generate a unique registration link valid for 24 hours. The recipient will complete signup with their assigned role.
+            </p>
+
+            {!generatedInvite ? (
+              <form onSubmit={handleGenerateInvite} className="space-y-4 pt-2">
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Assign Role
                   </label>
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 cursor-pointer"
+                  >
+                    <option value="staff">Staff (Standard Access)</option>
+                    <option value="admin">Administrator (Full Access)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <CleanButton
+                    variant="secondary"
+                    onClick={() => setInviteModalOpen(false)}
+                  >
+                    Cancel
+                  </CleanButton>
+                  <CleanButton
+                    type="submit"
+                    variant="primary"
+                    disabled={isGeneratingInvite}
+                  >
+                    {isGeneratingInvite ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      'Generate Link'
+                    )}
+                  </CleanButton>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4 pt-2">
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                  <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">
+                    Invite URL (Expires in {generatedInvite.expires_in})
+                  </span>
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
                       readOnly
                       value={generatedInvite.invite_url}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-700 dark:text-slate-300 focus:outline-none"
+                      className="w-full text-xs font-mono bg-white dark:bg-slate-900 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 select-all"
                     />
                     <button
                       type="button"
                       onClick={handleCopyLink}
-                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1 shrink-0 transition-colors shadow-sm"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-lg hover:opacity-90 shrink-0 cursor-pointer active:scale-95 transition-transform"
                     >
-                      {copied ? <Check className="w-4 h-4 text-green-300" /> : <Copy className="w-4 h-4" />}
-                      <span>{copied ? 'Copied!' : 'Copy'}</span>
+                      {copied ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400 dark:text-emerald-600" strokeWidth={2} />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" strokeWidth={1.75} />
+                          <span>Copy</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
 
                 <div className="flex justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGeneratedInvite(null);
-                      setInviteModalOpen(false);
-                    }}
-                    className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl"
+                  <CleanButton
+                    variant="secondary"
+                    onClick={() => setInviteModalOpen(false)}
                   >
                     Done
-                  </button>
+                  </CleanButton>
                 </div>
               </div>
             )}
@@ -1384,646 +1712,223 @@ export default function Settings() {
         </div>
       )}
 
-      {/* EDIT ROLE MODAL */}
-      {canViewUsers && roleModalUser && (
-        <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#111827] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">
-                  Change User Role
+      {/* 2. ROLE EDIT MODAL */}
+      {roleModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 dark:bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 shadow-[0_24px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7)] space-y-4 relative">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                Modify Personnel Role
+              </h3>
+              <button
+                type="button"
+                onClick={() => setRoleModalUser(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer active:scale-95"
+              >
+                <X className="w-5 h-5" strokeWidth={1.75} />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Updating role for <strong className="text-slate-800 dark:text-slate-200">{roleModalUser.full_name || roleModalUser.username}</strong> ({roleModalUser.email}).
+            </p>
+
+            <form onSubmit={handleSaveRole} className="space-y-4 pt-1">
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Select New Role
+                </label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 cursor-pointer"
+                >
+                  <option value="staff">Staff (Standard Responder)</option>
+                  <option value="admin">Administrator (Elevated Permissions)</option>
+                  {currentUser?.role === 'super_admin' && (
+                    <option value="super_admin">Super Admin (System Owner)</option>
+                  )}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Your Password <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={rolePassword}
+                  onChange={(e) => setRolePassword(e.target.value)}
+                  placeholder="Enter your administrator password"
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-white/10"
+                />
+              </div>
+
+              {roleError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200/70 text-xs text-rose-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                  <span>{roleError}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <CleanButton
+                  variant="secondary"
+                  onClick={() => setRoleModalUser(null)}
+                  disabled={isUpdatingRole}
+                >
+                  Cancel
+                </CleanButton>
+                <CleanButton
+                  type="submit"
+                  variant="primary"
+                  disabled={isUpdatingRole}
+                >
+                  {isUpdatingRole ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Updating...</span>
+                    </>
+                  ) : (
+                    'Confirm Change'
+                  )}
+                </CleanButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. DELETE USER MODAL */}
+      {deleteModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 dark:bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 shadow-[0_24px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7)] space-y-4 relative">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center border border-rose-200/70 dark:border-rose-900/50">
+                <AlertTriangle className="w-6 h-6 shrink-0" strokeWidth={1.75} />
+              </div>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                Delete Personnel Account
+              </h3>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Are you sure you want to permanently delete the account for <strong className="text-slate-800 dark:text-slate-200">{deleteModalUser.full_name || deleteModalUser.username}</strong> ({deleteModalUser.email})? This action cannot be reversed.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <CleanButton
+                variant="secondary"
+                onClick={() => setDeleteModalUser(null)}
+                disabled={isDeletingUser}
+              >
+                Cancel
+              </CleanButton>
+              <CleanButton
+                variant="danger"
+                onClick={handleDeleteUser}
+                disabled={isDeletingUser}
+              >
+                {isDeletingUser ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  'Delete Account'
+                )}
+              </CleanButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. DELETE MY ACCOUNT MODAL (Self-Deletion 2-Step OTP) */}
+      {deleteSelfModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 dark:bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 shadow-[0_24px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7)] space-y-4 relative">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-rose-600">
+                <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center border border-rose-200/70 dark:border-rose-900/50">
+                  <AlertTriangle className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                </div>
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                  Permanently Delete My Account
                 </h3>
               </div>
               <button
-                onClick={() => setRoleModalUser(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-              Changing role for: <strong className="text-slate-800 dark:text-slate-100">{roleModalUser.full_name || roleModalUser.username}</strong> ({roleModalUser.email})
-            </p>
-
-            {roleError && (
-              <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{roleError}</span>
-              </div>
-            )}
-
-            {(() => {
-              const isModalTargetSuperAdmin = roleModalUser.role === 'super_admin';
-              const isAdminEditingSuperAdmin = currentUser?.role === 'admin' && isModalTargetSuperAdmin;
-              const isModalSelf = roleModalUser.user_id === currentUser?.user_id;
-              const isStaffViewer = currentUser?.role === 'staff';
-
-              const isRoleSelectionDisabled = isAdminEditingSuperAdmin || isModalSelf || isStaffViewer;
-              const roleDisabledTooltip = isAdminEditingSuperAdmin
-                ? 'Insufficient permissions'
-                : isModalSelf
-                  ? 'You cannot edit your own role'
-                  : isStaffViewer
-                    ? 'Read-only view'
-                    : undefined;
-
-              return (
-                <form onSubmit={handleSaveRole} className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Select New Role
-                      </label>
-                      {isAdminEditingSuperAdmin && (
-                        <span
-                          className="text-[11px] text-amber-600 dark:text-amber-400 font-medium italic"
-                          title="Insufficient permissions"
-                        >
-                          Insufficient permissions
-                        </span>
-                      )}
-                      {isModalSelf && (
-                        <span
-                          className="text-[11px] text-slate-400 dark:text-slate-500 italic"
-                          title="You cannot edit your own role"
-                        >
-                          You cannot edit your own role
-                        </span>
-                      )}
-                      {isStaffViewer && (
-                        <span
-                          className="text-[11px] text-slate-400 dark:text-slate-500 italic"
-                          title="Read-only view"
-                        >
-                          Read-only view
-                        </span>
-                      )}
-                    </div>
-                    <div
-                      className="space-y-2"
-                      title={roleDisabledTooltip}
-                    >
-                      <label
-                        title={roleDisabledTooltip}
-                        className={`flex items-center gap-2.5 p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl ${isRoleSelectionDisabled
-                          ? 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-900'
-                          : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800'
-                          }`}
-                      >
-                        <input
-                          type="radio"
-                          name="roleOption"
-                          value="staff"
-                          disabled={isRoleSelectionDisabled}
-                          checked={selectedRole === 'staff'}
-                          onChange={() => !isRoleSelectionDisabled && setSelectedRole('staff')}
-                          className="text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
-                        />
-                        <div>
-                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">Staff</p>
-                          <p className="text-[11px] text-slate-400">Dashboard &amp; Incident Viewer (read-only)</p>
-                        </div>
-                      </label>
-
-                      <label
-                        title={roleDisabledTooltip}
-                        className={`flex items-center gap-2.5 p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl ${isRoleSelectionDisabled
-                          ? 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-900'
-                          : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800'
-                          }`}
-                      >
-                        <input
-                          type="radio"
-                          name="roleOption"
-                          value="admin"
-                          disabled={isRoleSelectionDisabled}
-                          checked={selectedRole === 'admin'}
-                          onChange={() => !isRoleSelectionDisabled && setSelectedRole('admin')}
-                          className="text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
-                        />
-                        <div>
-                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">Admin</p>
-                          <p className="text-[11px] text-slate-400">Manage data, accept staff, and promote admins</p>
-                        </div>
-                      </label>
-
-                      <label
-                        title={roleDisabledTooltip}
-                        className={`flex items-center gap-2.5 p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl ${!isRoleSelectionDisabled && currentUser?.role === 'super_admin'
-                          ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800'
-                          : 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-900'
-                          }`}
-                      >
-                        <input
-                          type="radio"
-                          name="roleOption"
-                          value="super_admin"
-                          disabled={isRoleSelectionDisabled || currentUser?.role !== 'super_admin'}
-                          checked={selectedRole === 'super_admin'}
-                          onChange={() => !isRoleSelectionDisabled && setSelectedRole('super_admin')}
-                          className="text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
-                        />
-                        <div>
-                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                            Super Admin {currentUser?.role !== 'super_admin' && '(Super Admin only)'}
-                          </p>
-                          <p className="text-[11px] text-slate-400">Full system access</p>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Password confirmation */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                      Your Password Confirmation <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                      <input
-                        type="password"
-                        value={rolePassword}
-                        onChange={(e) => setRolePassword(e.target.value)}
-                        placeholder="Enter your current password"
-                        disabled={isRoleSelectionDisabled}
-                        required
-                        className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setRoleModalUser(null)}
-                      className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isRoleSelectionDisabled || isUpdatingRole}
-                      title={roleDisabledTooltip}
-                      className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                      {isUpdatingRole ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                      <span>Save Role</span>
-                    </button>
-                  </div>
-                </form>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-
-
-      {/* CHANGE PASSWORD MODAL */}
-      {passwordModalOpen && (
-        <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#111827] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                  <KeyRound className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">
-                    Change Password
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Update account credentials for security
-                  </p>
-                </div>
-              </div>
-              <button
                 type="button"
-                onClick={resetPasswordModal}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                onClick={closeDeleteMyAccountModal}
+                disabled={isConfirmingDelete}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-40 active:scale-95"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" strokeWidth={1.75} />
               </button>
-            </div>
-
-            {passwordSuccess ? (
-              <div className="py-6 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 mx-auto flex items-center justify-center">
-                  <CheckCircle2 className="w-7 h-7" />
-                </div>
-                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                  Password Updated
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
-                  {passwordSuccess}
-                </p>
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={resetPasswordModal}
-                    className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-all cursor-pointer"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                {passwordError && (
-                  <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{passwordError}</span>
-                  </div>
-                )}
-
-                {/* Current Password */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Current Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                    <input
-                      type={showCurrentPassword ? 'text' : 'password'}
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="Enter current password"
-                      required
-                      className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 cursor-pointer"
-                      tabIndex={-1}
-                    >
-                      {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* New Password */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    New Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                    <input
-                      type={showNewPassword ? 'text' : 'password'}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter new password (min. 8 characters)"
-                      required
-                      className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 cursor-pointer"
-                      tabIndex={-1}
-                    >
-                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-
-                  {/* Password Strength Meter & Checklist */}
-                  {newPassword.length > 0 && (
-                    <div className="mt-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 space-y-2">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-500 dark:text-slate-400">Password Strength:</span>
-                        <span className={`font-semibold ${newPassword.length >= 8 && (/\d/.test(newPassword) || /[^A-Za-z0-9]/.test(newPassword))
-                          ? (newPassword.length >= 10 && /\d/.test(newPassword) && /[^A-Za-z0-9]/.test(newPassword)
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-amber-600 dark:text-amber-400')
-                          : 'text-rose-500 dark:text-rose-400'
-                          }`}>
-                          {newPassword.length >= 8 && (/\d/.test(newPassword) || /[^A-Za-z0-9]/.test(newPassword))
-                            ? (newPassword.length >= 10 && /\d/.test(newPassword) && /[^A-Za-z0-9]/.test(newPassword)
-                              ? 'Strong'
-                              : 'Good')
-                            : 'Weak'}
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full transition-all duration-300 rounded-full ${newPassword.length >= 10 && /\d/.test(newPassword) && /[^A-Za-z0-9]/.test(newPassword)
-                            ? 'w-full bg-emerald-500'
-                            : newPassword.length >= 8 && (/\d/.test(newPassword) || /[^A-Za-z0-9]/.test(newPassword))
-                              ? 'w-2/3 bg-amber-500'
-                              : 'w-1/3 bg-rose-500'
-                            }`}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-1.5 text-[11px] pt-1">
-                        <div className={`flex items-center gap-1.5 ${newPassword.length >= 8 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                          <Check className={`w-3 h-3 ${newPassword.length >= 8 ? 'opacity-100' : 'opacity-40'}`} />
-                          <span>8+ characters</span>
-                        </div>
-                        <div className={`flex items-center gap-1.5 ${/\d/.test(newPassword) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                          <Check className={`w-3 h-3 ${/\d/.test(newPassword) ? 'opacity-100' : 'opacity-40'}`} />
-                          <span>Contains number</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Confirm Password */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Confirm New Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Re-enter new password"
-                      required
-                      className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 cursor-pointer"
-                      tabIndex={-1}
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {confirmPassword.length > 0 && (
-                    <div className="mt-1.5 flex items-center gap-1 text-[11px]">
-                      {newPassword === confirmPassword ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Passwords match
-                        </span>
-                      ) : (
-                        <span className="text-rose-500 dark:text-rose-400 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> Passwords do not match
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Buttons */}
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={resetPasswordModal}
-                    className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmittingPassword || !currentPassword || !newPassword || !confirmPassword}
-                    className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    {isSubmittingPassword ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                    <span>Update Password</span>
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* DELETE USER CONFIRMATION MODAL (Super Admin Only) */}
-      {currentUser?.role === 'super_admin' && deleteModalUser && (
-        <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#111827] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">
-                    Delete Personnel Account
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Super Admin exclusive action
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => !isDeletingUser && setDeleteModalUser(null)}
-                disabled={isDeletingUser}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Are you sure you want to permanently delete this user account? This action will revoke their access to the Responde portal immediately.
-              </p>
-
-              {/* Target User Info Card */}
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex items-center gap-3">
-                {deleteModalUser.avatar_url ? (
-                  <img
-                    src={deleteModalUser.avatar_url}
-                    alt={deleteModalUser.full_name}
-                    className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold text-sm flex items-center justify-center shrink-0">
-                    {(deleteModalUser.full_name || deleteModalUser.email || 'U')[0].toUpperCase()}
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-800 dark:text-slate-100 text-xs sm:text-sm truncate">
-                      {deleteModalUser.full_name || 'Unnamed Personnel'}
-                    </span>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${deleteModalUser.role === 'admin'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                        }`}
-                    >
-                      {deleteModalUser.role === 'admin' ? 'Admin' : 'Staff'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400 truncate mt-0.5">
-                    {deleteModalUser.email}
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-                <span>
-                  This is a local demonstration action. The user will be removed from your active personnel directory.
-                </span>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setDeleteModalUser(null)}
-                  disabled={isDeletingUser}
-                  className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteUser}
-                  disabled={isDeletingUser}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md shadow-red-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  {isDeletingUser ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                  <span>{isDeletingUser ? 'Deleting...' : 'Delete User'}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DELETE MY ACCOUNT MODAL (Self Deletion with Password & Email OTP) */}
-      {deleteSelfModalOpen && (
-        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#111827] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 transition-all">
-
-            {/* Header */}
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2.5">
-                <div className={`p-2.5 rounded-xl ${deleteSelfStep === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400'}`}>
-                  {deleteSelfStep === 'success' ? <CheckCircle2 className="w-5 h-5" /> : deleteSelfStep === 'otp' ? <Mail className="w-5 h-5" /> : <Trash2 className="w-5 h-5" />}
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">
-                    Delete My Account
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {deleteSelfStep === 'password' ? 'Step 1 of 2: Password Confirmation' : deleteSelfStep === 'otp' ? 'Step 2 of 2: Email OTP Verification' : 'Account Removal Complete'}
-                  </p>
-                </div>
-              </div>
-              {deleteSelfStep !== 'success' && (
-                <button
-                  type="button"
-                  onClick={closeDeleteMyAccountModal}
-                  disabled={isConfirmingDelete}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
             </div>
 
             {/* STEP 1: PASSWORD CONFIRMATION */}
             {deleteSelfStep === 'password' && (
               <form onSubmit={handlePasswordConfirmAndRequestOtp} className="space-y-4">
-                {/* Warning Card */}
-                <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-rose-900 dark:text-rose-200 text-xs flex items-start gap-2.5 leading-relaxed">
-                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
-                  <div>
-                    <span className="font-semibold block mb-0.5">Permanent &amp; Irreversible Action</span>
-                    This will permanently delete your account and revoke your access. To prevent accidental deletion, you must confirm your password and enter an email OTP.
-                  </div>
-                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Please confirm your password. An email verification code will be dispatched to your registered address to confirm deletion.
+                </p>
 
-                {/* Account Details Card */}
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex items-center gap-3">
-                  {currentUser?.avatar_url ? (
-                    <img
-                      src={currentUser.avatar_url}
-                      alt={currentUser.full_name || 'User'}
-                      className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-rose-700 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
-                      {(currentUser?.full_name || currentUser?.email || 'U')[0].toUpperCase()}
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-slate-800 dark:text-slate-100 text-xs sm:text-sm truncate">
-                        {currentUser?.full_name || currentUser?.username || 'Personnel'}
-                      </span>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${userRole === 'super_admin' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300' : userRole === 'admin' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
-                        {userRole === 'super_admin' ? 'Super Admin' : userRole === 'admin' ? 'Admin' : 'Staff'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 truncate mt-0.5">
-                      {currentUser?.email}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Password Input */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Enter Your Password
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Your Password
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                      <Lock className="w-4 h-4" />
-                    </div>
                     <input
                       type={showDeleteSelfPassword ? 'text' : 'password'}
                       value={deleteSelfPassword}
-                      onChange={e => {
-                        setDeleteSelfPassword(e.target.value);
-                        if (deleteSelfPasswordError) setDeleteSelfPasswordError(null);
-                      }}
-                      placeholder="Current account password"
-                      autoFocus
+                      onChange={(e) => setDeleteSelfPassword(e.target.value)}
+                      placeholder="Enter account password"
                       required
-                      className={`w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 transition-all ${deleteSelfPasswordError ? 'border-rose-400 dark:border-rose-600 focus:ring-rose-500/20' : 'border-slate-300 dark:border-slate-700 focus:ring-blue-500/20 focus:border-blue-500'}`}
+                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-white/10"
                     />
                     <button
                       type="button"
                       onClick={() => setShowDeleteSelfPassword(!showDeleteSelfPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                     >
-                      {showDeleteSelfPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showDeleteSelfPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
                     </button>
                   </div>
-                  {deleteSelfPasswordError && (
-                    <p className="text-xs text-rose-500 mt-1.5 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> {deleteSelfPasswordError}
-                    </p>
-                  )}
                 </div>
 
-                {/* Footer Buttons */}
-                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    type="button"
+                {deleteSelfPasswordError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200/70 text-xs text-rose-700 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                    <span>{deleteSelfPasswordError}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <CleanButton
+                    variant="secondary"
                     onClick={closeDeleteMyAccountModal}
-                    className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                    disabled={isRequestingOtp}
                   >
                     Cancel
-                  </button>
-                  <button
+                  </CleanButton>
+                  <CleanButton
                     type="submit"
+                    variant="danger"
                     disabled={isRequestingOtp}
-                    className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md shadow-rose-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     {isRequestingOtp ? (
                       <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" />
                         <span>Sending OTP...</span>
                       </>
                     ) : (
                       <>
-                        <span>Continue to Email OTP</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <span>Continue</span>
+                        <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
                       </>
                     )}
-                  </button>
+                  </CleanButton>
                 </div>
               </form>
             )}
@@ -2031,51 +1936,49 @@ export default function Settings() {
             {/* STEP 2: EMAIL OTP VERIFICATION */}
             {deleteSelfStep === 'otp' && (
               <div className="space-y-4">
-                <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 text-blue-900 dark:text-blue-200 text-xs flex items-start gap-2.5 leading-relaxed">
-                  <Mail className="w-4 h-4 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 text-blue-900 dark:text-blue-200 text-xs flex items-start gap-2">
+                  <Mail className="w-4 h-4 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" strokeWidth={1.75} />
                   <div>
-                    A 6-digit confirmation code was sent to <strong className="font-semibold text-slate-800 dark:text-slate-100">{deleteSelfMaskedEmail}</strong>. Enter the code below to finalize deletion.
+                    A 6-digit confirmation code was sent to <strong className="font-semibold">{deleteSelfMaskedEmail}</strong>.
                   </div>
                 </div>
 
-                {/* OTP Digits Input Boxes */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 text-center">
-                    6-Digit Verification Code
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-2 text-center">
+                    Enter 6-Digit Code
                   </label>
-                  <div className="flex items-center justify-center gap-2 sm:gap-2.5" onPaste={handleOtpPaste}>
+                  <div className="flex items-center justify-center gap-2" onPaste={handleOtpPaste}>
                     {deleteSelfOtp.map((digit, idx) => (
                       <input
                         key={idx}
-                        ref={el => { otpInputRefs.current[idx] = el; }}
+                        ref={(el) => { otpInputRefs.current[idx] = el; }}
                         type="text"
                         inputMode="numeric"
                         maxLength={1}
                         value={digit}
-                        onChange={e => handleOtpDigitChange(idx, e.target.value)}
-                        onKeyDown={e => handleOtpKeyDown(idx, e)}
-                        className={`w-11 h-12 text-center text-lg font-bold font-mono bg-slate-50 dark:bg-slate-800 border rounded-xl text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 transition-all ${deleteSelfOtpError ? 'border-rose-400 dark:border-rose-600 focus:ring-rose-500/20' : 'border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-blue-500/20'}`}
+                        onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                        className="w-10 h-12 text-center text-lg font-bold font-mono bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
                     ))}
                   </div>
 
                   {deleteSelfOtpError && (
                     <p className="text-xs text-rose-500 mt-2 text-center flex items-center justify-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> {deleteSelfOtpError}
+                      <AlertCircle className="w-3.5 h-3.5" strokeWidth={1.75} /> {deleteSelfOtpError}
                     </p>
                   )}
 
-                  {/* Resend Link */}
-                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-3 px-1">
+                  <div className="flex items-center justify-between text-xs text-slate-400 mt-3 px-1">
                     <span>Didn&apos;t receive code?</span>
                     {otpCooldown > 0 ? (
-                      <span className="font-mono text-slate-400">Resend in {otpCooldown}s</span>
+                      <span className="font-mono">Resend in {otpCooldown}s</span>
                     ) : (
                       <button
                         type="button"
                         onClick={handleResendDeleteOtp}
                         disabled={isRequestingOtp}
-                        className="text-blue-600 dark:text-blue-400 font-semibold hover:underline cursor-pointer disabled:opacity-50"
+                        className="text-blue-600 dark:text-blue-400 font-medium hover:underline cursor-pointer disabled:opacity-50"
                       >
                         {isRequestingOtp ? 'Sending...' : 'Resend Code'}
                       </button>
@@ -2083,8 +1986,7 @@ export default function Settings() {
                   </div>
                 </div>
 
-                {/* Footer Buttons */}
-                <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => {
@@ -2092,39 +1994,34 @@ export default function Settings() {
                       setDeleteSelfOtpError(null);
                     }}
                     disabled={isConfirmingDelete}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer p-1 active:scale-95 transition-transform"
                   >
-                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.75} />
                     <span>Back</span>
                   </button>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
+                    <CleanButton
+                      variant="secondary"
                       onClick={closeDeleteMyAccountModal}
                       disabled={isConfirmingDelete}
-                      className="px-3.5 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
                     >
                       Cancel
-                    </button>
-                    <button
-                      type="button"
+                    </CleanButton>
+                    <CleanButton
+                      variant="danger"
                       onClick={handleFinalDeleteSelf}
                       disabled={isConfirmingDelete || deleteSelfOtp.join('').length !== 6}
-                      className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md shadow-rose-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       {isConfirmingDelete ? (
                         <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin" />
                           <span>Deleting...</span>
                         </>
                       ) : (
-                        <>
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Permanently Delete</span>
-                        </>
+                        'Confirm Delete'
                       )}
-                    </button>
+                    </CleanButton>
                   </div>
                 </div>
               </div>
@@ -2133,27 +2030,26 @@ export default function Settings() {
             {/* STEP 3: SUCCESS STATE */}
             {deleteSelfStep === 'success' && (
               <div className="py-6 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto ring-8 ring-emerald-50 dark:ring-emerald-950/20 animate-pulse">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                   <Check className="w-6 h-6 stroke-[3]" />
                 </div>
-                <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base">
-                  Account Successfully Deleted
+                <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-base">
+                  Account Deleted
                 </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
-                  Your credentials and session have been cleared. Redirecting you to the sign-in page...
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
+                  Your credentials have been cleared. Redirecting to sign-in page...
                 </p>
                 <div className="flex items-center justify-center gap-2 text-xs text-slate-400 pt-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Signing out</span>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Signing out...</span>
                 </div>
               </div>
             )}
-
           </div>
         </div>
       )}
 
-      {/* SIGN OUT CONFIRMATION MODAL */}
+      {/* 5. SIGN OUT MODAL */}
       <SignOutModal
         isOpen={signOutModalOpen}
         onClose={() => !isSigningOut && setSignOutModalOpen(false)}
