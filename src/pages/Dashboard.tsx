@@ -12,10 +12,11 @@ import {
   CartesianGrid,
 } from 'recharts';
 import {
-  LayoutDashboard, AlertTriangle, Brain,
+  AlertTriangle, Brain,
   ArrowRight, X,
   MapPin, Clock, BarChart3, ListFilter, CheckCircle2
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useReports } from '../context/ReportsContext';
 import { formatReportCode } from '../services/incidentService';
 import PageLoader from '../components/PageLoader';
@@ -108,10 +109,24 @@ function TypeTooltip({ active, payload }: TypeTooltipProps) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { reports, loading: reportsLoading } = useReports();
   const [filterUrgency, setFilterUrgency] = useState<'All' | 'High' | 'Low'>('All');
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'chart' | 'bars'>('chart');
+
+  const userGreeting = useMemo(() => {
+    const fullName = user?.full_name?.trim();
+    if (fullName) {
+      const firstName = fullName.split(/\s+/)[0];
+      return `Hello, ${firstName}`;
+    }
+    const username = user?.username?.trim();
+    if (username) {
+      return `Hello, ${username}`;
+    }
+    return 'Welcome back';
+  }, [user]);
 
   // ── Stat metrics derived directly from reports (0 extra network calls) ──
   const totalIncidents = reports.length;
@@ -321,22 +336,17 @@ export default function Dashboard() {
   return (
     <div className="dashboard-soft flex flex-col flex-1 min-h-0 w-full h-full relative">
       <StaggerContainer className="flex flex-col flex-1 min-h-0 space-y-4 sm:space-y-5 w-full h-full">
-        {/* ── Top Header Bar (Matching IncidentReports, Analytics, Settings) ── */}
+        {/* ── Top Header Bar ── */}
         <StaggerItem>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-500/10 text-[#0071E3] dark:text-sky-400 border border-blue-500/20 flex items-center justify-center shrink-0 shadow-2xs">
-            <LayoutDashboard className="w-5 h-5" strokeWidth={1.75} />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Dashboard
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              Command center overview, real-time metrics, and latest incident triage
-            </p>
-          </div>
-        </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                {userGreeting}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                Command center overview, real-time metrics, and latest incident triage
+              </p>
+            </div>
           </div>
         </StaggerItem>
 
