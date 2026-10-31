@@ -44,10 +44,16 @@ const backdropVariants = {
 };
 
 const modalVariants = {
-  hidden: { opacity: 0, scale: 0.97, y: 12 },
+  hidden: { opacity: 0, scale: 0.95, y: 16 },
   visible: { opacity: 1, scale: 1, y: 0 },
-  exit: { opacity: 0, scale: 0.97, y: 12 },
+  exit: { opacity: 0, scale: 0.95, y: 10 },
 };
+
+const MODAL_TRANSITION = {
+  opacity: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
+  scale: { type: 'spring', stiffness: 220, damping: 26, mass: 0.8 },
+  y: { type: 'spring', stiffness: 220, damping: 26, mass: 0.8 },
+} as const;
 
 // ── Bulk bar: hardware-accelerated transform + opacity only ──
 const barActionVariants = {
@@ -1365,7 +1371,7 @@ export default function IncidentReports() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.28, ease: 'easeOut' }}
             className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-slate-900/50 dark:bg-black/70 backdrop-blur-md"
             onClick={closeReview}
           >
@@ -1374,7 +1380,7 @@ export default function IncidentReports() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              transition={APPLE_SPRING}
+              transition={MODAL_TRANSITION}
               className="bg-white dark:bg-[#111827] rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] w-full max-w-4xl max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col transform-gpu will-change-transform"
               onClick={(e) => e.stopPropagation()}
             >
