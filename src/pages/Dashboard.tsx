@@ -334,8 +334,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="dashboard-soft flex flex-col flex-1 min-h-0 w-full h-full relative">
-      <StaggerContainer className="flex flex-col flex-1 min-h-0 space-y-4 sm:space-y-5 w-full h-full">
+    <div className="dashboard-soft flex flex-col flex-1 min-h-full w-full relative">
+      <StaggerContainer className="flex flex-col flex-1 space-y-4 sm:space-y-5 w-full">
         {/* ── Top Header Bar ── */}
         <StaggerItem>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
@@ -352,14 +352,14 @@ export default function Dashboard() {
 
         {/* ── 1. Row 1: 4 Raised Stat Cards (Derived directly from reports) ── */}
         <StaggerItem>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 shrink-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3 md:gap-4 shrink-0">
         {/* Total Incidents */}
-        <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
+        <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
           <div className="space-y-1 min-w-0">
             <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
               Total Incidents
             </p>
-            <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
+            <p className="text-lg sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
               {totalIncidents}
             </p>
             <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
@@ -367,18 +367,18 @@ export default function Dashboard() {
               <span className="truncate">Active pipeline</span>
             </div>
           </div>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-[0_0_16px_rgba(244,63,94,0.15)] flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-4.5 h-4.5 sm:w-5 sm:h-5 md:w-6 md:h-6" strokeWidth={1.75} />
+          <div className="w-8.5 h-8.5 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-[0_0_16px_rgba(244,63,94,0.15)] flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" strokeWidth={1.75} />
           </div>
         </div>
 
         {/* Under Review */}
-        <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
+        <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
           <div className="space-y-1 min-w-0">
             <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
               Under Review
             </p>
-            <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
+            <p className="text-lg sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
               {underReviewCount}
             </p>
             <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-medium truncate">
@@ -399,18 +399,18 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-[0_0_16px_rgba(245,158,11,0.15)] flex items-center justify-center shrink-0">
-            <Clock className="w-4.5 h-4.5 sm:w-5 sm:h-5 md:w-6 md:h-6" strokeWidth={1.75} />
+          <div className="w-8.5 h-8.5 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-[0_0_16px_rgba(245,158,11,0.15)] flex items-center justify-center shrink-0">
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" strokeWidth={1.75} />
           </div>
         </div>
 
         {/* Verified Incidents */}
-        <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
+        <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
           <div className="space-y-1 min-w-0">
             <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
               Verified Incidents
             </p>
-            <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
+            <p className="text-lg sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
               {verifiedCount}
             </p>
             <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-medium truncate">
@@ -418,18 +418,18 @@ export default function Dashboard() {
               <span className="truncate">Confirmed on site</span>
             </div>
           </div>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-[0_0_16px_rgba(16,185,129,0.15)] flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-4.5 h-4.5 sm:w-5 sm:h-5 md:w-6 md:h-6" strokeWidth={1.75} />
+          <div className="w-8.5 h-8.5 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-[0_0_16px_rgba(168,85,247,0.15)] flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" strokeWidth={1.75} />
           </div>
         </div>
 
         {/* High Urgency */}
-        <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
+        <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
           <div className="space-y-1 min-w-0">
             <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
               High Urgency
             </p>
-            <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
+            <p className="text-lg sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
               {highUrgencyCount}
             </p>
             <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-purple-600 dark:text-purple-400 font-medium truncate">
@@ -437,18 +437,18 @@ export default function Dashboard() {
               <span className="truncate">Critical priority</span>
             </div>
           </div>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shadow-[0_0_16px_rgba(168,85,247,0.15)] flex items-center justify-center shrink-0">
-            <Brain className="w-4.5 h-4.5 sm:w-5 sm:h-5 md:w-6 md:h-6" strokeWidth={1.75} />
+          <div className="w-8.5 h-8.5 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shadow-[0_0_16px_rgba(168,85,247,0.15)] flex items-center justify-center shrink-0">
+            <Brain className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" strokeWidth={1.75} />
           </div>
         </div>
           </div>
         </StaggerItem>
 
         {/* ── 2. Main 2-Column Section: Latest Reports Table (Left) & Reports by Type with Interactive Bar Chart (Right) ── */}
-        <StaggerItem className="flex-1 min-h-0 flex flex-col">
-          <div className="grid grid-cols-12 gap-4 sm:gap-5 lg:gap-6 flex-1 min-h-0 w-full items-stretch">
+        <StaggerItem className="w-full flex flex-col lg:flex-1 lg:min-h-0">
+          <div className="grid grid-cols-12 gap-4 sm:gap-5 lg:gap-6 lg:flex-1 lg:min-h-0 w-full items-stretch">
         {/* Left Column: Latest Reports Table (Col 8) */}
-        <div className="col-span-12 lg:col-span-8 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden h-full">
+        <div className="col-span-12 lg:col-span-8 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden lg:h-full">
           {/* Header Row */}
           <div className="p-4 sm:p-5 border-b border-slate-200/70 dark:border-white/10 flex flex-wrap items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2.5">
@@ -489,8 +489,65 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Table Container */}
-          <div className="overflow-x-auto w-full flex-1 min-h-0 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
+          {/* Mobile Card List (< sm) */}
+          <div className="sm:hidden divide-y divide-slate-100 dark:divide-white/5">
+            {displayReports.length === 0 ? (
+              <div className="p-6 text-center text-slate-400 dark:text-slate-500 text-xs">
+                No reports found for the selected filter.
+              </div>
+            ) : (
+              displayReports.map((report) => {
+                const isTypeMatch = selectedType && report.type?.toLowerCase() === selectedType.toLowerCase();
+                return (
+                  <div
+                    key={report.id}
+                    onClick={() => {
+                      const rType = report.type || 'General';
+                      setSelectedType((prev) => (prev === rType ? null : rType));
+                    }}
+                    className={`p-3.5 space-y-2.5 transition-colors cursor-pointer ${
+                      isTypeMatch ? 'bg-blue-50/50 dark:bg-blue-900/15' : 'active:bg-slate-50 dark:active:bg-slate-800/40'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-white/5 truncate">
+                          {formatReportCode(report.id, report.source)}
+                        </span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                          {report.barangay || 'Unknown'}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono tabular-nums shrink-0">
+                        {formatDashboardTime(report.time, report.createdAt)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {getUrgencyBadge(report.urgency)}
+                        {getStatusBadge(report.status)}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/incident-reports?focus=${report.id}`);
+                        }}
+                        className="px-3 py-1.5 min-h-[36px] text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-white/10 rounded-xl transition-all active:scale-[0.96] shadow-2xs cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <span>Review</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop/Tablet Table (>= sm) */}
+          <div className="hidden sm:block overflow-x-auto w-full flex-1 min-h-0 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
             <table className="w-full text-sm text-left border-collapse">
               <thead className="bg-slate-50/80 dark:bg-slate-800/40 border-b border-slate-200/60 dark:border-white/5">
                 <tr>
@@ -577,7 +634,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right Column: Reports by Type with Interactive Bar Chart (Col 4) */}
-        <div className="col-span-12 lg:col-span-4 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex flex-col h-full justify-between">
+        <div className="col-span-12 lg:col-span-4 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex flex-col lg:h-full justify-between">
           {/* Header Row with View Mode Switcher and Clear Filter Pill */}
           <div className="flex items-center justify-between pb-3.5 border-b border-slate-200/70 dark:border-white/10 shrink-0 gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -645,7 +702,7 @@ export default function Dashboard() {
               <p className="text-[11px] text-slate-400 dark:text-slate-500">
                 Click any bar to highlight incident and inspect details
               </p>
-              <div className="w-full h-48 sm:h-52 relative mt-1">
+              <div className="w-full h-48 sm:h-52 min-h-[190px] relative mt-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={typeSummary}
