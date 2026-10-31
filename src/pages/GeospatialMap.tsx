@@ -19,6 +19,8 @@ import {
   MapPin,
   AlertTriangle,
   ChevronRight,
+  ChevronDown,
+  Filter,
   Bot,
   MessageSquare,
   Compass,
@@ -1107,15 +1109,21 @@ export default function GeospatialMap() {
     return true;
   });
   const [sidebarTab, setSidebarTab] = useState<'plotted' | 'incomplete'>('plotted');
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('Verified Only');
   const [filterUrgency, setFilterUrgency] = useState<string>('All Urgency');
   const [filterType, setFilterType] = useState<string>('All Types');
   const [loading, setLoading] = useState(true);
 
-  const hasActiveFilters =
-    filterStatus !== 'Verified Only' ||
-    (filterUrgency !== 'All Urgency' && filterUrgency !== 'All') ||
-    (filterType !== 'All Types' && filterType !== 'All');
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filterStatus !== 'Verified Only') count++;
+    if (filterUrgency !== 'All Urgency' && filterUrgency !== 'All') count++;
+    if (filterType !== 'All Types' && filterType !== 'All') count++;
+    return count;
+  }, [filterStatus, filterUrgency, filterType]);
+
+  const hasActiveFilters = activeFilterCount > 0;
 
   const resetFilters = () => {
     setFilterStatus('Verified Only');
@@ -1327,8 +1335,8 @@ export default function GeospatialMap() {
   if (loading) return <PageLoader variant="geospatial" />;
 
   return (
-    <div className="geospatial-soft flex flex-col flex-1 min-h-full gap-3 sm:gap-4 relative">
-      <StaggerContainer className="flex flex-col flex-1 gap-3 sm:gap-4">
+    <div className="geospatial-soft flex flex-col flex-1 w-full lg:h-full lg:min-h-0 gap-3 sm:gap-4 relative">
+      <StaggerContainer className="flex flex-col flex-1 gap-3 sm:gap-4 w-full lg:h-full lg:min-h-0">
         {/* ── Floating Command Toolbar Capsule with Soft Header ── */}
         <StaggerItem className="shrink-0">
           <SoftPanel className="p-4 sm:p-5 relative z-30 space-y-4">
@@ -1363,9 +1371,44 @@ export default function GeospatialMap() {
             </div>
 
             {/* ── Filters & Layer Controls ── */}
-            <div className="pt-3.5 border-t border-slate-200/60 dark:border-white/5 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-              {/* Left Side: Filter Dropdowns + Reset */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+            <div className="pt-3.5 border-t border-slate-200/60 dark:border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              {/* Mobile Header Bar with Toggle & Active Filter Count (< md) */}
+              <div className="flex items-center justify-between md:hidden">
+                <button
+                  type="button"
+                  onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+                  className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none active:scale-[0.98] transition-transform"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-[#0071E3] dark:text-sky-400 flex items-center justify-center border border-blue-500/20">
+                    <Filter className="w-3.5 h-3.5" strokeWidth={1.75} />
+                  </div>
+                  <span>Filter Incidents</span>
+                  {activeFilterCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0071E3] text-white tabular-nums">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${mobileFiltersOpen ? 'rotate-180' : ''}`} strokeWidth={1.75} />
+                </button>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#0071E3] dark:text-sky-400 hover:underline cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3" strokeWidth={1.75} />
+                    <span>Reset</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Filter Controls Row — collapsible on mobile, always visible on tablet & desktop */}
+              <div className={`${mobileFiltersOpen ? 'flex' : 'hidden'} md:flex flex-wrap items-center gap-2 sm:gap-2.5 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-200/60 dark:border-white/5`}>
+                <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100/80 dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0 border border-slate-200/50 dark:border-white/10">
+                  <Filter className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400" strokeWidth={1.75} />
+                  <span>Filters</span>
+                </div>
+
                 {/* Filter Pills */}
                 <div className="flex-1 sm:flex-initial min-w-[130px]">
                   <FilterDropdown
@@ -1391,7 +1434,7 @@ export default function GeospatialMap() {
                   />
                 </div>
 
-                {/* Animated Reset Button */}
+                {/* Animated Reset Button for Desktop */}
                 <AnimatePresence>
                   {hasActiveFilters && (
                     <motion.button
@@ -1401,7 +1444,7 @@ export default function GeospatialMap() {
                       transition={{ duration: 0.15 }}
                       type="button"
                       onClick={resetFilters}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-xl transition-all active:scale-[0.97] cursor-pointer shrink-0 border border-blue-500/20"
+                      className="hidden md:inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-xl transition-all active:scale-[0.97] cursor-pointer shrink-0 border border-blue-500/20"
                       title="Reset filters"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
@@ -1412,7 +1455,7 @@ export default function GeospatialMap() {
               </div>
 
               {/* Right Side: Segmented Layer Control */}
-              <div className="flex flex-wrap items-center justify-between lg:justify-end gap-2.5 sm:gap-3 shrink-0">
+              <div className="flex flex-wrap items-center justify-between md:justify-end gap-2.5 sm:gap-3 shrink-0">
                 <div className="inline-flex items-center gap-1 p-1 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 shadow-inner">
                   <div className="flex items-center gap-1 px-2 py-1 text-slate-400 dark:text-slate-500">
                     <Layers className="w-3.5 h-3.5" />
@@ -1443,7 +1486,7 @@ export default function GeospatialMap() {
         </StaggerItem>
 
         {/* ── Main Canvas: Map + Side Panel ── */}
-        <StaggerItem className="flex-1 min-h-[420px] sm:min-h-[480px] md:min-h-0 h-[calc(100dvh-17rem-env(safe-area-inset-bottom,0px))] md:h-full flex flex-row relative">
+        <StaggerItem className="flex-1 min-h-[420px] sm:min-h-[480px] lg:min-h-0 lg:h-full flex flex-row relative">
 
           {/* Desktop Sidebar (inline, animated width & margin) */}
           <AnimatePresence initial={false}>
