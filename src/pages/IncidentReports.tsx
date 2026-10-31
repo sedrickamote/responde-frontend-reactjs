@@ -17,6 +17,7 @@ import {
   isReportIncomplete,
   getIncompleteReasons,
   formatReportCode,
+  getTypeHexColor,
   type Report,
   type ReportStatus,
 } from '../services/incidentService';
@@ -27,7 +28,7 @@ import { formatPhilippineTimeOnly, getPhilippineTimestampNow } from '../utils/da
 
 export type TabKey = 'under_review' | 'incomplete' | 'verified' | 'resolved' | 'rejected';
 
-export const BASE_INCIDENT_TYPES = ['Earthquake', 'Fire', 'Flood', 'Landslide', 'None'] as const;
+export const BASE_INCIDENT_TYPES = ['Earthquake', 'Fire', 'Flood', 'General', 'Landslide'] as const;
 
 const formatBubbleTime = (iso?: string) => formatPhilippineTimeOnly(iso);
 
@@ -88,7 +89,7 @@ function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: nu
         type="button"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-white/10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md active:scale-[0.96] shadow-2xs cursor-pointer"
+        className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#0071E3] dark:text-sky-400 bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/25 rounded-xl hover:bg-[#0071E3] hover:text-white dark:hover:bg-[#0071E3] dark:hover:text-white disabled:opacity-40 disabled:pointer-events-none disabled:cursor-not-allowed transition-all backdrop-blur-md active:scale-[0.96] shadow-2xs cursor-pointer"
       >
         <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.75} /> <span className="hidden sm:inline">Previous</span><span className="sm:hidden">Prev</span>
       </button>
@@ -121,7 +122,7 @@ function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: nu
         type="button"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage >= safeTotal}
-        className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-white/10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md active:scale-[0.96] shadow-2xs cursor-pointer"
+        className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#0071E3] dark:text-sky-400 bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/25 rounded-xl hover:bg-[#0071E3] hover:text-white dark:hover:bg-[#0071E3] dark:hover:text-white disabled:opacity-40 disabled:pointer-events-none disabled:cursor-not-allowed transition-all backdrop-blur-md active:scale-[0.96] shadow-2xs cursor-pointer"
       >
         <span className="hidden sm:inline">Next</span><span className="sm:hidden">Next</span> <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.75} />
       </button>
@@ -486,20 +487,22 @@ export default function IncidentReports() {
   const availableIncidentTypes = useMemo(() => {
     const set = new Set<string>(BASE_INCIDENT_TYPES);
     reports.forEach(r => {
-      if (r.type && r.type.trim() && r.type !== 'All Types' && r.type.toLowerCase() !== 'unclassified') {
+      const norm = (r.type || '').trim().toLowerCase();
+      if (r.type && norm && r.type !== 'All Types' && norm !== 'unclassified' && norm !== 'none') {
         set.add(r.type);
       }
     });
-    if (editForm.type && editForm.type.trim() && editForm.type !== 'All Types' && editForm.type.toLowerCase() !== 'unclassified') {
+    const editNorm = (editForm.type || '').trim().toLowerCase();
+    if (editForm.type && editNorm && editForm.type !== 'All Types' && editNorm !== 'unclassified' && editNorm !== 'none') {
       set.add(editForm.type);
     }
-    return Array.from(set).filter(t => t.toLowerCase() !== 'unclassified').sort();
+    return Array.from(set).filter(t => t.toLowerCase() !== 'unclassified' && t.toLowerCase() !== 'none').sort();
   }, [reports, editForm.type]);
 
   const openReview = (report: Report) => {
     setReviewingReport(report);
 
-    const initialType = (!report.type || report.type.toLowerCase() === 'unclassified') ? 'None' : report.type;
+    const initialType = (!report.type || report.type.toLowerCase() === 'unclassified' || report.type.toLowerCase() === 'none') ? 'General' : report.type;
 
     setEditForm({
       ...report,
@@ -790,14 +793,14 @@ export default function IncidentReports() {
     switch (urgency) {
       case 'High':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[82px] py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
             <span>High</span>
           </span>
         );
       case 'Moderate':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[82px] py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
             <span>Moderate</span>
           </span>
@@ -805,8 +808,8 @@ export default function IncidentReports() {
       case 'Low':
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+          <span className="inline-flex items-center justify-center gap-1.5 w-[82px] py-0.5 rounded-full text-xs font-semibold bg-green-500/15 text-green-700 dark:text-green-300 border border-green-500/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] shrink-0" />
             <span>Low</span>
           </span>
         );
@@ -816,7 +819,7 @@ export default function IncidentReports() {
   const getStatusBadge = (status: ReportStatus, isIncomplete: boolean) => {
     if (activeTab === 'incomplete' || (isIncomplete && (status === 'pending' || status === 'under_review'))) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+        <span className="inline-flex items-center justify-center gap-1.5 w-[104px] py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
           <span>Incomplete</span>
         </span>
@@ -825,35 +828,35 @@ export default function IncidentReports() {
     switch (status) {
       case 'pending':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-[#0071E3] dark:text-sky-400 border border-blue-500/20">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[104px] py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-[#0071E3] dark:text-sky-400 border border-blue-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />
             <span>Pending</span>
           </span>
         );
       case 'under_review':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+          <span className="inline-flex items-center justify-center gap-1.5 w-[104px] py-0.5 rounded-full text-xs font-semibold bg-orange-600/12 text-orange-800 dark:text-orange-300 border border-orange-600/25">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-600 animate-pulse shrink-0" />
             <span>Under Review</span>
           </span>
         );
       case 'verified':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[104px] py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
             <span>Verified</span>
           </span>
         );
       case 'resolved':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[104px] py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
             <span>Resolved</span>
           </span>
         );
       case 'rejected':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[104px] py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
             <span>Rejected</span>
           </span>
@@ -871,20 +874,15 @@ export default function IncidentReports() {
         </span>
       );
     }
-    const colorMap: Record<string, string> = {
-      'earthquake': 'text-amber-600 dark:text-amber-400',
-      'fire': 'text-rose-600 dark:text-rose-400',
-      'flood': 'text-cyan-600 dark:text-cyan-400',
-      'landslide': 'text-yellow-700 dark:text-yellow-500',
-      'search & rescue': 'text-orange-600 dark:text-orange-400',
-      'medical': 'text-emerald-600 dark:text-emerald-400',
-      'food & water': 'text-blue-600 dark:text-blue-400',
-      'infrastructure': 'text-purple-600 dark:text-purple-400',
-    };
-    const textColor = colorMap[norm] || 'text-slate-600 dark:text-slate-400';
+
+    const dotColor = getTypeHexColor(type);
+
     return (
-      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${textColor}`}>
-        <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" />
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+        <span
+          className="w-2 h-2 rounded-full shrink-0"
+          style={{ backgroundColor: dotColor }}
+        />
         <span>{type}</span>
       </span>
     );
@@ -924,61 +922,61 @@ export default function IncidentReports() {
       </div>
 
       <StaggerContainer className="flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-3.5 w-full h-full">
-        {/* ── Top Page Header (Unified Soft UI Design) ── */}
+        {/* ── Top Page Header with Integrated Segmented Tabs ── */}
         <StaggerItem>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-500/20 shadow-xs">
-            <FileText className="w-5 h-5 sm:w-5.5 sm:h-5.5" strokeWidth={1.75} />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Incident Reports
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              Review, triage, verify, and resolve emergency reports across Talisay City
-            </p>
-          </div>
-        </div>
-          </div>
-        </StaggerItem>
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-500/20 shadow-xs">
+                <FileText className="w-5 h-5 sm:w-5.5 sm:h-5.5" strokeWidth={1.75} />
+              </div>
+              <div>
+                <h1 className="text-lg sm:text-[22px] font-semibold tracking-[-0.025em] leading-tight text-slate-900 dark:text-white">
+                  Incident Reports
+                </h1>
+                <p className="text-[11px] sm:text-xs font-normal tracking-[0.005em] text-slate-500/90 dark:text-slate-400/90 mt-0.5 leading-relaxed">
+                  Emergency triage <span className="text-slate-300 dark:text-slate-600 mx-1">·</span> Verification &amp; resolution across Talisay City
+                </p>
+              </div>
+            </div>
 
-        {/* ── Tabs (Apple macOS Segmented Control) ── */}
-        <StaggerItem>
-          <div className="w-full shrink-0">
-        <div className="p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 flex flex-wrap sm:inline-flex items-center gap-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] w-full sm:w-auto">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className={`relative px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors duration-150 flex items-center justify-between sm:justify-center gap-2 select-none active:scale-[0.98] cursor-pointer ${isActive
-                  ? 'text-slate-900 dark:text-white'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="activeTabPill"
-                    transition={APPLE_SLIDE_SPRING}
-                    className="absolute inset-0 bg-white dark:bg-slate-700/90 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] border border-black/4 dark:border-white/10"
-                  />
-                )}
-                <span className="relative z-10 truncate">{tab.label}</span>
-                <span
-                  className={`relative z-10 text-[10px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full transition-colors shrink-0 ${isActive
-                    ? 'bg-blue-50 dark:bg-blue-900/40 text-[#0071E3] dark:text-sky-400'
-                    : 'bg-slate-300/60 dark:bg-slate-700/60 text-slate-600 dark:text-slate-400'
-                    }`}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+            {/* ── Tabs (Apple macOS Segmented Control — fits to top on desktop/tablet, smooth horizontal swipe on mobile) ── */}
+            <div className="overflow-x-auto scrollbar-none -mx-1 px-1 py-0.5 shrink-0">
+              <div className="p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 inline-flex items-center gap-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
+                {tabs.map((tab) => {
+                  const isActive = activeTab === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setActiveTab(tab.key)}
+                      className={`relative px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 inline-flex items-center justify-center gap-2 select-none active:scale-[0.97] cursor-pointer whitespace-nowrap ${
+                        isActive
+                          ? 'text-slate-900 dark:text-white'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-700/60 hover:shadow-2xs'
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeTabPill"
+                          transition={APPLE_SLIDE_SPRING}
+                          className="absolute inset-0 bg-white dark:bg-slate-700/90 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] border border-black/4 dark:border-white/10"
+                        />
+                      )}
+                      <span className="relative z-10">{tab.label}</span>
+                      <span
+                        className={`relative z-10 text-[10px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full transition-colors shrink-0 ${
+                          isActive
+                            ? 'bg-blue-50 dark:bg-blue-900/40 text-[#0071E3] dark:text-sky-400'
+                            : 'bg-slate-300/60 dark:bg-slate-700/60 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        {tab.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </StaggerItem>
 
@@ -991,12 +989,10 @@ export default function IncidentReports() {
             <button
               type="button"
               onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
-              className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 border border-blue-500/25 dark:border-blue-400/25 text-xs font-semibold cursor-pointer select-none shadow-2xs active:scale-[0.98] transition-transform"
             >
-              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-[#0071E3] dark:text-sky-400 flex items-center justify-center">
-                <Filter className="w-3.5 h-3.5" strokeWidth={1.75} />
-              </div>
-              <span>Filters</span>
+              <Filter className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400" strokeWidth={1.75} />
+              <span>Filter Incident Reports</span>
               {activeFilterCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0071E3] text-white">
                   {activeFilterCount}
@@ -1018,8 +1014,8 @@ export default function IncidentReports() {
 
           {/* Filter Controls */}
           <div className={`${mobileFiltersOpen ? 'grid' : 'hidden'} md:flex md:flex-wrap grid-cols-2 gap-2 sm:gap-2.5 md:gap-3 md:items-center pt-2.5 md:pt-0`}>
-            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0 border border-slate-200/50 dark:border-white/5">
-              <Filter className="w-3.5 h-3.5 text-[#0071E3]" strokeWidth={1.75} />
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 text-xs font-semibold shrink-0 border border-blue-500/25 dark:border-blue-400/25 shadow-2xs select-none cursor-default pointer-events-none">
+              <Filter className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400" strokeWidth={1.75} />
               <span>Filters</span>
             </div>
 
@@ -1031,10 +1027,10 @@ export default function IncidentReports() {
                   setFilterSource(prev => (prev === 'bot' ? 'all' : 'bot'));
                   setCurrentPage(1);
                 }}
-                className={`h-full inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold tracking-tight transition-all duration-200 select-none active:scale-[0.97] cursor-pointer ${
+                className={`h-full inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold tracking-tight transition-all duration-150 select-none active:scale-[0.96] cursor-pointer ${
                   filterSource === 'bot'
-                    ? "bg-[#0071E3] text-white shadow-xs"
-                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
+                    ? "bg-[#0071E3] text-white shadow-xs hover:bg-[#0077ED] hover:shadow-[0_2px_8px_rgba(0,113,227,0.3)] hover:-translate-y-0.5 active:translate-y-0"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-700 hover:shadow-2xs hover:-translate-y-0.5 active:translate-y-0"
                 }`}
                 title={filterSource === 'bot' ? 'Click to show all sources' : 'Filter by Bot reports'}
               >
@@ -1048,10 +1044,10 @@ export default function IncidentReports() {
                   setFilterSource(prev => (prev === 'scraper' ? 'all' : 'scraper'));
                   setCurrentPage(1);
                 }}
-                className={`h-full inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold tracking-tight transition-all duration-200 select-none active:scale-[0.97] cursor-pointer ${
+                className={`h-full inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold tracking-tight transition-all duration-150 select-none active:scale-[0.96] cursor-pointer ${
                   filterSource === 'scraper'
-                    ? "bg-[#0071E3] text-white shadow-xs"
-                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
+                    ? "bg-[#0071E3] text-white shadow-xs hover:bg-[#0077ED] hover:shadow-[0_2px_8px_rgba(0,113,227,0.3)] hover:-translate-y-0.5 active:translate-y-0"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-700 hover:shadow-2xs hover:-translate-y-0.5 active:translate-y-0"
                 }`}
                 title={filterSource === 'scraper' ? 'Click to show all sources' : 'Filter by Scraper reports'}
               >
@@ -1074,7 +1070,7 @@ export default function IncidentReports() {
                 options={[
                   'All Types',
                   ...Array.from(new Set([...BASE_INCIDENT_TYPES, ...reports.map(r => r.type)]))
-                    .filter(t => Boolean(t) && t.toLowerCase() !== 'unclassified')
+                    .filter(t => Boolean(t) && t.toLowerCase() !== 'unclassified' && t.toLowerCase() !== 'none')
                     .sort()
                 ]}
                 onChange={setFilterType}
@@ -1162,8 +1158,8 @@ export default function IncidentReports() {
         <StaggerItem className="flex-1 min-h-0 flex flex-col">
           <div className="relative z-10 bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.03)] overflow-hidden flex flex-col flex-1 min-h-0">
         <div className="overflow-x-auto w-full flex-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-          <table className="w-full min-w-[880px] text-sm text-left border-collapse">
-            <thead className="bg-slate-50/90 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/70 dark:border-white/10 sticky top-0 z-10">
+          <table className="w-full min-w-[980px] text-sm text-left border-separate border-spacing-0">
+            <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200/70 dark:border-white/10 sticky top-0 z-30 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
               <tr>
                 <th className="px-3.5 py-3 w-10">
                   <input
@@ -1179,8 +1175,8 @@ export default function IncidentReports() {
                 <th className="px-3.5 py-3 w-24 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Urgency</th>
                 <th className="px-3.5 py-3 w-28 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Status</th>
                 <th className="px-3.5 py-3 w-20 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Source</th>
-                <th className="px-3.5 py-3 w-24 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Time</th>
-                <th className="px-4 py-3 min-w-[130px] text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 text-right sticky right-0 z-20 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-md shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] dark:shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.3)]">Action</th>
+                <th className="px-3.5 py-3 w-28 min-w-[115px] text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Time</th>
+                <th className="px-3.5 py-3 w-32 min-w-[128px] text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 text-left whitespace-nowrap sticky top-0 right-0 z-40 bg-slate-50 dark:bg-slate-900 border-b border-slate-200/70 dark:border-white/10 shadow-[-8px_0_12px_-4px_rgba(0,0,0,0.08)] dark:shadow-[-8px_0_12px_-4px_rgba(0,0,0,0.4)]">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
@@ -1207,14 +1203,15 @@ export default function IncidentReports() {
                       ease: EASE_OUT,
                       delay: Math.min(index * 0.02, 0.15),
                     }}
-                    className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors border-b border-slate-100 dark:border-white/5 group ${selectedIds.includes(report.id)
+                    onClick={() => openReview(report)}
+                    className={`cursor-pointer transition-colors duration-150 border-b border-slate-100 dark:border-white/5 group hover:bg-blue-50/30 dark:hover:bg-slate-800/40 active:bg-blue-50/50 dark:active:bg-slate-800/60 ${selectedIds.includes(report.id)
                       ? 'bg-blue-50/40 dark:bg-blue-900/15'
                       : report.status === 'pending'
                         ? 'bg-blue-50/20 dark:bg-blue-900/5'
                         : ''
                       }`}
                   >
-                    <td className="px-3.5 py-3.5 w-10">
+                    <td className="px-3.5 py-3.5 w-10" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(report.id)}
@@ -1235,7 +1232,7 @@ export default function IncidentReports() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-3.5 py-3.5 text-slate-900 dark:text-slate-100 font-medium whitespace-nowrap">
+                    <td className="px-3.5 py-3.5 text-slate-900 dark:text-slate-100 font-medium whitespace-nowrap group-hover:text-[#0071E3] group-active:text-[#0071E3] dark:group-hover:text-sky-400 dark:group-active:text-sky-400 transition-colors duration-150">
                       {(!report.barangay || report.barangay.trim().toLowerCase() === 'unknown') ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
                           <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" strokeWidth={1.75} />
@@ -1256,33 +1253,33 @@ export default function IncidentReports() {
                     </td>
                     <td className="px-3.5 py-3.5 whitespace-nowrap">
                       {(report.source || '').trim().toLowerCase() === 'scraper' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/25">
+                        <span className="inline-flex items-center justify-center gap-1.5 w-[76px] py-0.5 rounded-md text-xs font-semibold bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/25">
                           <Globe className="w-3 h-3" strokeWidth={1.75} />
                           <span>Scraper</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 border border-blue-500/20">
+                        <span className="inline-flex items-center justify-center gap-1.5 w-[76px] py-0.5 rounded-md text-xs font-semibold bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 border border-blue-500/20">
                           <Bot className="w-3 h-3" strokeWidth={1.75} />
                           <span>Bot</span>
                         </span>
                       )}
                     </td>
-                    <td className="px-3.5 py-3.5 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap font-mono tabular-nums w-24">
+                    <td className="px-3.5 py-3.5 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap font-mono tabular-nums w-28 min-w-[115px]">
                       {report.time}
                     </td>
-                    <td className="px-4 py-3.5 text-right whitespace-nowrap min-w-[130px] sticky right-0 z-10 bg-white/95 dark:bg-[#111827]/95 group-hover:bg-slate-50/95 dark:group-hover:bg-slate-800/95 backdrop-blur-md shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] dark:shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.3)]">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <td className="px-3.5 py-3.5 w-32 min-w-[128px] text-left whitespace-nowrap sticky right-0 z-10 bg-white dark:bg-[#111827] group-hover:bg-slate-50 dark:group-hover:bg-slate-800 transition-colors border-b border-slate-100 dark:border-white/5 shadow-[-8px_0_12px_-4px_rgba(0,0,0,0.08)] dark:shadow-[-8px_0_12px_-4px_rgba(0,0,0,0.4)]" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-start gap-1.5">
                         {(report.status === 'pending' || report.status === 'under_review') && (
                           <button
                             type="button"
                             onClick={() => openReview(report)}
-                            className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer ${
+                            className={`group/btn px-3 py-1.5 text-xs font-semibold rounded-xl transition-all duration-200 inline-flex items-center justify-center gap-1.5 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96] shadow-2xs cursor-pointer ${
                               isReportIncomplete(report)
-                                ? 'text-amber-700 dark:text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30'
-                                : 'text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20'
+                                ? 'text-amber-700 dark:text-amber-300 bg-amber-500/15 hover:bg-amber-600 hover:text-white dark:hover:bg-amber-600 dark:hover:text-white border border-amber-500/30 hover:border-amber-600 hover:shadow-[0_4px_12px_rgba(217,119,6,0.25)]'
+                                : 'text-[#0071E3] dark:text-sky-300 bg-blue-500/10 hover:bg-[#0071E3] hover:text-white dark:hover:bg-[#0071E3] dark:hover:text-white border border-blue-500/25 hover:border-[#0071E3] hover:shadow-[0_4px_12px_rgba(0,113,227,0.25)]'
                             }`}
                           >
-                            <ShieldCheck className="w-3.5 h-3.5" strokeWidth={1.75} />
+                            <ShieldCheck className="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" strokeWidth={1.75} />
                             <span>{isReportIncomplete(report) ? 'Review & Complete' : 'Review'}</span>
                           </button>
                         )}
@@ -1292,17 +1289,17 @@ export default function IncidentReports() {
                             <button
                               type="button"
                               onClick={() => openReview(report)}
-                              className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-white/10 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
+                              className="group/btn px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-800 hover:text-white dark:hover:bg-slate-200 dark:hover:text-slate-900 border border-slate-200/60 dark:border-white/10 rounded-xl transition-all duration-200 flex items-center gap-1.5 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96] shadow-2xs cursor-pointer"
                             >
-                              <Eye className="w-3.5 h-3.5" strokeWidth={1.75} />
+                              <Eye className="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" strokeWidth={1.75} />
                               <span>View</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => navigate(`/geospatial?focus=${report.id}`)}
-                              className="px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
+                              className="group/btn px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/20 hover:border-emerald-600 rounded-xl transition-all duration-200 flex items-center gap-1.5 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96] shadow-2xs hover:shadow-[0_4px_12px_rgba(16,185,129,0.25)] cursor-pointer"
                             >
-                              <MapPinned className="w-3.5 h-3.5" strokeWidth={1.75} />
+                              <MapPinned className="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" strokeWidth={1.75} />
                               <span>Map</span>
                             </button>
                           </>
@@ -1312,9 +1309,9 @@ export default function IncidentReports() {
                           <button
                             type="button"
                             onClick={() => openReview(report)}
-                            className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-white/10 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
+                            className="group/btn px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-800 hover:text-white dark:hover:bg-slate-200 dark:hover:text-slate-900 border border-slate-200/60 dark:border-white/10 rounded-xl transition-all duration-200 flex items-center gap-1.5 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96] shadow-2xs cursor-pointer"
                           >
-                            <Eye className="w-3.5 h-3.5" strokeWidth={1.75} />
+                            <Eye className="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" strokeWidth={1.75} />
                             <span>View</span>
                           </button>
                         )}

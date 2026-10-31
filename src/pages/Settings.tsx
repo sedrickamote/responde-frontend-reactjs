@@ -774,11 +774,11 @@ export default function Settings() {
                 <SettingsIcon className="w-5 h-5 sm:w-5.5 sm:h-5.5" strokeWidth={1.75} />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                <h1 className="text-lg sm:text-[22px] font-semibold tracking-[-0.025em] leading-tight text-slate-900 dark:text-white">
                   Settings
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                  Manage your personal profile, team members, security credentials, and system preferences.
+                <p className="text-[11px] sm:text-xs font-normal tracking-[0.005em] text-slate-500/90 dark:text-slate-400/90 mt-0.5 leading-relaxed">
+                  Personal profile <span className="text-slate-300 dark:text-slate-600 mx-1">·</span> Team access &amp; security preferences
                 </p>
               </div>
             </div>

@@ -29,7 +29,7 @@ const RED = '#DC2626';
 const URGENCY_BAR_COLOR: Record<string, string> = {
   High: RED,
   Moderate: '#F59E0B',
-  Low: '#10B981',
+  Low: '#22c55e',
 };
 
 function useIsMobile(breakpoint = 640) {

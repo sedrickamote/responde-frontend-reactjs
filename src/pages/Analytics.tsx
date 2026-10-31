@@ -503,11 +503,11 @@ export default function Analytics() {
                     <BarChart3 className="w-5 h-5" strokeWidth={1.75} />
                   </div>
                   <div>
-                    <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                    <h1 className="text-lg sm:text-[22px] font-semibold text-slate-900 dark:text-white tracking-[-0.025em] leading-tight">
                       Analytics
                     </h1>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      Incident trends, response patterns, and prescriptive resource recommendations
+                    <p className="text-[11px] sm:text-xs font-normal tracking-[0.005em] text-slate-500/90 dark:text-slate-400/90 mt-0.5 leading-relaxed">
+                      Incident trends <span className="text-slate-300 dark:text-slate-600 mx-1">·</span> Response patterns &amp; resource insights
                     </p>
                   </div>
                 </div>
@@ -535,8 +535,8 @@ export default function Analytics() {
               {/* Filter Bar with DatePicker and FilterDropdown */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap items-stretch md:items-center justify-between gap-2.5 sm:gap-3 relative z-50">
                 <div className="flex flex-wrap items-center gap-2.5 relative z-50">
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium shrink-0 border border-slate-200/60 dark:border-slate-700/60">
-                    <Filter className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400" strokeWidth={1.75} />
+                  <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 text-xs font-semibold shrink-0 border border-blue-500/25 dark:border-blue-400/25 shadow-2xs">
+                    <Filter className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400" strokeWidth={1.75} />
                     <span>Filters</span>
                   </div>
 
@@ -587,7 +587,7 @@ export default function Analytics() {
                     <button
                       type="button"
                       onClick={resetFilters}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700/80 rounded-xl transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 ml-auto sm:ml-0 border border-slate-200/60 dark:border-slate-700/60"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-[#0071E3] dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 ml-auto sm:ml-0 border border-blue-500/25"
                       title="Reset all filters"
                     >
                       <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
@@ -1094,14 +1094,20 @@ export default function Analytics() {
                             {item.high}
                           </td>
                           <td className="py-3 px-3 text-center whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                              item.priority === 'High'
+                                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                                : item.priority === 'Moderate'
+                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                                : 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30'
+                            }`}>
                               <span
                                 className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                                   item.priority === 'High'
                                     ? 'bg-rose-500'
                                     : item.priority === 'Moderate'
                                     ? 'bg-amber-500'
-                                    : 'bg-emerald-500'
+                                    : 'bg-[#22c55e]'
                                 }`}
                               />
                               <span>{item.priority}</span>
@@ -1149,14 +1155,20 @@ export default function Analytics() {
                             {item.barangay}
                           </span>
                         </div>
-                        <span className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-slate-200/60 dark:border-slate-700/60 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-medium">
+                        <span className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold ${
+                          item.priority === 'High'
+                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                            : item.priority === 'Moderate'
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                            : 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30'
+                        }`}>
                           <span
                             className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                               item.priority === 'High'
                                 ? 'bg-rose-500'
                                 : item.priority === 'Moderate'
                                 ? 'bg-amber-500'
-                                : 'bg-emerald-500'
+                                : 'bg-[#22c55e]'
                             }`}
                           />
                           <span>{item.priority} Urgency</span>

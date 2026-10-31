@@ -186,7 +186,6 @@ export default function Layout() {
     toasts,
     unreadCount,
     markAllRead,
-    markTypeRead,
     markNotificationRead,
     markMultipleRead,
     deleteNotification,
@@ -218,14 +217,6 @@ export default function Layout() {
   const viewedNotifIdsRef = useRef<Set<string>>(new Set());
   viewedNotifIdsRef.current = viewedNotifIds;
 
-  // Clear unread notifications when viewing the corresponding page
-  useEffect(() => {
-    if (location.pathname === '/scraper-feed') {
-      markTypeRead('scraper');
-    } else if (location.pathname === '/messenger-bot-logs') {
-      markTypeRead('messenger');
-    }
-  }, [location.pathname, markTypeRead]);
 
   // Keep notifications bold & highlighted while the notification panel is open.
   // When the user closes the panel, mark ONLY the notifications that were actually scrolled/viewed as read.
@@ -464,11 +455,13 @@ export default function Layout() {
           md:justify-center md:px-0 md:gap-0
           ${collapsed ? 'lg:justify-center lg:px-0 lg:gap-0' : 'lg:justify-start lg:px-4 lg:gap-3'}
         `}>
-          <img
-            src="/Responde_Logo.png"
-            alt="Responde"
-            className="w-8 h-8 rounded-lg object-cover shrink-0"
-          />
+          <div className="sidebar-logo h-10 w-10 shrink-0 overflow-hidden rounded-full shadow-[0_6px_18px_rgba(37,99,235,.35)] ring-2 ring-white/80 cursor-pointer flex items-center justify-center">
+            <img
+              src="/Responde_Logo.png"
+              alt="Responde"
+              className="h-full w-full rounded-full object-cover"
+            />
+          </div>
           <span className={`
             font-bold text-slate-800 dark:text-white text-base tracking-tight
             transition-all duration-300 overflow-hidden whitespace-nowrap
@@ -495,6 +488,7 @@ export default function Layout() {
               <Link
                 key={item.path}
                 to={item.path}
+                data-nav-item={item.path}
                 onClick={() => setMobileOpen(false)}
                 onMouseEnter={() => {
                   setHoveredNav(item.path);
@@ -502,7 +496,7 @@ export default function Layout() {
                 }}
                 onPointerDown={() => prefetchRoute(item.path)}
                 className={`
-                  relative group flex items-center rounded-xl px-3.5 py-2.5 transition-colors duration-150 active:scale-[0.97]
+                  navlink relative group flex items-center rounded-xl px-3.5 py-2.5 transition-colors duration-150 active:scale-[0.97]
                   md:justify-center md:px-0 md:gap-0 select-none
                   ${isCollapsed ? 'lg:justify-center lg:px-0 lg:gap-0' : 'gap-3 lg:justify-start lg:px-3.5 lg:gap-3'}
                   ${active
@@ -579,7 +573,7 @@ export default function Layout() {
         <div className="mx-3 h-px bg-white/60 dark:bg-white/10 shrink-0 shadow-[0_1px_0_rgba(0,0,0,0.03)]" />
 
         {/* Sign Out */}
-        <div className="px-2.5 py-3 shrink-0">
+        <div className="px-2.5 pb-3 pt-1 shrink-0">
           <button
             id="sidebar-signout-btn"
             onClick={() => {
@@ -587,10 +581,10 @@ export default function Layout() {
               setSignOutModalOpen(true);
             }}
             className={`
-              group relative flex items-center w-full rounded-xl px-3.5 py-2.5 transition-colors duration-150 active:scale-[0.97] select-none
+              signout-btn group relative flex items-center w-full rounded-xl px-3.5 py-2.5 active:scale-[0.97] select-none
               md:justify-center md:px-0 md:gap-0
               ${collapsed && !mobileOpen ? 'lg:justify-center lg:px-0 lg:gap-0' : 'gap-3 lg:justify-start lg:px-3.5 lg:gap-3'}
-              text-slate-600 dark:text-slate-300 hover:bg-red-500/10 dark:hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 border border-transparent cursor-pointer
+              text-slate-600 dark:text-slate-300 hover:bg-red-500/10 dark:hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 cursor-pointer
             `}
             title="Sign Out"
           >
@@ -598,8 +592,8 @@ export default function Layout() {
               <LogOut className="w-5.5 h-5.5" strokeWidth={1.75} />
             </div>
             <span className={`
-              text-[13px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-red-500
-              transition-all duration-300 overflow-hidden whitespace-nowrap
+              text-[13px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-red-500 group-hover:translate-x-1
+              transition-[color,transform,width,opacity] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] overflow-hidden whitespace-nowrap
               block md:hidden lg:block
               ${collapsed && !mobileOpen ? 'lg:w-0 lg:opacity-0' : 'lg:w-auto lg:opacity-100 shrink-0'}
             `}>
@@ -682,7 +676,7 @@ export default function Layout() {
                 <button
                   id="notification-bell-btn"
                   onClick={handleBellClick}
-                  className="relative p-2.5 text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10 rounded-xl transition-colors active:scale-95"
+                  className="bell-btn relative p-2.5 text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10 rounded-xl transition-colors duration-200 active:scale-95 cursor-pointer"
                   aria-label="Notifications"
                 >
                   <Bell className="w-5 h-5" />
@@ -696,7 +690,7 @@ export default function Layout() {
                         transition={{ type: 'spring', stiffness: 400, damping: 28 }}
                         className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-[#0F1525]"
                       >
-                        {unreadCount > 9 ? '9+' : unreadCount}
+                        {unreadCount > 99 ? '99+' : unreadCount}
                       </motion.span>
                     )}
                   </AnimatePresence>
@@ -720,14 +714,14 @@ export default function Layout() {
                         transition={{ duration: 0.22, delay: 0.03, ease: APPLE_DECEL_EASE }}
                         className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="bell-btn flex items-center gap-2">
                           <Bell className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                           <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                             Notifications
                           </span>
                           {notifications.length > 0 && (
                             <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-medium rounded-full">
-                              {notifications.length}
+                              {notifications.length > 99 ? '99+' : notifications.length}
                             </span>
                           )}
                         </div>
@@ -748,7 +742,7 @@ export default function Layout() {
                             <button
                               type="button"
                               onClick={() => setConfirmDeleteTarget('all')}
-                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 text-red-500 dark:text-red-400 bg-red-50/80 dark:bg-red-950/35 border border-red-200/60 dark:border-red-800/40 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-lg transition-all active:scale-90 cursor-pointer"
                               title="Clear all notifications"
                               aria-label="Clear all notifications"
                             >
@@ -824,7 +818,7 @@ export default function Layout() {
                                         : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                                     }`}
                                   >
-                                    {tab.count}
+                                    {tab.count > 99 ? '99+' : tab.count}
                                   </span>
                                 )}
                               </span>
@@ -926,10 +920,10 @@ export default function Layout() {
                 <button
                   id="user-profile-menu-btn"
                   onClick={() => setProfileOpen((prev) => !prev)}
-                  className={`w-9 h-9 rounded-full ring-2 transition-all duration-200 cursor-pointer focus:outline-none flex items-center justify-center overflow-hidden active:scale-95 ${
+                  className={`profile-avatar-btn group relative w-9 h-9 rounded-full ring-2 cursor-pointer focus:outline-none flex items-center justify-center active:scale-95 ${
                     profileOpen
-                      ? 'ring-blue-500 shadow-md shadow-blue-500/25 scale-[1.04]'
-                      : 'ring-white/80 dark:ring-white/10 hover:ring-blue-500/50 dark:hover:ring-blue-400/50 shadow-sm'
+                      ? 'ring-[#0071E3] dark:ring-sky-400 shadow-[0_0_0_4px_rgba(0,113,227,0.18),0_6px_16px_rgba(0,113,227,0.28)] scale-[1.05]'
+                      : 'ring-white/85 dark:ring-white/15 hover:ring-[#0071E3] dark:hover:ring-sky-400 shadow-sm'
                   }`}
                   aria-label="User profile menu"
                   aria-expanded={profileOpen}
@@ -940,6 +934,7 @@ export default function Layout() {
                     username={user?.username}
                     size="md"
                   />
+                  <span className="pointer-events-none absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900 transition-transform duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-120 group-hover:shadow-[0_0_8px_rgba(16,185,129,0.85)]" />
                 </button>
 
                 {/* Profile Dropdown (Ambatubazz Cascade) */}
@@ -1079,10 +1074,10 @@ export default function Layout() {
                             setProfileOpen(false);
                             setSignOutModalOpen(true);
                           }}
-                          className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-[0.98] rounded-xl transition-all cursor-pointer text-left w-full"
+                          className="signout-btn group flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-[0.98] rounded-xl cursor-pointer text-left w-full"
                         >
-                          <LogOut className="w-4 h-4 text-red-500" />
-                          <span>Sign Out</span>
+                          <LogOut className="w-4 h-4 text-red-500 shrink-0" />
+                          <span className="transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:translate-x-0.5">Sign Out</span>
                         </button>
                       </motion.div>
                     </motion.div>
@@ -1276,7 +1271,7 @@ function NotificationRow({
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0 pr-6">
+      <div className="flex-1 min-w-0 pr-9">
         <div className="flex items-center gap-2 mb-1">
           <p
             className={`text-xs truncate tracking-tight transition-colors ${
@@ -1369,14 +1364,14 @@ function NotificationRow({
         </p>
       </div>
 
-      {/* Dismiss / Delete button */}
+      {/* Dismiss / Delete button (Always visible & red-tinted) */}
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
           onDelete();
         }}
-        className="absolute top-3 right-3 opacity-60 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all cursor-pointer active:scale-90"
+        className="absolute top-3 right-3 p-1.5 rounded-lg text-red-500 dark:text-red-400 bg-red-50/75 dark:bg-red-950/35 border border-red-200/60 dark:border-red-800/40 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 transition-all cursor-pointer active:scale-90"
         title="Delete notification"
         aria-label="Delete notification"
       >

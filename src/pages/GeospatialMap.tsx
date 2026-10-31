@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  Filter,
   X,
   Navigation,
   RotateCcw,
@@ -99,10 +100,10 @@ const URGENCY_BADGES: Record<string, { bg: string; text: string; border: string;
     dot: 'bg-amber-500',
   },
   'Low': {
-    bg: 'bg-emerald-50 dark:bg-emerald-950/40',
-    text: 'text-emerald-700 dark:text-emerald-300',
-    border: 'border-emerald-200/80 dark:border-emerald-900/40',
-    dot: 'bg-emerald-500',
+    bg: 'bg-green-500/15 dark:bg-green-500/20',
+    text: 'text-green-700 dark:text-green-300',
+    border: 'border-green-500/30 dark:border-green-500/30',
+    dot: 'bg-[#22c55e]',
   },
 };
 
@@ -906,7 +907,7 @@ function IncidentSidebarContent({
             <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Priority Levels:</span>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
+                <span className="w-2 h-2 rounded-full bg-[#22c55e] ring-2 ring-green-500/20" />
                 <span className="text-[10px]">Low</span>
               </div>
               <div className="flex items-center gap-1">
@@ -1466,11 +1467,11 @@ export default function GeospatialMap() {
                   <Map className="w-5 h-5" strokeWidth={1.75} />
                 </div>
                 <div>
-                  <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  <h1 className="text-lg sm:text-[22px] font-semibold text-slate-900 dark:text-white tracking-[-0.025em] leading-tight">
                     Geospatial Map
                   </h1>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Real-time incident mapping, barangay density analysis, and emergency dispatch
+                  <p className="text-[11px] sm:text-xs font-normal tracking-[0.005em] text-slate-500/90 dark:text-slate-400/90 mt-0.5 leading-relaxed">
+                    Real-time incident mapping <span className="text-slate-300 dark:text-slate-600 mx-1">·</span> Barangay density &amp; dispatch
                   </p>
                 </div>
               </div>
@@ -1493,6 +1494,10 @@ export default function GeospatialMap() {
             <div className="pt-3.5 border-t border-slate-200/60 dark:border-white/5 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               {/* Left Side: Filter Dropdowns + Reset */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 text-xs font-semibold shrink-0 border border-blue-500/25 dark:border-blue-400/25 shadow-2xs">
+                  <Filter className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400" strokeWidth={1.75} />
+                  <span>Filters</span>
+                </div>
                 {/* Filter Pills */}
                 <div className="flex-1 sm:flex-initial min-w-[130px]">
                   <FilterDropdown

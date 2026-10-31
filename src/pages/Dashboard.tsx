@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ResponsiveContainer,
@@ -14,11 +14,12 @@ import {
 import {
   LayoutDashboard, AlertTriangle, Brain,
   ArrowRight, X,
-  MapPin, Clock, BarChart3, ListFilter, CheckCircle2
+  MapPin, Clock, BarChart3, ListFilter, CheckCircle2, ShieldCheck
 } from 'lucide-react';
 import { useReports } from '../context/ReportsContext';
-import { formatReportCode } from '../services/incidentService';
+import { formatReportCode, getTypeHexColor } from '../services/incidentService';
 import PageLoader from '../components/PageLoader';
+import AnimatedNumber from '../components/AnimatedNumber';
 import { StaggerContainer, StaggerItem } from '../components/Stagger';
 
 const APPLE_SPRING = { type: 'spring', stiffness: 340, damping: 34, mass: 0.8 } as const;
@@ -39,28 +40,104 @@ function formatDashboardTime(timeStr?: string, createdAt?: string): string {
   return timeStr || '—';
 }
 
-function getTypeHexColor(type: string): string {
-  const norm = (type || '').toLowerCase();
-  if (norm.includes('medic')) return '#10B981';
-  if (norm.includes('search') || norm.includes('rescue')) return '#F97316';
-  if (norm.includes('food') || norm.includes('water')) return '#0071E3';
-  if (norm.includes('fire')) return '#F43F5E';
-  if (norm.includes('landslide')) return '#EAB308';
-  if (norm.includes('earthquake')) return '#F59E0B';
-  if (norm.includes('infrastructure')) return '#A855F7';
-  return '#64748B';
-}
 
-function getTypeProgressColor(type: string): string {
-  const norm = (type || '').toLowerCase();
-  if (norm.includes('medic')) return 'bg-emerald-500';
-  if (norm.includes('search') || norm.includes('rescue')) return 'bg-orange-500';
-  if (norm.includes('food') || norm.includes('water')) return 'bg-[#0071E3]';
-  if (norm.includes('fire')) return 'bg-rose-500';
-  if (norm.includes('landslide')) return 'bg-yellow-500';
-  if (norm.includes('earthquake')) return 'bg-amber-500';
-  if (norm.includes('infrastructure')) return 'bg-purple-500';
-  return 'bg-slate-400 dark:bg-slate-500';
+const risenChartKeys = new Set<string>();
+
+function MinimalWaveBar(props: any) {
+  const { x, y, width, height, payload, selectedType, routeKey = 'default' } = props;
+  if (x == null || y == null || width == null || height == null || height <= 0 || !payload) {
+    return null;
+  }
+
+  const entryName: string = payload.name || payload.type || 'General';
+  const color = payload.color || getTypeHexColor(entryName);
+  const isDimmed = selectedType && selectedType.toLowerCase() !== entryName.toLowerCase();
+
+  const w = Math.max(width, 8);
+  const h = Math.max(height, 4);
+  const r = Math.min(5, w / 2, h / 2);
+  const bottomY = y + h;
+
+  // Fluid water wave amplitude (clearly visible liquid motion, gracefully restrained)
+  const amp = Math.min(3.8, Math.max(1.8, Math.min(h * 0.1, w * 0.11)));
+  const waveY = y + amp + 1;
+
+  const clipId = `minimal-bar-clip-${entryName.replace(/[^a-zA-Z0-9]/g, '')}`;
+  const shouldRise = !risenChartKeys.has(routeKey);
+
+  // Rounded-top rectangle path matching the original minimalist 2D bar
+  const clipRectPath = `
+    M ${x},${bottomY}
+    L ${x},${y + r}
+    Q ${x},${y} ${x + r},${y}
+    L ${x + w - r},${y}
+    Q ${x + w},${y} ${x + w},${y + r}
+    L ${x + w},${bottomY}
+    Z
+  `;
+
+  // Two-cycle seamless sine wave along the top edge (width = 2 * w so translating by -w loops with 0 jump)
+  const buildWavePath = (yLine: number, waveAmp: number) => `
+    M ${x},${yLine}
+    Q ${x + w * 0.25},${yLine - waveAmp} ${x + w * 0.5},${yLine}
+    T ${x + w},${yLine}
+    Q ${x + w * 1.25},${yLine - waveAmp} ${x + w * 1.5},${yLine}
+    T ${x + w * 2},${yLine}
+    L ${x + w * 2},${bottomY + 2}
+    L ${x},${bottomY + 2}
+    Z
+  `;
+
+  return (
+    <g
+      className="minimal-2d-bar-group"
+      style={
+        {
+          opacity: isDimmed ? 0.35 : 1,
+          '--bar-hover-shadow': `${color}55`,
+        } as React.CSSProperties
+      }
+    >
+      <defs>
+        <clipPath id={clipId}>
+          <path d={clipRectPath} />
+        </clipPath>
+      </defs>
+
+      <g
+        clipPath={`url(#${clipId})`}
+        className={shouldRise ? 'minimal-2d-bar-riser' : undefined}
+        onAnimationEnd={(e) => {
+          risenChartKeys.add(routeKey);
+          e.currentTarget.classList.remove('minimal-2d-bar-riser');
+        }}
+      >
+        {/* Secondary counter-flowing water wave (creates clear visual depth and fluid undulation) */}
+        <path d={buildWavePath(waveY - amp * 0.4, amp * 0.85)} fill={color} fillOpacity={0.42}>
+          <animateTransform
+            attributeName="transform"
+            type="translate"
+            from={`${-w} 0`}
+            to="0 0"
+            dur="3.4s"
+            repeatCount="indefinite"
+          />
+        </path>
+
+        {/* Primary flowing wave surface */}
+        <path d={buildWavePath(waveY, amp)} fill={color} fillOpacity={1}>
+          <animateTransform
+            attributeName="transform"
+            type="translate"
+            from="0 0"
+            to={`${-w} 0`}
+            dur="2.4s"
+            repeatCount="indefinite"
+          />
+        </path>
+      </g>
+    </g>
+  );
 }
 
 interface TooltipPayloadItem {
@@ -98,7 +175,7 @@ function TypeTooltip({ active, payload }: TypeTooltipProps) {
         <div className="flex items-center justify-between gap-4 text-[11px]">
           <span className="text-slate-500 dark:text-slate-400">Urgency:</span>
           <span className="font-semibold tabular-nums text-slate-700 dark:text-slate-300">
-            <span className="text-rose-500">{item.high} High</span> · <span className="text-amber-500">{item.mod} Mod</span> · <span className="text-blue-500">{item.low} Low</span>
+            <span className="text-rose-500">{item.high} High</span> · <span className="text-amber-500">{item.mod} Mod</span> · <span className="text-[#22c55e] dark:text-green-400">{item.low} Low</span>
           </span>
         </div>
       </div>
@@ -108,10 +185,20 @@ function TypeTooltip({ active, payload }: TypeTooltipProps) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { reports, loading: reportsLoading } = useReports();
-  const [filterUrgency, setFilterUrgency] = useState<'All' | 'High' | 'Low'>('All');
+  const [filterUrgency, setFilterUrgency] = useState<'All' | 'High' | 'Mod' | 'Low'>('All');
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'chart' | 'bars'>('chart');
+
+  useEffect(() => {
+    if (reports.length > 0 && !risenChartKeys.has(location.key)) {
+      const timer = setTimeout(() => {
+        risenChartKeys.add(location.key);
+      }, 1250);
+      return () => clearTimeout(timer);
+    }
+  }, [reports.length, location.key]);
 
   // ── Stat metrics derived directly from reports (0 extra network calls) ──
   const totalIncidents = reports.length;
@@ -174,6 +261,7 @@ export default function Dashboard() {
       .sort((a, b) => b.count - a.count);
   }, [reports]);
 
+
   // Selected Incident Type Details for Interactive Inspection
   const selectedTypeDetails = useMemo(() => {
     if (!selectedType) return null;
@@ -231,6 +319,8 @@ export default function Dashboard() {
 
     if (filterUrgency === 'High') {
       list = list.filter((r) => r.urgency === 'High');
+    } else if (filterUrgency === 'Mod') {
+      list = list.filter((r) => r.urgency === 'Moderate');
     } else if (filterUrgency === 'Low') {
       list = list.filter((r) => r.urgency === 'Low');
     }
@@ -250,14 +340,14 @@ export default function Dashboard() {
     switch (urgency) {
       case 'High':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[82px] py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
             <span>High</span>
           </span>
         );
       case 'Moderate':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[82px] py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
             <span>Moderate</span>
           </span>
@@ -265,8 +355,8 @@ export default function Dashboard() {
       case 'Low':
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+          <span className="inline-flex items-center justify-center gap-1.5 w-[82px] py-0.5 rounded-full text-xs font-semibold bg-green-500/15 text-green-700 dark:text-green-300 border border-green-500/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] shrink-0" />
             <span>Low</span>
           </span>
         );
@@ -278,35 +368,35 @@ export default function Dashboard() {
       case 'under_review':
       case 'pending':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 animate-pulse" />
-            <span>Under review</span>
+          <span className="inline-flex items-center justify-center gap-1.5 w-[104px] py-0.5 rounded-full text-xs font-semibold bg-orange-600/12 text-orange-800 dark:text-orange-300 border border-orange-600/25">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-600 shrink-0 animate-pulse" />
+            <span>Under Review</span>
           </span>
         );
       case 'verified':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[104px] py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
             <span>Verified</span>
           </span>
         );
       case 'resolved':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[104px] py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
             <span>Resolved</span>
           </span>
         );
       case 'rejected':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[104px] py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
             <span>Rejected</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/20">
+          <span className="inline-flex items-center justify-center gap-1.5 w-[104px] py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
             <span>{status}</span>
           </span>
@@ -325,15 +415,15 @@ export default function Dashboard() {
         <StaggerItem>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-500/10 text-[#0071E3] dark:text-sky-400 border border-blue-500/20 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-10 h-10 sm:w-10.5 sm:h-10.5 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 border border-blue-500/20 flex items-center justify-center shrink-0 shadow-2xs">
             <LayoutDashboard className="w-5 h-5" strokeWidth={1.75} />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-lg sm:text-[22px] font-semibold tracking-[-0.025em] leading-tight text-slate-900 dark:text-white">
               Dashboard
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              Command center overview, real-time metrics, and latest incident triage
+            <p className="text-[11px] sm:text-xs font-normal tracking-[0.005em] text-slate-500/90 dark:text-slate-400/90 mt-0.5 leading-relaxed">
+              Command center overview <span className="text-slate-300 dark:text-slate-600 mx-1">·</span> Real-time metrics &amp; incident triage
             </p>
           </div>
         </div>
@@ -344,38 +434,42 @@ export default function Dashboard() {
         <StaggerItem>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 shrink-0">
         {/* Total Incidents */}
-        <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
-          <div className="space-y-1 min-w-0">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
+        <div className="relative overflow-hidden bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-[transform,box-shadow,border-color,background-color] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1 hover:bg-white/95 dark:hover:bg-[#151e31]/95 hover:border-rose-500/35 dark:hover:border-rose-500/40 hover:shadow-[0_12px_28px_-6px_rgba(244,63,94,0.15),0_4px_12px_-2px_rgba(15,23,42,0.05)] dark:hover:shadow-[0_12px_30px_-6px_rgba(244,63,94,0.22)] min-w-0">
+          <div className="pointer-events-none absolute -right-10 -top-10 w-44 h-44 rounded-full bg-[radial-gradient(circle,rgba(244,63,94,0.16)_0%,rgba(244,63,94,0.05)_45%,transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2.5px] bg-gradient-to-r from-transparent via-rose-500/70 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]" />
+          <div className="relative z-10 space-y-1 min-w-0">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200 truncate">
               Total Incidents
             </p>
             <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
-              {totalIncidents}
+              <AnimatedNumber key={`total-${location.key}`} value={totalIncidents} duration={2} />
             </p>
-            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors duration-200 font-medium min-w-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0 group-hover:shadow-[0_0_8px_rgba(244,63,94,0.85)] transition-shadow duration-200" />
               <span className="truncate">Active pipeline</span>
             </div>
           </div>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-[0_0_16px_rgba(244,63,94,0.15)] flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-4.5 h-4.5 sm:w-5 sm:h-5 md:w-6 md:h-6" strokeWidth={1.75} />
+          <div className="relative z-10 w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-rose-500/10 group-hover:bg-rose-500/18 text-rose-600 dark:text-rose-400 border border-rose-500/20 group-hover:border-rose-500/35 shadow-[0_0_16px_rgba(244,63,94,0.15)] group-hover:shadow-[0_0_24px_rgba(244,63,94,0.3)] group-hover:scale-108 transition-[transform,background-color,border-color,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-4.5 h-4.5 sm:w-5 sm:h-5 md:w-6 md:h-6 transition-transform duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:-translate-y-0.5 group-hover:scale-105" strokeWidth={1.75} />
           </div>
         </div>
 
         {/* Under Review */}
-        <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
-          <div className="space-y-1 min-w-0">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
+        <div className="relative overflow-hidden bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-[transform,box-shadow,border-color,background-color] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1 hover:bg-white/95 dark:hover:bg-[#151e31]/95 hover:border-orange-600/35 dark:hover:border-orange-500/40 hover:shadow-[0_12px_28px_-6px_rgba(234,88,12,0.15),0_4px_12px_-2px_rgba(15,23,42,0.05)] dark:hover:shadow-[0_12px_30px_-6px_rgba(234,88,12,0.22)] min-w-0">
+          <div className="pointer-events-none absolute -right-10 -top-10 w-44 h-44 rounded-full bg-[radial-gradient(circle,rgba(234,88,12,0.16)_0%,rgba(234,88,12,0.05)_45%,transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2.5px] bg-gradient-to-r from-transparent via-orange-600/70 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]" />
+          <div className="relative z-10 space-y-1 min-w-0">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200 truncate">
               Under Review
             </p>
             <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
-              {underReviewCount}
+              <AnimatedNumber key={`review-${location.key}`} value={underReviewCount} duration={2} />
             </p>
-            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-medium truncate">
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-medium min-w-0">
               {underReviewCount > 0 ? (
                 <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                  <span className="text-amber-600 dark:text-amber-400 font-semibold truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-600 animate-pulse shrink-0 group-hover:shadow-[0_0_8px_rgba(234,88,12,0.85)] transition-shadow duration-200" />
+                  <span className="text-orange-700 dark:text-orange-300 font-semibold truncate">
                     Needs triage
                   </span>
                 </>
@@ -389,46 +483,50 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-[0_0_16px_rgba(245,158,11,0.15)] flex items-center justify-center shrink-0">
-            <Clock className="w-4.5 h-4.5 sm:w-5 sm:h-5 md:w-6 md:h-6" strokeWidth={1.75} />
+          <div className="relative z-10 w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-orange-600/12 group-hover:bg-orange-600/18 text-orange-700 dark:text-orange-300 border border-orange-600/25 group-hover:border-orange-600/35 shadow-[0_0_16px_rgba(234,88,12,0.15)] group-hover:shadow-[0_0_24px_rgba(234,88,12,0.3)] group-hover:scale-108 transition-[transform,background-color,border-color,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] flex items-center justify-center shrink-0">
+            <Clock className="w-4.5 h-4.5 sm:w-5 sm:h-5 md:w-6 md:h-6 transition-transform duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-110" strokeWidth={1.75} />
           </div>
         </div>
 
         {/* Verified Incidents */}
-        <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
-          <div className="space-y-1 min-w-0">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
+        <div className="relative overflow-hidden bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-[transform,box-shadow,border-color,background-color] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1 hover:bg-white/95 dark:hover:bg-[#151e31]/95 hover:border-emerald-500/35 dark:hover:border-emerald-500/40 hover:shadow-[0_12px_28px_-6px_rgba(16,185,129,0.15),0_4px_12px_-2px_rgba(15,23,42,0.05)] dark:hover:shadow-[0_12px_30px_-6px_rgba(16,185,129,0.22)] min-w-0">
+          <div className="pointer-events-none absolute -right-10 -top-10 w-44 h-44 rounded-full bg-[radial-gradient(circle,rgba(16,185,129,0.16)_0%,rgba(16,185,129,0.05)_45%,transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2.5px] bg-gradient-to-r from-transparent via-emerald-500/70 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]" />
+          <div className="relative z-10 space-y-1 min-w-0">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200 truncate">
               Verified Incidents
             </p>
             <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
-              {verifiedCount}
+              <AnimatedNumber key={`verified-${location.key}`} value={verifiedCount} duration={2} />
             </p>
-            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-medium truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-medium min-w-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 group-hover:shadow-[0_0_8px_rgba(16,185,129,0.85)] transition-shadow duration-200" />
               <span className="truncate">Confirmed on site</span>
             </div>
           </div>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-[0_0_16px_rgba(16,185,129,0.15)] flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-4.5 h-4.5 sm:w-5 sm:h-5 md:w-6 md:h-6" strokeWidth={1.75} />
+          <div className="relative z-10 w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-emerald-500/10 group-hover:bg-emerald-500/18 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 group-hover:border-emerald-500/35 shadow-[0_0_16px_rgba(16,185,129,0.15)] group-hover:shadow-[0_0_24px_rgba(16,185,129,0.3)] group-hover:scale-108 transition-[transform,background-color,border-color,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4.5 h-4.5 sm:w-5 sm:h-5 md:w-6 md:h-6 transition-transform duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-110" strokeWidth={1.75} />
           </div>
         </div>
 
         {/* High Urgency */}
-        <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md min-w-0">
-          <div className="space-y-1 min-w-0">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
+        <div className="relative overflow-hidden bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] p-3.5 sm:p-4 md:p-5 flex items-center justify-between group transition-[transform,box-shadow,border-color,background-color] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1 hover:bg-white/95 dark:hover:bg-[#151e31]/95 hover:border-purple-500/35 dark:hover:border-purple-500/40 hover:shadow-[0_12px_28px_-6px_rgba(168,85,247,0.15),0_4px_12px_-2px_rgba(15,23,42,0.05)] dark:hover:shadow-[0_12px_30px_-6px_rgba(168,85,247,0.22)] min-w-0">
+          <div className="pointer-events-none absolute -right-10 -top-10 w-44 h-44 rounded-full bg-[radial-gradient(circle,rgba(168,85,247,0.16)_0%,rgba(168,85,247,0.05)_45%,transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2.5px] bg-gradient-to-r from-transparent via-purple-500/70 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]" />
+          <div className="relative z-10 space-y-1 min-w-0">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200 truncate">
               High Urgency
             </p>
             <p className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white">
-              {highUrgencyCount}
+              <AnimatedNumber key={`high-${location.key}`} value={highUrgencyCount} duration={2} />
             </p>
-            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-purple-600 dark:text-purple-400 font-medium truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-purple-600 dark:text-purple-400 font-medium min-w-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0 group-hover:shadow-[0_0_8px_rgba(168,85,247,0.85)] transition-shadow duration-200" />
               <span className="truncate">Critical priority</span>
             </div>
           </div>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shadow-[0_0_16px_rgba(168,85,247,0.15)] flex items-center justify-center shrink-0">
-            <Brain className="w-4.5 h-4.5 sm:w-5 sm:h-5 md:w-6 md:h-6" strokeWidth={1.75} />
+          <div className="relative z-10 w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-purple-500/10 group-hover:bg-purple-500/18 text-purple-600 dark:text-purple-400 border border-purple-500/20 group-hover:border-purple-500/35 shadow-[0_0_16px_rgba(168,85,247,0.15)] group-hover:shadow-[0_0_24px_rgba(168,85,247,0.3)] group-hover:scale-108 transition-[transform,background-color,border-color,box-shadow] duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] flex items-center justify-center shrink-0">
+            <Brain className="w-4.5 h-4.5 sm:w-5 sm:h-5 md:w-6 md:h-6 transition-transform duration-250 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-110" strokeWidth={1.75} />
           </div>
         </div>
           </div>
@@ -460,17 +558,17 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Segmented Urgency Filter: [All] [High] [Low] */}
+            {/* Segmented Urgency Filter: [All] [High] [Mod] [Low] */}
             <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-800/90 rounded-xl border border-slate-200/60 dark:border-white/5 gap-1 shadow-inner">
-              {(['All', 'High', 'Low'] as const).map((opt) => (
+              {(['All', 'High', 'Mod', 'Low'] as const).map((opt) => (
                 <button
                   key={opt}
                   type="button"
                   onClick={() => setFilterUrgency(opt)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer select-none active:scale-[0.96] ${
                     filterUrgency === opt
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-700/40'
                   }`}
                 >
                   {opt}
@@ -481,15 +579,15 @@ export default function Dashboard() {
 
           {/* Table Container */}
           <div className="overflow-x-auto w-full flex-1 min-h-0 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-            <table className="w-full text-sm text-left border-collapse">
-              <thead className="bg-slate-50/80 dark:bg-slate-800/40 border-b border-slate-200/60 dark:border-white/5">
+            <table className="w-full min-w-[640px] text-sm text-left border-separate border-spacing-0">
+              <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200/60 dark:border-white/5 sticky top-0 z-30 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
                   <th className="px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500 whitespace-nowrap">ID</th>
                   <th className="px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500">Barangay</th>
                   <th className="px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500">Urgency</th>
                   <th className="px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500">Status</th>
                   <th className="px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500">Time</th>
-                  <th className="px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500 text-right">Action</th>
+                  <th className="px-3.5 py-3 w-28 min-w-[110px] text-[11px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500 text-left whitespace-nowrap sticky top-0 right-0 z-40 bg-slate-50 dark:bg-slate-800 border-b border-slate-200/60 dark:border-white/5 shadow-[-8px_0_12px_-4px_rgba(0,0,0,0.07)] dark:shadow-[-8px_0_12px_-4px_rgba(0,0,0,0.35)]">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/5">
@@ -509,19 +607,21 @@ export default function Dashboard() {
                           const rType = report.type || 'General';
                           setSelectedType((prev) => (prev === rType ? null : rType));
                         }}
-                        className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition-colors group cursor-pointer ${
-                          isTypeMatch ? 'bg-blue-50/50 dark:bg-blue-900/15' : ''
+                        className={`transition-colors duration-150 group cursor-pointer ${
+                          isTypeMatch
+                            ? 'bg-blue-50/60 dark:bg-blue-900/20'
+                            : 'hover:bg-blue-50/30 dark:hover:bg-slate-800/40'
                         }`}
                       >
                         <td className="px-4 py-3.5 whitespace-nowrap">
                           <span
-                            className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-white/5 truncate inline-block"
+                            className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-white/5 group-hover:border-blue-300/60 dark:group-hover:border-blue-600/40 group-hover:bg-white dark:group-hover:bg-slate-750 transition-all duration-150 truncate inline-block shadow-2xs"
                             title={`ID: ${report.id}`}
                           >
                             {formatReportCode(report.id, report.source)}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap font-medium text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
+                        <td className="px-4 py-3.5 whitespace-nowrap font-medium text-slate-900 dark:text-slate-100 text-xs sm:text-sm group-hover:text-[#0071E3] group-active:text-[#0071E3] dark:group-hover:text-sky-400 dark:group-active:text-sky-400 transition-colors duration-150">
                           {report.barangay || 'Unknown'}
                         </td>
                         <td className="px-4 py-3.5 whitespace-nowrap">
@@ -533,13 +633,14 @@ export default function Dashboard() {
                         <td className="px-4 py-3.5 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">
                           {formatDashboardTime(report.time, report.createdAt)}
                         </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-3.5 py-3.5 w-28 min-w-[110px] text-left whitespace-nowrap sticky right-0 z-10 bg-white dark:bg-[#111827] group-hover:bg-slate-50 dark:group-hover:bg-slate-800 transition-colors border-b border-slate-100 dark:border-white/5 shadow-[-8px_0_12px_-4px_rgba(0,0,0,0.07)] dark:shadow-[-8px_0_12px_-4px_rgba(0,0,0,0.35)]" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
                             onClick={() => navigate(`/incident-reports?focus=${report.id}`)}
-                            className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-white/10 rounded-xl transition-all active:scale-[0.96] shadow-2xs cursor-pointer"
+                            className="group/btn px-3 py-1.5 text-xs font-semibold text-[#0071E3] dark:text-sky-300 bg-blue-500/10 hover:bg-[#0071E3] hover:text-white dark:hover:bg-[#0071E3] dark:hover:text-white border border-blue-500/25 hover:border-[#0071E3] rounded-xl transition-all duration-200 inline-flex items-center justify-center gap-1.5 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96] shadow-2xs hover:shadow-[0_4px_12px_rgba(0,113,227,0.25)] cursor-pointer"
                           >
-                            Review
+                            <ShieldCheck className="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" strokeWidth={1.75} />
+                            <span>Review</span>
                           </button>
                         </td>
                       </tr>
@@ -558,10 +659,10 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => navigate('/incident-reports')}
-              className="inline-flex items-center gap-1 font-semibold text-[#0071E3] hover:text-[#0077ED] dark:text-sky-400 dark:hover:text-sky-300 transition-colors cursor-pointer"
+              className="group/all inline-flex items-center gap-1.5 px-2.5 py-1 -mr-2 rounded-lg font-semibold text-[#0071E3] hover:text-[#0077ED] dark:text-sky-400 dark:hover:text-sky-300 hover:bg-blue-50/70 dark:hover:bg-blue-950/30 transition-all duration-150 cursor-pointer"
             >
               <span>View all incident reports</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover/all:translate-x-1" />
             </button>
           </div>
         </div>
@@ -619,7 +720,7 @@ export default function Dashboard() {
               </div>
 
               <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 tabular-nums">
-                {reports.length} total
+                <AnimatedNumber key={`type-total-${location.key}`} value={reports.length} duration={2} /> total
               </span>
             </div>
           </div>
@@ -672,14 +773,14 @@ export default function Dashboard() {
                     <Tooltip content={<TypeTooltip />} cursor={{ fill: 'rgba(0,113,227,0.06)' }} />
                     <Bar
                       dataKey="count"
-                      radius={[5, 5, 0, 0]}
                       cursor="pointer"
+                      isAnimationActive={false}
+                      shape={<MinimalWaveBar selectedType={selectedType} routeKey={location.key} />}
                     >
                       {typeSummary.map((entry) => (
                         <Cell
                           key={entry.name}
                           fill={entry.color}
-                          opacity={selectedType && selectedType.toLowerCase() !== entry.name.toLowerCase() ? 0.35 : 1}
                         />
                       ))}
                     </Bar>
@@ -688,38 +789,43 @@ export default function Dashboard() {
               </div>
             </div>
           ) : (
-            /* ── Progress Bars List View ── */
-            <div className="mt-4 space-y-3.5">
+            /* ── Progress Bars List View (Minimalist 2D) ── */
+            <div className="mt-4 space-y-3">
               {typeSummary.map((item) => {
                 const isSelected = selectedType && selectedType.toLowerCase() === item.type.toLowerCase();
                 return (
                   <button
-                    key={item.type}
+                    key={`${item.type}-${location.key}`}
                     type="button"
                     onClick={() => setSelectedType((prev) => (prev === item.type ? null : item.type))}
-                    className={`w-full text-left p-2.5 rounded-xl transition-all cursor-pointer border ${
+                    className={`group w-full text-left p-2.5 rounded-xl transition-all duration-200 cursor-pointer border hover:-translate-y-0.5 ${
                       isSelected
                         ? 'bg-blue-50/70 dark:bg-blue-900/20 border-blue-500/30 shadow-2xs'
-                        : 'border-transparent hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
+                        : 'border-transparent hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
                     }`}
                   >
                     <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: item.color }}
+                        />
                         {item.type}
                       </span>
                       <span className="font-bold text-slate-600 dark:text-slate-400 tabular-nums text-xs">
-                        {item.percentage}% ({item.count})
+                        <AnimatedNumber key={`pct-${item.type}-${location.key}`} value={item.percentage} duration={2} />% (
+                        <AnimatedNumber key={`cnt-${item.type}-${location.key}`} value={item.count} duration={2} />)
                       </span>
                     </div>
 
-                    {/* Horizontal Bar */}
+                    {/* Clean Minimalist 2D Horizontal Bar */}
                     <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden mt-1.5">
                       <motion.div
                         initial={{ width: 0 }}
-                        animate={{ width: `${item.percentage}%` }}
-                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                        className={`h-full rounded-full ${getTypeProgressColor(item.type)}`}
+                        animate={{ width: `${Math.max(item.percentage, 3)}%` }}
+                        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="h-full rounded-full transition-all duration-200 group-hover:brightness-110"
+                        style={{ backgroundColor: item.color }}
                       />
                     </div>
                   </button>
@@ -765,7 +871,7 @@ export default function Dashboard() {
                       <span className="text-slate-300 dark:text-slate-600">·</span>
                       <span className="text-amber-600 dark:text-amber-400">{selectedTypeDetails.mod} Mod</span>
                       <span className="text-slate-300 dark:text-slate-600">·</span>
-                      <span className="text-blue-600 dark:text-blue-400">{selectedTypeDetails.low} Low</span>
+                      <span className="text-green-600 dark:text-green-400">{selectedTypeDetails.low} Low</span>
                     </div>
                   </div>
 
@@ -774,7 +880,7 @@ export default function Dashboard() {
                       Status Flow
                     </span>
                     <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-medium">
-                      <span className="text-amber-600 dark:text-amber-400 font-semibold">{selectedTypeDetails.underReview} Review</span>
+                      <span className="text-orange-700 dark:text-orange-400 font-semibold">{selectedTypeDetails.underReview} Review</span>
                       <span className="text-slate-300 dark:text-slate-600">·</span>
                       <span className="text-emerald-600 dark:text-emerald-400">{selectedTypeDetails.verified} Ver</span>
                       <span className="text-slate-300 dark:text-slate-600">·</span>

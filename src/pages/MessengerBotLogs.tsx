@@ -587,11 +587,11 @@ export default function MessengerBotLogs() {
             <MessageSquare className="w-5 h-5 sm:w-5.5 sm:h-5.5" strokeWidth={1.75} />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-lg sm:text-[22px] font-semibold tracking-[-0.025em] leading-tight text-slate-900 dark:text-white">
               Messenger Bot Logs
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              Resident intake chat logs, automated triage dialogues, and emergency extraction timeline
+            <p className="text-[11px] sm:text-xs font-normal tracking-[0.005em] text-slate-500/90 dark:text-slate-400/90 mt-0.5 leading-relaxed">
+              Resident intake dialogues <span className="text-slate-300 dark:text-slate-600 mx-1">·</span> Automated triage &amp; extraction timeline
             </p>
           </div>
         </div>
@@ -612,11 +612,9 @@ export default function MessengerBotLogs() {
               <button
                 type="button"
                 onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
-                className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none active:scale-[0.98] transition-transform"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 border border-blue-500/25 dark:border-blue-400/25 text-xs font-semibold cursor-pointer select-none active:scale-[0.98] transition-transform shadow-2xs"
               >
-                <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-[#0071E3] dark:text-sky-400 flex items-center justify-center border border-blue-500/20">
-                  <Filter className="w-3.5 h-3.5" strokeWidth={1.75} />
-                </div>
+                <Filter className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400" strokeWidth={1.75} />
                 <span>Filter Conversations</span>
                 {activeFilterCount > 0 && (
                   <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0071E3] text-white tabular-nums">
@@ -640,7 +638,7 @@ export default function MessengerBotLogs() {
             {/* Filter Controls Row */}
             <div className={`${mobileFiltersOpen ? 'flex' : 'hidden'} md:flex flex-col md:flex-row md:flex-wrap items-stretch md:items-center justify-between gap-2.5 sm:gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200/60 dark:border-white/5`}>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap items-center gap-2.5 sm:gap-3 w-full md:w-auto relative z-20">
-                <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100/80 dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0 border border-slate-200/50 dark:border-white/10">
+                <div className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 text-xs font-semibold shrink-0 border border-blue-500/25 dark:border-blue-400/25 shadow-2xs">
                   <Filter className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400" strokeWidth={1.75} />
                   <span>Filters</span>
                 </div>
@@ -972,7 +970,7 @@ export default function MessengerBotLogs() {
                       type="button"
                       disabled={currentPage <= 1}
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      className="p-1.5 rounded-lg border border-slate-200/70 dark:border-white/10 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                      className="p-1.5 rounded-lg border border-blue-500/25 dark:border-blue-400/25 bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 disabled:opacity-30 disabled:pointer-events-none hover:bg-[#0071E3] hover:text-white dark:hover:bg-[#0071E3] dark:hover:text-white active:scale-95 transition-all cursor-pointer shadow-2xs"
                       title="Previous Page"
                     >
                       <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.75} />
@@ -984,7 +982,7 @@ export default function MessengerBotLogs() {
                       type="button"
                       disabled={currentPage >= totalPages}
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      className="p-1.5 rounded-lg border border-slate-200/70 dark:border-white/10 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                      className="p-1.5 rounded-lg border border-blue-500/25 dark:border-blue-400/25 bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 disabled:opacity-30 disabled:pointer-events-none hover:bg-[#0071E3] hover:text-white dark:hover:bg-[#0071E3] dark:hover:text-white active:scale-95 transition-all cursor-pointer shadow-2xs"
                       title="Next Page"
                     >
                       <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.75} />

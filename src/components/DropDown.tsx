@@ -70,11 +70,11 @@ export default function FilterDropdown({ value, options, onChange, className }: 
         type="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        className={`w-full md:w-auto px-3 py-1.5 sm:px-3 sm:py-2 text-xs font-medium rounded-xl flex items-center justify-between gap-2 cursor-pointer bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 transition-colors hover:bg-slate-50 dark:hover:bg-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 min-w-0 sm:min-w-32.5 ${className || ''}`}
+        className={`group w-full md:w-auto px-3 py-1.5 sm:px-3 sm:py-2 text-xs font-medium rounded-xl flex items-center justify-between gap-2 cursor-pointer bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:border-blue-400/80 dark:hover:border-blue-500/60 hover:bg-slate-50/90 dark:hover:bg-slate-600 hover:text-slate-900 dark:hover:text-white hover:shadow-[0_2px_10px_rgba(0,113,227,0.12)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 min-w-0 sm:min-w-32.5 ${className || ''}`}
       >
         <span className="truncate">{value}</span>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-slate-500 dark:text-slate-400 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-3.5 h-3.5 text-slate-400 dark:text-slate-400 group-hover:text-[#0071E3] dark:group-hover:text-sky-400 transition-all duration-150 shrink-0 ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -91,9 +91,9 @@ export default function FilterDropdown({ value, options, onChange, className }: 
               role="option"
               aria-selected={value === option}
               title={option}
-              className={`w-full text-left px-3 py-1.5 sm:py-2 text-xs transition-colors cursor-pointer truncate ${value === option
-                ? 'bg-slate-100 dark:bg-slate-600 text-slate-900 dark:text-white font-semibold'
-                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
+              className={`w-full text-left px-3 py-1.5 sm:py-2 text-xs transition-colors duration-150 cursor-pointer truncate ${value === option
+                ? 'bg-blue-50 dark:bg-blue-900/30 text-[#0071E3] dark:text-sky-400 font-semibold'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white'
                 }`}
             >
               {option}

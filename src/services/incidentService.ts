@@ -90,6 +90,26 @@ export function formatReportCode(id?: string | null, source?: string | null): st
 }
 
 /**
+ * Maps disaster/incident types to their canonical brand hex colors.
+ * Synchronized with the Dashboard "Reports by type" bar chart.
+ */
+export function getTypeHexColor(type: string): string {
+  const norm = (type || '').toLowerCase().trim();
+  if (!norm || norm === 'general' || norm === 'none' || norm === 'unclassified') return '#64748B';
+  if (norm.includes('flood')) return '#3B82F6';
+  if (norm.includes('typhoon') || norm.includes('storm')) return '#6366F1';
+  if (norm.includes('volcan')) return '#F97316';
+  if (norm.includes('landslide')) return '#EAB308';
+  if (norm.includes('fire')) return '#F43F5E';
+  if (norm.includes('earthquake') || norm.includes('quake')) return '#F59E0B';
+  if (norm.includes('medic')) return '#10B981';
+  if (norm.includes('search') || norm.includes('rescue')) return '#14B8A6';
+  if (norm.includes('food') || norm.includes('water')) return '#0EA5E9';
+  if (norm.includes('infrastructure')) return '#A855F7';
+  return '#64748B';
+}
+
+/**
  * Fetch unified emergency incident reports from the backend REST API.
  * Backend aggregates Messenger bot conversations, Facebook comments, and persisted officer triages.
  */
