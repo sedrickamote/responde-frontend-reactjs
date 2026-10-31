@@ -14,7 +14,7 @@ import {
 import {
   AlertTriangle, Brain,
   ArrowRight, X,
-  MapPin, Clock, BarChart3, ListFilter, CheckCircle2
+  MapPin, Clock, BarChart3, ListFilter, CheckCircle2, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useReports } from '../context/ReportsContext';
@@ -42,12 +42,15 @@ function formatDashboardTime(timeStr?: string, createdAt?: string): string {
 
 function getTypeHexColor(type: string): string {
   const norm = (type || '').toLowerCase();
+  if (norm.includes('flood')) return '#0071E3';
+  if (norm.includes('volcanic')) return '#EA580C';
+  if (norm.includes('typhoon')) return '#6366F1';
+  if (norm.includes('landslide')) return '#EAB308';
+  if (norm.includes('fire')) return '#F43F5E';
+  if (norm.includes('earthquake')) return '#F97316';
   if (norm.includes('medic')) return '#10B981';
   if (norm.includes('search') || norm.includes('rescue')) return '#F97316';
   if (norm.includes('food') || norm.includes('water')) return '#0071E3';
-  if (norm.includes('fire')) return '#F43F5E';
-  if (norm.includes('landslide')) return '#EAB308';
-  if (norm.includes('earthquake')) return '#F59E0B';
   if (norm.includes('infrastructure')) return '#A855F7';
   return '#64748B';
 }
@@ -111,7 +114,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { reports, loading: reportsLoading } = useReports();
-  const [filterUrgency, setFilterUrgency] = useState<'All' | 'High' | 'Low'>('All');
+  const [filterUrgency, setFilterUrgency] = useState<'All' | 'High' | 'Mod' | 'Low'>('All');
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'chart' | 'bars'>('chart');
 
@@ -246,6 +249,8 @@ export default function Dashboard() {
 
     if (filterUrgency === 'High') {
       list = list.filter((r) => r.urgency === 'High');
+    } else if (filterUrgency === 'Mod') {
+      list = list.filter((r) => r.urgency === 'Moderate');
     } else if (filterUrgency === 'Low') {
       list = list.filter((r) => r.urgency === 'Low');
     }
@@ -334,8 +339,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="dashboard-soft flex flex-col flex-1 min-h-full w-full relative">
-      <StaggerContainer className="flex flex-col flex-1 space-y-4 sm:space-y-5 w-full">
+    <div className="dashboard-soft flex flex-col flex-1 w-full lg:h-full lg:min-h-0 relative">
+      <StaggerContainer className="flex flex-col flex-1 space-y-4 sm:space-y-5 w-full lg:h-full lg:min-h-0">
         {/* ── Top Header Bar ── */}
         <StaggerItem>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
@@ -344,7 +349,7 @@ export default function Dashboard() {
                 {userGreeting}
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                Command center overview, real-time metrics, and latest incident triage
+                Command center overview <span className="mx-1.5 text-slate-300 dark:text-slate-600">·</span> Real-time metrics & incident triage
               </p>
             </div>
           </div>
@@ -445,8 +450,8 @@ export default function Dashboard() {
         </StaggerItem>
 
         {/* ── 2. Main 2-Column Section: Latest Reports Table (Left) & Reports by Type with Interactive Bar Chart (Right) ── */}
-        <StaggerItem className="w-full flex flex-col lg:flex-1 lg:min-h-0">
-          <div className="grid grid-cols-12 gap-4 sm:gap-5 lg:gap-6 lg:flex-1 lg:min-h-0 w-full items-stretch">
+        <StaggerItem className="w-full flex flex-col flex-1 lg:min-h-0">
+          <div className="grid grid-cols-12 gap-4 sm:gap-5 lg:gap-6 flex-1 lg:min-h-0 w-full items-stretch">
         {/* Left Column: Latest Reports Table (Col 8) */}
         <div className="col-span-12 lg:col-span-8 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden lg:h-full">
           {/* Header Row */}
@@ -472,7 +477,7 @@ export default function Dashboard() {
 
             {/* Segmented Urgency Filter: [All] [High] [Low] */}
             <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-800/90 rounded-xl border border-slate-200/60 dark:border-white/5 gap-1 shadow-inner">
-              {(['All', 'High', 'Low'] as const).map((opt) => (
+              {(['All', 'High', 'Mod', 'Low'] as const).map((opt) => (
                 <button
                   key={opt}
                   type="button"
@@ -534,10 +539,10 @@ export default function Dashboard() {
                           e.stopPropagation();
                           navigate(`/incident-reports?focus=${report.id}`);
                         }}
-                        className="px-3 py-1.5 min-h-[36px] text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-white/10 rounded-xl transition-all active:scale-[0.96] shadow-2xs cursor-pointer inline-flex items-center gap-1"
+                        className="px-3 py-1.5 min-h-[36px] text-xs font-semibold text-[#0071E3] dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-xl transition-all active:scale-[0.96] shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
                       >
+                        <ShieldCheck className="w-3.5 h-3.5" />
                         <span>Review</span>
-                        <ArrowRight className="w-3 h-3" />
                       </button>
                     </div>
                   </div>
@@ -547,7 +552,7 @@ export default function Dashboard() {
           </div>
 
           {/* Desktop/Tablet Table (>= sm) */}
-          <div className="hidden sm:block overflow-x-auto w-full flex-1 min-h-0 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
+          <div className="hidden sm:block overflow-x-auto overflow-y-auto w-full flex-1 min-h-0 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
             <table className="w-full text-sm text-left border-collapse">
               <thead className="bg-slate-50/80 dark:bg-slate-800/40 border-b border-slate-200/60 dark:border-white/5">
                 <tr>
@@ -604,9 +609,10 @@ export default function Dashboard() {
                           <button
                             type="button"
                             onClick={() => navigate(`/incident-reports?focus=${report.id}`)}
-                            className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-white/10 rounded-xl transition-all active:scale-[0.96] shadow-2xs cursor-pointer"
+                            className="px-3 py-1.5 text-xs font-semibold text-[#0071E3] dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-xl transition-all active:scale-[0.96] shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
                           >
-                            Review
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>Review</span>
                           </button>
                         </td>
                       </tr>
@@ -634,7 +640,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right Column: Reports by Type with Interactive Bar Chart (Col 4) */}
-        <div className="col-span-12 lg:col-span-4 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex flex-col lg:h-full justify-between">
+        <div className="col-span-12 lg:col-span-4 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex flex-col lg:h-full">
           {/* Header Row with View Mode Switcher and Clear Filter Pill */}
           <div className="flex items-center justify-between pb-3.5 border-b border-slate-200/70 dark:border-white/10 shrink-0 gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -698,11 +704,11 @@ export default function Dashboard() {
             </p>
           ) : viewMode === 'chart' ? (
             /* ── Recharts Bar Chart (Same functionality as Analytics page) ── */
-            <div className="w-full flex flex-col pt-2">
+            <div className="w-full flex-1 flex flex-col min-h-0 pt-2">
               <p className="text-[11px] text-slate-400 dark:text-slate-500">
                 Click any bar to highlight incident and inspect details
               </p>
-              <div className="w-full h-48 sm:h-52 min-h-[190px] relative mt-1">
+              <div className="w-full flex-1 min-h-[190px] relative mt-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={typeSummary}
@@ -795,80 +801,82 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ── Highlighted Incident Information Panel ── */}
-          <AnimatePresence mode="wait">
-            {selectedTypeDetails ? (
-              <motion.div
-                key={selectedTypeDetails.type}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={APPLE_SPRING}
-                className="mt-4 p-3.5 sm:p-4 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/70 dark:border-white/10 space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: selectedTypeDetails.color }}
-                    />
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                      {selectedTypeDetails.type} Overview
-                    </h3>
-                  </div>
-                  <span className="text-[11px] font-semibold text-[#0071E3] dark:text-sky-400 tabular-nums">
-                    {selectedTypeDetails.total} incident{selectedTypeDetails.total > 1 ? 's' : ''} ({selectedTypeDetails.percentage}%)
-                  </span>
-                </div>
-
-                {/* Urgency & Status Metrics Grid */}
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="p-2.5 rounded-lg bg-white/80 dark:bg-slate-900/60 border border-slate-200/50 dark:border-white/5 space-y-1">
-                    <span className="text-[10px] font-semibold uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
-                      Urgency Levels
+          {/* ── Highlighted Incident Information Panel or Default Footer ── */}
+          <div className="shrink-0 mt-auto">
+            <AnimatePresence mode="wait">
+              {selectedTypeDetails ? (
+                <motion.div
+                  key={selectedTypeDetails.type}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={APPLE_SPRING}
+                  className="mt-3 p-3.5 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/70 dark:border-white/10 space-y-2.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: selectedTypeDetails.color }}
+                      />
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                        {selectedTypeDetails.type} Overview
+                      </h3>
+                    </div>
+                    <span className="text-[11px] font-semibold text-[#0071E3] dark:text-sky-400 tabular-nums">
+                      {selectedTypeDetails.total} incident{selectedTypeDetails.total > 1 ? 's' : ''} ({selectedTypeDetails.percentage}%)
                     </span>
-                    <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-medium">
-                      <span className="text-rose-600 dark:text-rose-400 font-semibold">{selectedTypeDetails.high} High</span>
-                      <span className="text-slate-300 dark:text-slate-600">·</span>
-                      <span className="text-amber-600 dark:text-amber-400">{selectedTypeDetails.mod} Mod</span>
-                      <span className="text-slate-300 dark:text-slate-600">·</span>
-                      <span className="text-blue-600 dark:text-blue-400">{selectedTypeDetails.low} Low</span>
+                  </div>
+
+                  {/* Urgency & Status Metrics Grid */}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2 rounded-lg bg-white/80 dark:bg-slate-900/60 border border-slate-200/50 dark:border-white/5 space-y-1">
+                      <span className="text-[10px] font-semibold uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
+                        Urgency Levels
+                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-medium">
+                        <span className="text-rose-600 dark:text-rose-400 font-semibold">{selectedTypeDetails.high} High</span>
+                        <span className="text-slate-300 dark:text-slate-600">·</span>
+                        <span className="text-amber-600 dark:text-amber-400">{selectedTypeDetails.mod} Mod</span>
+                        <span className="text-slate-300 dark:text-slate-600">·</span>
+                        <span className="text-blue-600 dark:text-blue-400">{selectedTypeDetails.low} Low</span>
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-white/80 dark:bg-slate-900/60 border border-slate-200/50 dark:border-white/5 space-y-1">
+                      <span className="text-[10px] font-semibold uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
+                        Status Flow
+                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-medium">
+                        <span className="text-amber-600 dark:text-amber-400 font-semibold">{selectedTypeDetails.underReview} Review</span>
+                        <span className="text-slate-300 dark:text-slate-600">·</span>
+                        <span className="text-emerald-600 dark:text-emerald-400">{selectedTypeDetails.verified} Ver</span>
+                        <span className="text-slate-300 dark:text-slate-600">·</span>
+                        <span className="text-blue-600 dark:text-blue-400">{selectedTypeDetails.resolved} Res</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-lg bg-white/80 dark:bg-slate-900/60 border border-slate-200/50 dark:border-white/5 space-y-1">
-                    <span className="text-[10px] font-semibold uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
-                      Status Flow
-                    </span>
-                    <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-medium">
-                      <span className="text-amber-600 dark:text-amber-400 font-semibold">{selectedTypeDetails.underReview} Review</span>
-                      <span className="text-slate-300 dark:text-slate-600">·</span>
-                      <span className="text-emerald-600 dark:text-emerald-400">{selectedTypeDetails.verified} Ver</span>
-                      <span className="text-slate-300 dark:text-slate-600">·</span>
-                      <span className="text-blue-600 dark:text-blue-400">{selectedTypeDetails.resolved} Res</span>
+                  {/* Location and Latest Timestamp */}
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-white/5">
+                    <div className="flex items-center gap-1.5 truncate max-w-[170px]" title={`Top location: ${selectedTypeDetails.topBarangay}`}>
+                      <MapPin className="w-3.5 h-3.5 text-[#0071E3] shrink-0" />
+                      <span className="truncate">Top: <strong className="text-slate-800 dark:text-slate-200 font-semibold">{selectedTypeDetails.topBarangay}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="tabular-nums font-mono text-[11px]">{selectedTypeDetails.latestTime}</span>
                     </div>
                   </div>
+                </motion.div>
+              ) : (
+                <div className="pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
+                  <span>Select an incident type to inspect distribution</span>
+                  <span className="font-medium text-slate-500 dark:text-slate-400">{typeSummary.length} categories</span>
                 </div>
-
-                {/* Location and Latest Timestamp */}
-                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-white/5">
-                  <div className="flex items-center gap-1.5 truncate max-w-[170px]" title={`Top location: ${selectedTypeDetails.topBarangay}`}>
-                    <MapPin className="w-3.5 h-3.5 text-[#0071E3] shrink-0" />
-                    <span className="truncate">Top: <strong className="text-slate-800 dark:text-slate-200 font-semibold">{selectedTypeDetails.topBarangay}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="tabular-nums font-mono text-[11px]">{selectedTypeDetails.latestTime}</span>
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
-                <span>Select an incident type to inspect distribution</span>
-                <span className="font-medium text-slate-500 dark:text-slate-400">{typeSummary.length} categories</span>
-              </div>
-            )}
-          </AnimatePresence>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
         </StaggerItem>
