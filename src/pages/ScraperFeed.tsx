@@ -721,7 +721,7 @@ export default function ScraperFeed() {
   }
 
   return (
-    <div className="scraper-soft flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-3.5 w-full h-full relative">
+    <div className="scraper-soft flex flex-col flex-1 min-h-full space-y-3 sm:space-y-3.5 w-full relative">
       {/* Toast Notifications — Top Right */}
       <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
         <AnimatePresence>
@@ -733,7 +733,7 @@ export default function ScraperFeed() {
         </AnimatePresence>
       </div>
 
-      <StaggerContainer className="flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-3.5 w-full h-full">
+      <StaggerContainer className="flex flex-col flex-1 space-y-3 sm:space-y-3.5 w-full">
         {/* Stage 1: Top Page Header */}
         <StaggerItem>
       {/* ── Top Page Header (Unified Soft UI Design) ── */}
@@ -1105,7 +1105,7 @@ export default function ScraperFeed() {
               className={`
                 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}
                 md:col-span-7 lg:col-span-7 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)] flex-col overflow-hidden
-                min-h-[480px] md:min-h-0 h-full
+                min-h-[480px] md:min-h-0 h-[calc(100vh-10rem)] md:h-full
               `}
             >
               <AnimatePresence mode="wait">
@@ -1326,13 +1326,13 @@ export default function ScraperFeed() {
                     </div>
 
                     {/* Action Bar */}
-                    <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200/60 dark:border-white/5 bg-slate-50/40 dark:bg-white/[0.02] shrink-0 flex items-center justify-between gap-2">
+                    <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200/60 dark:border-white/5 bg-slate-50/40 dark:bg-white/[0.02] shrink-0 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         {viewMode === "structured" && (
                           <button
                             type="button"
                             onClick={() => togglePostIncidentOverride(selectedPost.id)}
-                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold rounded-xl active:scale-[0.97] transition-all cursor-pointer border border-slate-200/60 dark:border-white/5"
+                            className="px-3 py-2 min-h-[38px] sm:min-h-[40px] bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold rounded-xl active:scale-[0.97] transition-all cursor-pointer border border-slate-200/60 dark:border-white/5"
                           >
                             Demote to Noise
                           </button>
@@ -1344,7 +1344,7 @@ export default function ScraperFeed() {
                           <button
                             type="button"
                             onClick={() => handleUpdateStatus(selectedPost.id, "Verified")}
-                            className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl flex items-center gap-2 shadow-xs active:scale-[0.97] transition-all cursor-pointer"
+                            className="px-3.5 sm:px-4 py-2 sm:py-2.5 min-h-[38px] sm:min-h-[40px] bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl flex items-center gap-2 shadow-xs active:scale-[0.97] transition-all cursor-pointer"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={1.75} />
                             <span>Verify Incident</span>
@@ -1354,7 +1354,7 @@ export default function ScraperFeed() {
                         <button
                           type="button"
                           onClick={() => handleUpdateStatus(selectedPost.id, "Resolved")}
-                          className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-white/10 text-xs font-semibold rounded-xl flex items-center gap-2 active:scale-[0.97] transition-all cursor-pointer"
+                          className="px-3.5 sm:px-4 py-2 sm:py-2.5 min-h-[38px] sm:min-h-[40px] bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-white/10 text-xs font-semibold rounded-xl flex items-center gap-2 active:scale-[0.97] transition-all cursor-pointer"
                         >
                           <XCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
                           <span>Dismiss / Resolve</span>

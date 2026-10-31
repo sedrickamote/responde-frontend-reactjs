@@ -566,7 +566,7 @@ export default function MessengerBotLogs() {
 
 
   return (
-    <div className="messenger-soft flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-3.5 w-full h-full relative">
+    <div className="messenger-soft flex flex-col flex-1 min-h-full space-y-3 sm:space-y-3.5 w-full relative">
       {/* Toast Notifications — Top Right */}
       <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
         <AnimatePresence>
@@ -578,7 +578,7 @@ export default function MessengerBotLogs() {
         </AnimatePresence>
       </div>
 
-      <StaggerContainer className="flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-3.5 w-full h-full">
+      <StaggerContainer className="flex flex-col flex-1 space-y-3 sm:space-y-3.5 w-full">
         {/* ── Top Page Header (Unified Soft UI Design) ── */}
         <StaggerItem>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
@@ -999,7 +999,7 @@ export default function MessengerBotLogs() {
               className={`
                 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}
                 md:col-span-7 lg:col-span-7 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)] flex-col overflow-hidden
-                min-h-[480px] md:min-h-0 h-full
+                min-h-[480px] md:min-h-0 h-[calc(100vh-10rem)] md:h-full
               `}
             >
               <AnimatePresence mode="wait">
