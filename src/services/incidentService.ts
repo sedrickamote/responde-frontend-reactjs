@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { apiFetch } from './authService';
+import { apiRequest } from './apiClient';
 import { formatTimestampPHT } from '../utils/dateUtils';
 
 export type ReportStatus = 'pending' | 'under_review' | 'verified' | 'rejected' | 'resolved';
@@ -93,14 +94,10 @@ export function formatReportCode(id?: string | null, source?: string | null): st
  * Backend aggregates Messenger bot conversations, Facebook comments, and persisted officer triages.
  */
 export async function fetchReports(): Promise<Report[]> {
-  const res = await apiFetch('/api/auth/data/incident-reports');
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || errData.message || 'Failed to fetch incident reports from API');
-  }
-
-  const json = await res.json();
-  const rawReports: Report[] = json.data ?? [];
+  const json = await apiRequest<{ data?: Report[] }>('/api/auth/data/incident-reports', {
+    cacheTtlMs: 8000,
+  });
+  const rawReports: Report[] = json?.data ?? [];
   return rawReports
     .map((r: any) => ({
       ...r,

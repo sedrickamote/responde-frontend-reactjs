@@ -153,6 +153,10 @@ export async function apiRequest<T = any>(
 
   // 2. Manage in-flight deduplication with per-caller abort decoupling
   let entry = isGet ? inFlightRequests.get(cacheKey) : undefined;
+  if (entry && entry.internalController.signal.aborted) {
+    inFlightRequests.delete(cacheKey);
+    entry = undefined;
+  }
 
   if (!entry) {
     const internalController = new AbortController();
@@ -279,6 +283,7 @@ export async function apiRequest<T = any>(
       if (currentEntry.subscribers.size === 0) {
         console.log(`[apiClient:AbortTrace] All subscribers aborted for ${path} - canceling underlying network fetch`);
         currentEntry.internalController.abort();
+        inFlightRequests.delete(cacheKey);
       }
       reject(new DOMException('Aborted', 'AbortError'));
     };
