@@ -40,18 +40,18 @@ interface ScrapedPost {
   };
 }
 
-// -- Toast Type --
+// ── Toast Type ──
 interface Toast {
   id: number;
   message: string;
   type: "success" | "error" | "info";
 }
 
-// -- Apple Design Spring Physics & Motion --
+// ── Apple Design Spring Physics & Motion ──
 const APPLE_SPRING = { type: "spring", stiffness: 400, damping: 32 } as const;
 
 const contentVariants: Variants = {
-  hidden: { opacity: 0, x: 12, scale: 0.99 },
+  hidden: { opacity: 0, x: 10, scale: 0.99 },
   visible: {
     opacity: 1,
     x: 0,
@@ -68,7 +68,7 @@ const contentVariants: Variants = {
 
 export const INACTIVITY_GAP_MS = 60 * 60 * 1000;
 
-// -- Apple Notification Toast Component --
+// ── Apple Notification Toast Component ──
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
   useEffect(() => {
     const timer = setTimeout(() => onDismiss(toast.id), 3500);
@@ -78,22 +78,22 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
   const icon = toast.type === "success"
     ? <CheckCircle className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
     : toast.type === "error"
-      ? <AlertTriangle className="w-4 h-4 text-red-500 dark:text-red-400" />
-      : <Loader2 className="w-4 h-4 text-[#0071E3] dark:text-blue-400 animate-spin" />;
+      ? <AlertTriangle className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+      : <Loader2 className="w-4 h-4 text-[#0071E3] dark:text-sky-400 animate-spin" />;
 
   const badgeBg = toast.type === "success"
-    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-500/20"
+    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
     : toast.type === "error"
-      ? "bg-red-50 dark:bg-red-950/40 text-red-600 border border-red-500/20"
-      : "bg-blue-50 dark:bg-blue-950/40 text-[#0071E3] border border-blue-500/20";
+      ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+      : "bg-blue-500/10 text-[#0071E3] dark:text-sky-400 border border-blue-500/20";
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -20, scale: 0.94 }}
+      initial={{ opacity: 0, y: -16, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -16, scale: 0.94 }}
-      transition={{ type: "spring", stiffness: 420, damping: 30 }}
-      className="flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-2xl bg-white/90 dark:bg-[#1C2433]/90 border border-slate-200/80 dark:border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.12)] border-t border-t-white/80 dark:border-t-white/20 min-w-[300px] max-w-[400px]"
+      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+      transition={APPLE_SPRING}
+      className="flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-2xl bg-white/95 dark:bg-[#111827]/95 border border-slate-200/80 dark:border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.12)] min-w-[300px] max-w-[400px]"
     >
       <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${badgeBg}`}>
         {icon}
@@ -192,11 +192,25 @@ function formatTimestamp(ts: string | null): string {
   return formatTimestampPHT(ts);
 }
 
+const SCRAPER_FEED_CACHE_KEY = 'responde_cached_scraper_feed_posts';
+
+function getInitialCachedPosts(): ScrapedPost[] {
+  try {
+    const raw = sessionStorage.getItem(SCRAPER_FEED_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
 export default function ScraperFeed() {
-  const [posts, setPosts] = useState<ScrapedPost[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialCached = useMemo(() => getInitialCachedPosts(), []);
+  const [posts, setPosts] = useState<ScrapedPost[]>(initialCached);
+  const [loading, setLoading] = useState<boolean>(() => initialCached.length === 0);
   const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string>("");
+  const [selectedId, setSelectedId] = useState<string>(() => initialCached[0]?.id || "");
 
   // Structured (NLP Incidents only) vs Unstructured (Raw Stream with Noise)
   const [viewMode, setViewMode] = useState<"structured" | "unstructured">(() => {
@@ -362,9 +376,13 @@ export default function ScraperFeed() {
       };
     });
 
+    try {
+      sessionStorage.setItem(SCRAPER_FEED_CACHE_KEY, JSON.stringify(mapped));
+    } catch {}
+
     setPosts(mapped);
     if (mapped.length > 0) {
-      setSelectedId(mapped[0].id);
+      setSelectedId((prev) => prev || mapped[0].id);
       markPostSeen(mapped[0].id);
     }
     setLoading(false);
@@ -375,9 +393,14 @@ export default function ScraperFeed() {
     }
   };
 
+  const postsCountRef = useRef(posts.length);
+  postsCountRef.current = posts.length;
+
   // -- Fetch from backend API (authenticated, cached, deduplicated) --
   const fetchPosts = useCallback(async (isFirst = false, signal?: AbortSignal, forceRefresh = false) => {
-    if (isFirst) setLoading(true);
+    if (isFirst && postsCountRef.current === 0) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -400,14 +423,14 @@ export default function ScraperFeed() {
         return;
       }
       console.warn('[ScraperFeed] Fetch warning:', err.message);
-      setError((prev) => (posts.length === 0 ? (err.message || 'An unexpected error occurred') : prev));
-      if (posts.length === 0) {
+      setError((prev) => (postsCountRef.current === 0 ? (err.message || 'An unexpected error occurred') : prev));
+      if (postsCountRef.current === 0) {
         showToast(err.message || 'An unexpected error occurred', 'error');
       }
     } finally {
       setLoading(false);
     }
-  }, [posts.length]);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -563,32 +586,33 @@ export default function ScraperFeed() {
     return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
   };
 
+  // ── Semantic Micro-Dot Status System (No Glaring Neon Blocks) ──
   const renderUrgencyBadge = (urgency: string) => {
     switch (urgency) {
       case "High":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 tabular-nums">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
             High
           </span>
         );
       case "Moderate":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 tabular-nums">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
             Moderate
           </span>
         );
       case "Low":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100/90 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-white/[0.06] tabular-nums">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
             Low
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100/90 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-white/[0.06] tabular-nums">
             {urgency}
           </span>
         );
@@ -599,35 +623,35 @@ export default function ScraperFeed() {
     switch (status) {
       case "New":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-[#0071E3] dark:text-blue-400 border border-blue-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-[#0071E3] dark:text-sky-400 border border-blue-500/20 tabular-nums">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-pulse shrink-0" />
             New
           </span>
         );
       case "Verified":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 tabular-nums">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
             Verified
           </span>
         );
       case "Flagged":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 tabular-nums">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
             Flagged
           </span>
         );
       case "Resolved":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100/90 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-white/[0.06] tabular-nums">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
             Resolved
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100/90 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-white/[0.06] tabular-nums">
             {status}
           </span>
         );
@@ -636,15 +660,68 @@ export default function ScraperFeed() {
 
   const getSourceIcon = (source: string) => {
     switch (source) {
-      case "Facebook Page": return <ExternalLink className="w-3 h-3 text-blue-500" />;
-      case "Facebook Comment": return <MessageCircle className="w-3 h-3 text-[#0071E3]" />;
-      case "Group Post": return <Users className="w-3 h-3 text-emerald-500" />;
-      default: return <Globe className="w-3 h-3 text-slate-500" />;
+      case "Facebook Page": return <ExternalLink className="w-3 h-3 text-blue-500" strokeWidth={1.75} />;
+      case "Facebook Comment": return <MessageCircle className="w-3 h-3 text-[#0071E3]" strokeWidth={1.75} />;
+      case "Group Post": return <Users className="w-3 h-3 text-emerald-500" strokeWidth={1.75} />;
+      default: return <Globe className="w-3 h-3 text-slate-500" strokeWidth={1.75} />;
     }
   };
 
+  // Early return loading skeleton on initial cold load
+  if (loading && posts.length === 0) {
+    return <PageLoader variant="scraper" />;
+  }
+
+  // Early return error state if initial load failed and no cached posts
+  if (!loading && error && posts.length === 0) {
+    return (
+      <div className="scraper-soft flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-3.5 w-full h-full relative">
+        <div className="flex-1 flex items-center justify-center p-4">
+          {error.includes("Too many requests") || error.includes("429") || error.includes("503") || error.toLowerCase().includes("unavailable") || error.toLowerCase().includes("timeout") ? (
+            <div className="flex flex-col items-center gap-3 text-amber-600 dark:text-amber-400 bg-amber-500/[0.06] dark:bg-amber-500/[0.10] border border-amber-500/20 rounded-2xl p-6 sm:p-8 max-w-md text-center shadow-sm">
+              <div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse">
+                <RefreshCw className="w-5 h-5 animate-spin" strokeWidth={1.75} />
+              </div>
+              <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">Server is warming up...</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                The scraper feed service is warming up or handling a temporary rate-limit delay. Stored comments will appear shortly.
+              </p>
+              <button
+                type="button"
+                onClick={() => fetchPosts(true, undefined, true)}
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-[#0071E3] hover:bg-[#0077ED] text-white active:scale-95 transition-all cursor-pointer shadow-xs"
+              >
+                <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <span>Retry Connection</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 text-rose-600 dark:text-rose-400 bg-rose-500/[0.06] dark:bg-rose-500/[0.10] border border-rose-500/20 rounded-2xl p-6 sm:p-8 max-w-md text-center shadow-sm">
+              <div className="w-11 h-11 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                <AlertTriangle className="w-5 h-5" strokeWidth={1.75} />
+              </div>
+              <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">Failed to load scraped comments</p>
+              <p className="text-xs text-rose-500 dark:text-rose-400 font-mono">{error}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                The system experienced a temporary connection delay. Click retry below.
+              </p>
+              <button
+                type="button"
+                onClick={() => fetchPosts(true, undefined, true)}
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white active:scale-95 transition-all cursor-pointer shadow-xs"
+              >
+                <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <span>Retry Now</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 h-full flex flex-col relative">
+    <div className="scraper-soft flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-3.5 w-full h-full relative">
       {/* Toast Notifications — Top Right */}
       <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
         <AnimatePresence>
@@ -656,57 +733,32 @@ export default function ScraperFeed() {
         </AnimatePresence>
       </div>
 
-      {/* Skeleton — shown on first load, replaced by real content */}
-      {loading && <PageLoader variant="scraper" />}
-
-      {/* Error State with Cold-Start / Waking Up detection */}
-      {!loading && error && posts.length === 0 && (
-        <div className="flex-1 flex items-center justify-center p-4">
-          {error.includes("Too many requests") || error.includes("429") || error.includes("503") || error.toLowerCase().includes("unavailable") || error.toLowerCase().includes("timeout") ? (
-            <div className="flex flex-col items-center gap-3 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-6 max-w-md text-center shadow-sm">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400 animate-pulse">
-                <RefreshCw className="w-5 h-5 animate-spin" />
-              </div>
-              <p className="font-semibold text-sm text-slate-800 dark:text-slate-200">Server is waking up...</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                The scraper feed service is warming up or handling a temporary rate-limit delay. Stored comments will appear shortly.
-              </p>
-              <button
-                type="button"
-                onClick={() => fetchPosts(true, undefined, true)}
-                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-[#0071E3] text-white hover:bg-blue-600 active:scale-95 transition-all cursor-pointer shadow-sm"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Retry Connection</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-3 text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 max-w-md text-center shadow-lg">
-              <AlertTriangle className="w-8 h-8" />
-              <p className="font-semibold text-sm">Failed to load scraped comments</p>
-              <p className="text-xs text-red-400 font-mono">{error}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                The system experienced a temporary connection delay. Click retry below.
-              </p>
-              <button
-                type="button"
-                onClick={() => fetchPosts(true, undefined, true)}
-                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-95 transition-all cursor-pointer shadow-sm"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Retry Now</span>
-              </button>
-            </div>
-          )}
+      <StaggerContainer className="flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-3.5 w-full h-full">
+        {/* Stage 1: Top Page Header */}
+        <StaggerItem>
+      {/* ── Top Page Header (Unified Soft UI Design) ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-500/20 shadow-xs">
+            <Globe className="w-5 h-5 sm:w-5.5 sm:h-5.5" strokeWidth={1.75} />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Scraper Feed
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Social media ingestion, public comment monitoring, and automated NLP incident extraction
+            </p>
+          </div>
         </div>
-      )}
 
-      {/* Main Content */}
-      {!loading && !error && (
-        <>
+      </div>
+        </StaggerItem>
 
-          {/* Filters Bar — Frosted Glass with Specular Edge, collapsible on mobile */}
-          <div className={`${mobileView === 'detail' ? 'hidden md:block' : 'block'} relative z-30 backdrop-blur-xl bg-white/80 dark:bg-[#111827]/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_4px_24px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)] border-t border-t-white/80 dark:border-t-white/10 p-3 sm:p-4 transition-all`}>
+        {/* Stage 2: Filters Bar */}
+        <StaggerItem>
+          {/* Filters Bar — Soft tactile elevation with responsive collapsible filter drawer */}
+          <div className={`${mobileView === 'detail' ? 'hidden md:block' : 'block'} relative z-30 backdrop-blur-xl bg-white/80 dark:bg-[#111827]/80 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)] p-3 sm:p-4 transition-all`}>
             {/* Mobile Header Bar with Toggle & Active Filter Count (< md) */}
             <div className="flex items-center justify-between md:hidden mb-2.5">
               <button
@@ -714,8 +766,8 @@ export default function ScraperFeed() {
                 onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
                 className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none active:scale-[0.98] transition-transform"
               >
-                <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                  <Filter className="w-3.5 h-3.5" />
+                <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-[#0071E3] dark:text-sky-400 flex items-center justify-center border border-blue-500/20">
+                  <Filter className="w-3.5 h-3.5" strokeWidth={1.75} />
                 </div>
                 <span>Filter Comments</span>
                 {activeFilterCount > 0 && (
@@ -723,7 +775,7 @@ export default function ScraperFeed() {
                     {activeFilterCount}
                   </span>
                 )}
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${mobileFiltersOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${mobileFiltersOpen ? 'rotate-180' : ''}`} strokeWidth={1.75} />
               </button>
               {hasActiveFilters && (
                 <button
@@ -731,17 +783,17 @@ export default function ScraperFeed() {
                   onClick={resetFilters}
                   className="inline-flex items-center gap-1 text-xs font-semibold text-[#0071E3] dark:text-sky-400 hover:underline cursor-pointer"
                 >
-                  <RotateCcw className="w-3 h-3" />
+                  <RotateCcw className="w-3 h-3" strokeWidth={1.75} />
                   <span>Reset</span>
                 </button>
               )}
             </div>
 
             {/* Filter Controls Row — collapsible on mobile, always visible on tablet & desktop */}
-            <div className={`${mobileFiltersOpen ? 'flex' : 'hidden'} md:flex flex-col md:flex-row md:flex-wrap items-stretch md:items-center justify-between gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200/60 dark:border-slate-800/60`}>
+            <div className={`${mobileFiltersOpen ? 'flex' : 'hidden'} md:flex flex-col md:flex-row md:flex-wrap items-stretch md:items-center justify-between gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200/60 dark:border-white/5`}>
               <div className="grid grid-cols-2 sm:grid-cols-4 md:flex md:flex-wrap items-center gap-2.5 sm:gap-3 w-full md:w-auto relative z-20">
-                <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0 border border-slate-200/50 dark:border-slate-700/50">
-                  <Filter className="w-3.5 h-3.5 text-[#0071E3]" />
+                <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100/80 dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0 border border-slate-200/50 dark:border-white/10">
+                  <Filter className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400" strokeWidth={1.75} />
                   <span>Filters</span>
                 </div>
 
@@ -787,10 +839,10 @@ export default function ScraperFeed() {
                   <button
                     type="button"
                     onClick={resetFilters}
-                    className="col-span-1 sm:col-span-2 md:col-span-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 transition-all duration-150 active:scale-[0.97] cursor-pointer shrink-0 ml-auto sm:ml-0"
+                    className="col-span-1 sm:col-span-2 md:col-span-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#0071E3] dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 transition-all duration-150 active:scale-[0.97] cursor-pointer shrink-0 ml-auto sm:ml-0"
                     title="Reset all filters"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
+                    <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
                     <span>Reset</span>
                   </button>
                 )}
@@ -798,22 +850,26 @@ export default function ScraperFeed() {
             </div>
           </div>
 
+        </StaggerItem>
+
+        {/* Stage 3: Two Column Layout / Responsive Split-Pane */}
+        <StaggerItem className="flex-1 min-h-0 flex flex-col">
           {/* Two Column Layout / Responsive Split-Pane */}
-          <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 lg:gap-6 min-h-0 md:h-[calc(100vh-17.5rem)]">
-            {/* LEFT: Post List — macOS Feed Sidebar Style */}
+          <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 lg:gap-6 min-h-0 h-full">
+            {/* LEFT: Post List — Soft Feed Sidebar */}
             <div
               className={`
                 ${mobileView === 'detail' ? 'hidden md:flex' : 'flex'}
-                md:col-span-5 lg:col-span-5 bg-white/85 dark:bg-[#111827]/85 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-col overflow-hidden
-                h-[calc(100vh-17.5rem)] min-h-[440px] md:h-full md:min-h-0
+                md:col-span-5 lg:col-span-5 bg-white/85 dark:bg-[#111827]/85 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)] flex-col overflow-hidden
+                min-h-[460px] md:min-h-0 h-full
               `}
             >
               {/* Apple Segmented Switcher Header */}
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0 bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md gap-2">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-200/60 dark:border-white/5 flex items-center justify-between shrink-0 bg-slate-50/40 dark:bg-white/[0.02] gap-2">
                 <div
                   role="tablist"
                   aria-label="Feed View Mode"
-                  className="inline-flex items-center p-1 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl border border-slate-200/60 dark:border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]"
+                  className="inline-flex items-center p-1 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl border border-slate-200/70 dark:border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]"
                 >
                   <button
                     type="button"
@@ -834,7 +890,7 @@ export default function ScraperFeed() {
                       />
                     )}
                     <span className="relative z-10 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400" />
+                      <Sparkles className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400" strokeWidth={1.75} />
                       <span>Incidents</span>
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums ${
                         viewMode === "structured"
@@ -865,7 +921,7 @@ export default function ScraperFeed() {
                       />
                     )}
                     <span className="relative z-10 flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                      <Layers className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" strokeWidth={1.75} />
                       <span>All Posts</span>
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums ${
                         viewMode === "unstructured"
@@ -891,11 +947,20 @@ export default function ScraperFeed() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto min-h-0 p-2 pb-10 space-y-1">
+              {/* Scrollable Post Cards List */}
+              <div
+                className="flex-1 overflow-y-auto min-h-0 p-2 sm:p-2.5 pb-8 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800"
+                style={{
+                  maskImage: 'linear-gradient(to bottom, black calc(100% - 48px), transparent 100%)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 48px), transparent 100%)',
+                }}
+              >
                 {filteredPosts.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 px-4 text-slate-400 dark:text-slate-500 text-sm gap-3">
-                    <Radio className="w-8 h-8 stroke-[1.5] text-slate-300 dark:text-slate-600" />
-                    <span className="font-medium text-slate-600 dark:text-slate-400">
+                  <div className="flex flex-col items-center justify-center py-16 px-4 text-slate-400 dark:text-slate-500 text-xs gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/[0.04] border border-slate-200/60 dark:border-white/10 flex items-center justify-center">
+                      <Radio className="w-6 h-6 stroke-[1.5] text-slate-400 dark:text-slate-500" />
+                    </div>
+                    <span className="font-medium text-slate-600 dark:text-slate-400 text-center">
                       {viewMode === "structured" ? "No structured incidents match current filters." : "No raw comments found."}
                     </span>
                     {hasActiveFilters && (
@@ -909,7 +974,7 @@ export default function ScraperFeed() {
                     )}
                   </div>
                 ) : (
-                  <StaggerContainer className="space-y-1">
+                  <StaggerContainer className="space-y-1.5">
                     {paginatedPosts.map((post) => {
                       const isSelected = selectedId === post.id;
                       const isSeen = seenPostIds.has(post.id) || post.status !== 'New';
@@ -919,12 +984,12 @@ export default function ScraperFeed() {
                           <button
                             type="button"
                             onClick={() => handleSelectPost(post.id)}
-                            className={`w-full text-left p-2.5 sm:p-3 rounded-xl transition-all duration-150 relative group active:scale-[0.98] cursor-pointer ${
+                            className={`w-full text-left p-2.5 sm:p-3 rounded-xl transition-all duration-150 relative group active:scale-[0.985] cursor-pointer ${
                               isSelected
-                                ? "bg-blue-500/10 dark:bg-blue-500/20 shadow-xs border border-blue-500/25 dark:border-blue-500/30 text-slate-900 dark:text-white"
+                                ? "bg-blue-500/[0.08] dark:bg-blue-500/[0.14] shadow-xs border border-blue-500/30 text-slate-900 dark:text-white"
                                 : !isSeen
-                                ? "bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-50/70 dark:hover:bg-blue-950/30 border border-blue-200/50 dark:border-blue-900/40 text-slate-900 dark:text-white"
-                                : "hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent text-slate-600 dark:text-slate-400 opacity-90"
+                                ? "bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-50/80 dark:hover:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-slate-900 dark:text-white"
+                                : "hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border border-transparent hover:border-slate-200/50 dark:hover:border-white/[0.05] text-slate-600 dark:text-slate-400 opacity-90"
                             }`}
                           >
                             {/* Sliding active indicator bar */}
@@ -940,8 +1005,8 @@ export default function ScraperFeed() {
                               <div
                                 className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full ${getAvatarColor(
                                   post.author
-                                )} flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-sm ring-2 ${
-                                  !isSeen ? "ring-blue-400/80 dark:ring-blue-500/80" : "ring-white/80 dark:ring-slate-800 opacity-80"
+                                )} flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-xs ring-1 ${
+                                  !isSeen ? "ring-blue-400/80 dark:ring-blue-500/80" : "ring-black/5 dark:ring-white/10 opacity-80"
                                 }`}
                               >
                                 {post.avatar || (post.author ? post.author.charAt(0).toUpperCase() : "U")}
@@ -951,15 +1016,15 @@ export default function ScraperFeed() {
                                   <div className="flex items-center gap-1.5 min-w-0">
                                     {!isSeen && (
                                       <span
-                                        className="w-2 h-2 rounded-full bg-blue-500 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.6)] animate-pulse"
+                                        className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.6)] animate-pulse"
                                         title="New unread comment"
                                       />
                                     )}
                                     <span
-                                      className={`text-xs sm:text-sm truncate transition-colors ${
+                                      className={`text-xs sm:text-[13px] truncate tracking-tight transition-colors ${
                                         !isSeen
                                           ? "font-bold text-slate-900 dark:text-white"
-                                          : "font-medium text-slate-500 dark:text-slate-400"
+                                          : "font-semibold text-slate-700 dark:text-slate-300"
                                       }`}
                                     >
                                       {post.author}
@@ -970,7 +1035,7 @@ export default function ScraperFeed() {
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1.5 mb-1">
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-800/80 px-1.5 sm:px-2 py-0.5 rounded-md border border-slate-200/40 dark:border-slate-700/40 truncate max-w-[120px] sm:max-w-none">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100/90 dark:bg-white/[0.06] px-1.5 sm:px-2 py-0.5 rounded-md border border-slate-200/50 dark:border-white/[0.06] truncate max-w-[120px] sm:max-w-none">
                                     {getSourceIcon(post.source)}
                                     {post.source}
                                   </span>
@@ -982,8 +1047,8 @@ export default function ScraperFeed() {
                                 <p
                                   className={`text-xs line-clamp-2 mb-2 leading-relaxed transition-colors ${
                                     !isSeen
-                                      ? "font-semibold text-slate-900 dark:text-slate-100"
-                                      : "font-normal text-slate-400 dark:text-slate-500"
+                                      ? "font-medium text-slate-900 dark:text-slate-100"
+                                      : "font-normal text-slate-500 dark:text-slate-400"
                                   }`}
                                 >
                                   {post.rawText}
@@ -1004,19 +1069,19 @@ export default function ScraperFeed() {
 
               {/* Pagination Controls Footer */}
               {filteredPosts.length > PAGE_SIZE && (
-                <div className="px-3.5 py-2.5 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md flex items-center justify-between gap-2 shrink-0">
+                <div className="px-3.5 py-2.5 border-t border-slate-200/60 dark:border-white/5 bg-slate-50/40 dark:bg-white/[0.02] flex items-center justify-between gap-2 shrink-0">
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
-                    Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredPosts.length)} of {filteredPosts.length}
+                    {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredPosts.length)} of {filteredPosts.length}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       disabled={currentPage <= 1}
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                      className="p-1.5 rounded-lg border border-slate-200/70 dark:border-white/10 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
                       title="Previous Page"
                     >
-                      <ChevronLeft className="w-3.5 h-3.5" />
+                      <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.75} />
                     </button>
                     <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 px-1.5 tabular-nums">
                       {currentPage} / {totalPages}
@@ -1025,22 +1090,22 @@ export default function ScraperFeed() {
                       type="button"
                       disabled={currentPage >= totalPages}
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                      className="p-1.5 rounded-lg border border-slate-200/70 dark:border-white/10 text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
                       title="Next Page"
                     >
-                      <ChevronRight className="w-3.5 h-3.5" />
+                      <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.75} />
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* RIGHT: Post Detail — macOS Inspector Style */}
+            {/* RIGHT: Post Detail — macOS Soft Inspector Style */}
             <div
               className={`
                 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}
-                md:col-span-7 lg:col-span-7 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-col overflow-hidden
-                h-[calc(100vh-17.5rem)] min-h-[480px] md:h-full md:min-h-0
+                md:col-span-7 lg:col-span-7 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)] flex-col overflow-hidden
+                min-h-[480px] md:min-h-0 h-full
               `}
             >
               <AnimatePresence mode="wait">
@@ -1054,23 +1119,23 @@ export default function ScraperFeed() {
                     className="flex flex-col h-full"
                   >
                     {/* Header */}
-                    <div className="px-4 sm:px-6 py-3 sm:py-4.5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0 bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md gap-2">
+                    <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200/60 dark:border-white/5 flex items-center justify-between shrink-0 bg-slate-50/40 dark:bg-white/[0.02] gap-2">
                       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                         {/* Mobile Back Button (Apple iOS style < md) */}
                         <button
                           type="button"
                           onClick={() => setMobileView('list')}
-                          className="md:hidden flex items-center gap-0.5 text-[#0071E3] dark:text-blue-400 text-xs font-semibold px-2 py-1 -ml-1 rounded-lg hover:bg-blue-500/10 active:scale-95 transition-all shrink-0 cursor-pointer"
+                          className="md:hidden flex items-center gap-0.5 text-[#0071E3] dark:text-sky-400 text-xs font-semibold px-2 py-1 -ml-1 rounded-lg hover:bg-blue-500/10 active:scale-95 transition-all shrink-0 cursor-pointer"
                           aria-label="Back to scraper feed list"
                         >
-                          <ChevronLeft className="w-4 h-4" />
+                          <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
                           <span>Feed</span>
                         </button>
 
                         <div
-                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full ${getAvatarColor(
+                          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full ${getAvatarColor(
                             selectedPost.author
-                          )} flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-sm ring-2 ring-white/80 dark:ring-slate-800`}
+                          )} flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-xs ring-1 ring-black/5 dark:ring-white/10`}
                         >
                           {selectedPost.avatar || (selectedPost.author ? selectedPost.author.charAt(0).toUpperCase() : "U")}
                         </div>
@@ -1085,7 +1150,7 @@ export default function ScraperFeed() {
                             </span>
                             <span className="text-slate-300 dark:text-slate-600">•</span>
                             <span className="flex items-center gap-1 shrink-0">
-                              <Clock className="w-3 h-3 text-slate-400" />
+                              <Clock className="w-3 h-3 text-slate-400" strokeWidth={1.75} />
                               <span className="tabular-nums">{selectedPost.timestamp}</span>
                             </span>
                           </div>
@@ -1098,7 +1163,13 @@ export default function ScraperFeed() {
                     </div>
 
                     {/* Body */}
-                    <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 space-y-4 sm:space-y-5 bg-slate-50/40 dark:bg-[#0B0F17]/40">
+                    <div
+                      className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 space-y-4 sm:space-y-5 bg-slate-50/40 dark:bg-[#0B0F17]/40 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800"
+                      style={{
+                        maskImage: 'linear-gradient(to bottom, black calc(100% - 48px), transparent 100%)',
+                        WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 48px), transparent 100%)',
+                      }}
+                    >
                       <StaggerContainer className="space-y-4 sm:space-y-5">
                         {/* STRUCTURED VIEW: Highlight Extracted Entities First */}
                         {viewMode === "structured" ? (
@@ -1107,49 +1178,57 @@ export default function ScraperFeed() {
                             <StaggerItem>
                               <div>
                                 <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                                  <Brain className="w-3.5 h-3.5 text-purple-500" />
+                                  <Brain className="w-3.5 h-3.5 text-purple-500" strokeWidth={1.75} />
                                   <span>Extracted Incident Details</span>
                                 </h4>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                  <div className="bg-white dark:bg-slate-800/80 rounded-xl p-3.5 border border-slate-200/70 dark:border-slate-700/70 shadow-2xs">
+                                  <div className="bg-white/90 dark:bg-[#111827]/90 rounded-2xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
                                     <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                                      <MapPin className="w-3.5 h-3.5 text-blue-500" />
+                                      <div className="w-6 h-6 rounded-lg bg-blue-500/10 text-[#0071E3] dark:text-sky-400 flex items-center justify-center border border-blue-500/20">
+                                        <MapPin className="w-3.5 h-3.5" strokeWidth={1.75} />
+                                      </div>
                                       <span>Extracted Location</span>
                                     </div>
-                                    <p className="text-sm font-bold text-slate-900 dark:text-white break-words">
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white break-words mt-1">
                                       {selectedPost.extractedEntities.location}
                                     </p>
                                   </div>
 
-                                  <div className="bg-white dark:bg-slate-800/80 rounded-xl p-3.5 border border-slate-200/70 dark:border-slate-700/70 shadow-2xs">
+                                  <div className="bg-white/90 dark:bg-[#111827]/90 rounded-2xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
                                     <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                      <div className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20">
+                                        <AlertTriangle className="w-3.5 h-3.5" strokeWidth={1.75} />
+                                      </div>
                                       <span>Incident Category</span>
                                     </div>
-                                    <p className="text-sm font-bold text-slate-900 dark:text-white break-words">
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white break-words mt-1">
                                       {selectedPost.type}
                                     </p>
                                   </div>
 
                                   {selectedPost.extractedEntities.contact && (
-                                    <div className="bg-white dark:bg-slate-800/80 rounded-xl p-3.5 border border-slate-200/70 dark:border-slate-700/70 shadow-2xs">
+                                    <div className="bg-white/90 dark:bg-[#111827]/90 rounded-2xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
                                       <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                                        <Users className="w-3.5 h-3.5 text-emerald-500" />
+                                        <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                                          <Users className="w-3.5 h-3.5" strokeWidth={1.75} />
+                                        </div>
                                         <span>Emergency Contact</span>
                                       </div>
-                                      <p className="text-sm font-bold text-slate-900 dark:text-white font-mono break-words">
+                                      <p className="text-sm font-bold text-slate-900 dark:text-white font-mono break-words mt-1">
                                         {selectedPost.extractedEntities.contact}
                                       </p>
                                     </div>
                                   )}
 
                                   {selectedPost.extractedEntities.peopleAffected ? (
-                                    <div className="bg-white dark:bg-slate-800/80 rounded-xl p-3.5 border border-slate-200/70 dark:border-slate-700/70 shadow-2xs">
+                                    <div className="bg-white/90 dark:bg-[#111827]/90 rounded-2xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
                                       <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                                        <Users className="w-3.5 h-3.5 text-red-500" />
+                                        <div className="w-6 h-6 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20">
+                                          <Users className="w-3.5 h-3.5" strokeWidth={1.75} />
+                                        </div>
                                         <span>Estimated Victims / Affected</span>
                                       </div>
-                                      <p className="text-sm font-bold text-slate-900 dark:text-white break-words">
+                                      <p className="text-sm font-bold text-slate-900 dark:text-white break-words mt-1">
                                         {selectedPost.extractedEntities.peopleAffected} persons
                                       </p>
                                     </div>
@@ -1163,15 +1242,15 @@ export default function ScraperFeed() {
                               <StaggerItem>
                                 <div>
                                   <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                                    Urgent Resources & Needs Detected
+                                    Urgent Resources &amp; Needs Detected
                                   </h4>
                                   <div className="flex flex-wrap gap-2">
                                     {selectedPost.extractedEntities.needs.map((need, idx) => (
                                       <span
                                         key={idx}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
                                       >
-                                        <AlertTriangle className="w-3 h-3" />
+                                        <AlertTriangle className="w-3 h-3" strokeWidth={1.75} />
                                         <span>{need}</span>
                                       </span>
                                     ))}
@@ -1186,7 +1265,7 @@ export default function ScraperFeed() {
                                 <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
                                   Raw Post Source Reference
                                 </h4>
-                                <div className="bg-white dark:bg-slate-800/80 rounded-2xl p-4 border border-slate-200/70 dark:border-slate-700/70 shadow-2xs">
+                                <div className="bg-white/90 dark:bg-[#111827]/90 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
                                   <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed italic break-words">
                                     &ldquo;{selectedPost.rawText}&rdquo;
                                   </p>
@@ -1203,7 +1282,7 @@ export default function ScraperFeed() {
                                 <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
                                   Raw Unstructured Scraped Text
                                 </h4>
-                                <div className="bg-white dark:bg-slate-800/80 rounded-2xl p-4 sm:p-5 border border-slate-200/70 dark:border-slate-700/70 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                                <div className="bg-white/90 dark:bg-[#111827]/90 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
                                   <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans break-words">
                                     {selectedPost.rawText}
                                   </p>
@@ -1211,32 +1290,31 @@ export default function ScraperFeed() {
                               </div>
                             </StaggerItem>
 
-
                             {/* Raw Technical Payload Inspection */}
                             <StaggerItem>
                               <div>
                                 <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
                                   Raw Ingestion Metadata
                                 </h4>
-                                <div className="bg-slate-100 dark:bg-slate-900/80 rounded-xl p-3.5 border border-slate-200/60 dark:border-slate-800 font-mono text-[11px] text-slate-700 dark:text-slate-300 space-y-1 overflow-x-auto">
-                                  <div className="flex justify-between py-0.5 border-b border-slate-200/40 dark:border-slate-800">
-                                    <span className="text-slate-400">entry_id:</span>
-                                    <span>{selectedPost.id}</span>
+                                <div className="bg-slate-100/90 dark:bg-[#0B0F17]/90 rounded-2xl p-3.5 sm:p-4 border border-slate-200/70 dark:border-white/10 font-mono text-[11px] text-slate-700 dark:text-slate-300 space-y-1.5 overflow-x-auto">
+                                  <div className="flex justify-between py-1 border-b border-slate-200/50 dark:border-white/5">
+                                    <span className="text-slate-400 dark:text-slate-500">entry_id:</span>
+                                    <span className="font-semibold text-slate-900 dark:text-white">{selectedPost.id}</span>
                                   </div>
-                                  <div className="flex justify-between py-0.5 border-b border-slate-200/40 dark:border-slate-800">
-                                    <span className="text-slate-400">author:</span>
+                                  <div className="flex justify-between py-1 border-b border-slate-200/50 dark:border-white/5">
+                                    <span className="text-slate-400 dark:text-slate-500">author:</span>
                                     <span>{selectedPost.author}</span>
                                   </div>
-                                  <div className="flex justify-between py-0.5 border-b border-slate-200/40 dark:border-slate-800">
-                                    <span className="text-slate-400">source_platform:</span>
+                                  <div className="flex justify-between py-1 border-b border-slate-200/50 dark:border-white/5">
+                                    <span className="text-slate-400 dark:text-slate-500">source_platform:</span>
                                     <span>{selectedPost.source}</span>
                                   </div>
-                                  <div className="flex justify-between py-0.5 border-b border-slate-200/40 dark:border-slate-800">
-                                    <span className="text-slate-400">barangay_parsed:</span>
+                                  <div className="flex justify-between py-1 border-b border-slate-200/50 dark:border-white/5">
+                                    <span className="text-slate-400 dark:text-slate-500">barangay_parsed:</span>
                                     <span>{selectedPost.barangay}</span>
                                   </div>
-                                  <div className="flex justify-between py-0.5">
-                                    <span className="text-slate-400">status:</span>
+                                  <div className="flex justify-between py-1">
+                                    <span className="text-slate-400 dark:text-slate-500">status:</span>
                                     <span>{selectedPost.status}</span>
                                   </div>
                                 </div>
@@ -1248,13 +1326,13 @@ export default function ScraperFeed() {
                     </div>
 
                     {/* Action Bar */}
-                    <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-[#111827]/60 backdrop-blur-md shrink-0 flex items-center justify-between gap-2">
+                    <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200/60 dark:border-white/5 bg-slate-50/40 dark:bg-white/[0.02] shrink-0 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         {viewMode === "structured" && (
                           <button
                             type="button"
                             onClick={() => togglePostIncidentOverride(selectedPost.id)}
-                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold rounded-xl active:scale-[0.97] transition-all cursor-pointer"
+                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold rounded-xl active:scale-[0.97] transition-all cursor-pointer border border-slate-200/60 dark:border-white/5"
                           >
                             Demote to Noise
                           </button>
@@ -1266,9 +1344,9 @@ export default function ScraperFeed() {
                           <button
                             type="button"
                             onClick={() => handleUpdateStatus(selectedPost.id, "Verified")}
-                            className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-xl flex items-center gap-2 shadow-xs active:scale-[0.97] transition-all cursor-pointer"
+                            className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl flex items-center gap-2 shadow-xs active:scale-[0.97] transition-all cursor-pointer"
                           >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={1.75} />
                             <span>Verify Incident</span>
                           </button>
                         )}
@@ -1276,9 +1354,9 @@ export default function ScraperFeed() {
                         <button
                           type="button"
                           onClick={() => handleUpdateStatus(selectedPost.id, "Resolved")}
-                          className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 text-xs font-semibold rounded-xl flex items-center gap-2 active:scale-[0.97] transition-all cursor-pointer"
+                          className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-white/10 text-xs font-semibold rounded-xl flex items-center gap-2 active:scale-[0.97] transition-all cursor-pointer"
                         >
-                          <XCircle className="w-3.5 h-3.5" />
+                          <XCircle className="w-3.5 h-3.5" strokeWidth={1.75} />
                           <span>Dismiss / Resolve</span>
                         </button>
                       </div>
@@ -1293,8 +1371,8 @@ export default function ScraperFeed() {
                     exit="exit"
                     className="flex-1 flex flex-col items-center justify-center p-8 text-center"
                   >
-                    <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-3 shadow-inner">
-                      <Radio className="w-8 h-8 stroke-[1.5]" />
+                    <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-white/[0.04] border border-slate-200/60 dark:border-white/10 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-3 shadow-inner">
+                      <Radio className="w-7 h-7 stroke-[1.5]" />
                     </div>
                     <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-base">
                       No Comment Selected
@@ -1307,8 +1385,8 @@ export default function ScraperFeed() {
               </AnimatePresence>
             </div>
           </div>
-        </>
-      )}
+        </StaggerItem>
+      </StaggerContainer>
     </div>
   );
 }
