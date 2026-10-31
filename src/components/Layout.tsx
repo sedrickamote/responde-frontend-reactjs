@@ -676,7 +676,7 @@ export default function Layout() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               {/* ── Notification Bell ── */}
               <div ref={notifRef} className="relative z-10">
                 <button
@@ -923,7 +923,7 @@ export default function Layout() {
                 </AnimatePresence>
               </div>
 
-              <div ref={profileRef} className="relative flex items-center gap-3 pl-4 border-l border-white/60 dark:border-white/10 z-10">
+              <div ref={profileRef} className="relative flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-white/60 dark:border-white/10 z-10">
                 <PhilippineClock />
                 <button
                   id="user-profile-menu-btn"
@@ -1103,7 +1103,7 @@ export default function Layout() {
           </header>
         </div>
 
-        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden px-3.5 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-5 sm:pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 md:pt-3.5 md:pr-0 md:pl-2 lg:pb-0 lg:pt-3.5 lg:pr-0 lg:pl-2">
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden px-3 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-5 sm:pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] md:pb-0 md:pt-3.5 md:pr-0 md:pl-2 lg:pb-0 lg:pt-3.5 lg:pr-0 lg:pl-2">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
@@ -1182,7 +1182,7 @@ export default function Layout() {
 
       {/* ── Global Toast Renderer (Top Right) ── */}
       <div
-        className="fixed top-20 right-5 z-[120] flex flex-col gap-2.5 items-end pointer-events-none"
+        className="fixed top-18 sm:top-20 left-3 right-3 sm:left-auto sm:right-5 z-[120] flex flex-col gap-2.5 items-end pointer-events-none"
         aria-live="polite"
       >
         <AnimatePresence mode="popLayout">
@@ -1720,14 +1720,14 @@ function DeleteNotificationModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-slate-700/80 transition-all active:scale-[0.98] cursor-pointer"
+                className="w-full py-2.5 px-3 min-h-[44px] rounded-xl text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-slate-700/80 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={onConfirm}
-                className="w-full py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold text-white bg-slate-900 hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 active:scale-[0.98] transition-all shadow-xs cursor-pointer"
+                className="w-full py-2.5 px-3 min-h-[44px] rounded-xl text-xs sm:text-sm font-semibold text-white bg-slate-900 hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 active:scale-[0.98] transition-all shadow-xs cursor-pointer flex items-center justify-center"
               >
                 {isAll ? 'Clear All' : 'Delete'}
               </button>

@@ -211,7 +211,7 @@ export default function SignOutModal({
                   type="button"
                   onClick={onClose}
                   disabled={isLoading}
-                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-slate-700/80 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  className="w-full py-2.5 px-4 min-h-[44px] rounded-xl text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-slate-700/80 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -220,7 +220,7 @@ export default function SignOutModal({
                   type="button"
                   onClick={onConfirm}
                   disabled={isLoading}
-                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold text-white bg-red-600 hover:bg-red-700 shadow-sm shadow-red-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+                  className="w-full py-2.5 px-4 min-h-[44px] rounded-xl text-xs sm:text-sm font-semibold text-white bg-red-600 hover:bg-red-700 shadow-sm shadow-red-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
                 >
                   {isLoading ? (
                     <>
