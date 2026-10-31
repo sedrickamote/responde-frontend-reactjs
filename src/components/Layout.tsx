@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, FileText, MessageSquare, Globe, Map,
   BarChart3, Settings, Search, Bell, LogOut, Menu, X,
-  Globe2, MessageCircle, CheckCheck, Trash2, BellOff, ArrowRight, ArrowDown,
-  Sun, Moon, Copy, Check, Siren, ShieldAlert, MapPin,
+  CheckCheck, Trash2, BellOff, ArrowRight, ArrowDown,
+  Sun, Moon, Copy, Check, MapPin, AlertTriangle, User,
 } from 'lucide-react';
 import SignOutModal from './SignOutModal';
 import {
@@ -373,7 +373,7 @@ export default function Layout() {
   const isActive = (p: string) => location.pathname === p;
 
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', shortLabel: 'Dashboard', icon: LayoutDashboard },
+    { path: '/dashboard', label: 'Overview', shortLabel: 'Overview', icon: LayoutDashboard },
     { path: '/incident-reports', label: 'Incident Reports', shortLabel: 'Reports', icon: FileText },
     { path: '/messenger-bot-logs', label: 'Messenger Logs', shortLabel: 'Messenger', icon: MessageSquare },
     { path: '/scraper-feed', label: 'Scraper Feed', shortLabel: 'Scraper', icon: Globe },
@@ -707,17 +707,25 @@ export default function Layout() {
                   {notifOpen && (
                     <motion.div
                       id="notification-dropdown"
-                      initial={{ opacity: 0, y: -12, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                      transition={{ duration: 0.28, ease: APPLE_DECEL_EASE }}
-                      className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-20 sm:top-full mt-0 sm:mt-2 w-auto sm:w-100 max-w-[calc(100vw-1.5rem)] sm:max-w-none bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-[0_24px_60px_rgba(0,0,0,0.25)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.85)] z-[110] overflow-hidden flex flex-col"
+                      initial={{ opacity: 0, x: 16, scale: 0.97 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{
+                        opacity: 0,
+                        x: 12,
+                        scale: 0.97,
+                        transition: { duration: 0.18, ease: [0.4, 0, 1, 1] },
+                      }}
+                      transition={{
+                        duration: 0.36,
+                        ease: APPLE_DECEL_EASE,
+                      }}
+                      className="origin-top-right fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-20 sm:top-full mt-0 sm:mt-2 w-auto sm:w-100 max-w-[calc(100vw-1.5rem)] sm:max-w-none bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-[0_24px_60px_rgba(0,0,0,0.25)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.85)] z-[110] overflow-hidden flex flex-col"
                     >
                       {/* ── Stage 1: Header (Ambatubazz Cascade) ── */}
                       <motion.div
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.22, delay: 0.03, ease: APPLE_DECEL_EASE }}
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.28, delay: 0.04, ease: APPLE_DECEL_EASE }}
                         className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900"
                       >
                         <div className="flex items-center gap-2">
@@ -736,7 +744,7 @@ export default function Layout() {
                             <button
                               type="button"
                               onClick={markAllRead}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#0071E3] dark:text-sky-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-all active:scale-95 cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-900 dark:text-white bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 rounded-lg transition-all active:scale-95 cursor-pointer"
                               title="Mark all notifications as read"
                               aria-label="Mark all notifications as read"
                             >
@@ -769,9 +777,9 @@ export default function Layout() {
 
                       {/* ── Stage 2: Filter Tabs (Segmented Control - Ambatubazz Cascade) ── */}
                       <motion.div
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.22, delay: 0.06, ease: APPLE_DECEL_EASE }}
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.28, delay: 0.09, ease: APPLE_DECEL_EASE }}
                         className="flex gap-1 p-2 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50 dark:bg-slate-800/80"
                       >
                         {([
@@ -794,34 +802,28 @@ export default function Layout() {
                               }}
                               className={`relative flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150 cursor-pointer select-none ${
                                 isSelected
-                                  ? 'text-white font-semibold'
-                                  : isPriorityTab && tab.count > 0
-                                  ? 'text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-950/40'
-                                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                  ? 'text-white dark:text-slate-900 font-semibold'
+                                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                               }`}
                             >
                               {isSelected && (
                                 <motion.div
                                   layoutId="activeNotifTabIndicator"
                                   transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                                  className={`absolute inset-0 rounded-lg ${
-                                    isPriorityTab ? 'bg-red-600 shadow-xs' : 'bg-[#0071E3] shadow-xs'
-                                  }`}
+                                  className="absolute inset-0 rounded-lg bg-slate-900 dark:bg-white shadow-xs"
                                 />
                               )}
                               <span className="relative z-10 flex items-center gap-1 truncate">
                                 {isPriorityTab && (
-                                  <Siren className="w-3.5 h-3.5 shrink-0" />
+                                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} />
                                 )}
                                 <span>{tab.label}</span>
                                 {tab.count > 0 && (
                                   <span
                                     className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full shrink-0 ${
                                       isSelected
-                                        ? 'bg-white/20 text-white'
-                                        : isPriorityTab
-                                        ? 'bg-red-500 text-white'
-                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                        ? 'bg-white/20 text-white dark:bg-black/20 dark:text-slate-900'
+                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                                     }`}
                                   >
                                     {tab.count}
@@ -837,7 +839,7 @@ export default function Layout() {
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 0.24, delay: 0.09, ease: APPLE_DECEL_EASE }}
+                        transition={{ duration: 0.32, delay: 0.14, ease: APPLE_DECEL_EASE }}
                         className="relative flex-1 min-h-0 flex flex-col bg-white dark:bg-slate-900"
                       >
                         <div
@@ -889,7 +891,7 @@ export default function Layout() {
                               <button
                                 type="button"
                                 onClick={scrollToNextUnseen}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0071E3] hover:bg-[#0077ED] active:scale-95 text-white text-[11px] font-semibold shadow-md shadow-blue-500/25 transition-all cursor-pointer backdrop-blur-md"
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-100 active:scale-95 text-white dark:text-slate-900 text-[11px] font-semibold shadow-md transition-all cursor-pointer"
                               >
                                 <ArrowDown className="w-3 h-3" />
                                 <span>{remainingUnseenInTab} more new</span>
@@ -903,7 +905,7 @@ export default function Layout() {
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 0.2, delay: 0.12, ease: APPLE_DECEL_EASE }}
+                        transition={{ duration: 0.28, delay: 0.18, ease: APPLE_DECEL_EASE }}
                         className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-slate-50 dark:bg-slate-800/80 text-xs text-slate-400"
                       >
                         <span>
@@ -911,7 +913,7 @@ export default function Layout() {
                           {filteredNotifications.length !== 1 ? 's' : ''}
                         </span>
                         {unreadInTab.length > 0 && (
-                          <span className="font-medium text-[#0071E3] dark:text-sky-400">
+                          <span className="font-semibold text-slate-900 dark:text-white">
                             {unreadInTab.length} unread
                           </span>
                         )}
@@ -947,17 +949,25 @@ export default function Layout() {
                   {profileOpen && (
                     <motion.div
                       id="profile-dropdown-menu"
-                      initial={{ opacity: 0, y: -12, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                      transition={{ duration: 0.28, ease: APPLE_DECEL_EASE }}
-                      className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-[0_24px_60px_rgba(0,0,0,0.25)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.85)] z-[110] p-2.5 overflow-hidden flex flex-col"
+                      initial={{ opacity: 0, x: 16, scale: 0.97 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{
+                        opacity: 0,
+                        x: 12,
+                        scale: 0.97,
+                        transition: { duration: 0.18, ease: [0.4, 0, 1, 1] },
+                      }}
+                      transition={{
+                        duration: 0.36,
+                        ease: APPLE_DECEL_EASE,
+                      }}
+                      className="origin-top-right absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-[0_24px_60px_rgba(0,0,0,0.25)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.85)] z-[110] p-2.5 overflow-hidden flex flex-col"
                     >
                       {/* ── Stage 1: Identity Card ── */}
                       <motion.div
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.22, delay: 0.03, ease: APPLE_DECEL_EASE }}
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.28, delay: 0.04, ease: APPLE_DECEL_EASE }}
                         className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-100 dark:border-slate-700/60 mb-2"
                       >
                         <div className="flex items-center gap-3">
@@ -1022,9 +1032,9 @@ export default function Layout() {
 
                       {/* ── Stage 2: Quick Actions ── */}
                       <motion.div
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.22, delay: 0.06, ease: APPLE_DECEL_EASE }}
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.28, delay: 0.09, ease: APPLE_DECEL_EASE }}
                         className="space-y-0.5"
                       >
                         <Link
@@ -1069,7 +1079,7 @@ export default function Layout() {
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 0.2, delay: 0.09, ease: APPLE_DECEL_EASE }}
+                        transition={{ duration: 0.25, delay: 0.14, ease: APPLE_DECEL_EASE }}
                         className="border-t border-slate-100 dark:border-slate-800/80 mt-1 pt-1"
                       >
                         <button
@@ -1170,12 +1180,12 @@ export default function Layout() {
         </div>
       </nav>
 
-      {/* ── Global Toast Renderer ── */}
+      {/* ── Global Toast Renderer (Top Right) ── */}
       <div
-        className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 items-end pointer-events-none"
+        className="fixed top-20 right-5 z-[120] flex flex-col gap-2.5 items-end pointer-events-none"
         aria-live="polite"
       >
-        <AnimatePresence>
+        <AnimatePresence mode="popLayout">
           {toasts.map((toast) => (
             <GlobalToast
               key={toast.id}
@@ -1245,33 +1255,27 @@ function NotificationRow({
       transition={{ duration: 0.15, ease: APPLE_DECEL_EASE }}
       className={`group relative flex items-start gap-3 px-4 py-3.5 cursor-pointer transition-colors duration-150 active:scale-[0.99] select-none ${
         !n.read
-          ? isPriority
-            ? 'bg-red-50/70 dark:bg-red-950/25 hover:bg-red-100/60 dark:hover:bg-red-950/40'
-            : 'bg-blue-50/70 dark:bg-blue-950/25 hover:bg-blue-100/60 dark:hover:bg-blue-950/40'
-          : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 opacity-80 hover:opacity-100'
+          ? 'bg-slate-100/70 dark:bg-white/[0.05] hover:bg-slate-200/50 dark:hover:bg-white/[0.08]'
+          : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-white/[0.02] opacity-75 hover:opacity-100'
       }`}
       onClick={onClick}
       onMouseEnter={() => prefetchRoute(n.targetPath)}
       onPointerDown={() => prefetchRoute(n.targetPath)}
     >
-      {/* Icon */}
+      {/* Icon Tile */}
       <div
         className={`shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
           !n.read
-            ? isPriority
-              ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300 ring-2 ring-red-500/20'
-              : isMessenger
-              ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 ring-2 ring-purple-500/20'
-              : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 ring-2 ring-blue-500/20'
-            : 'bg-slate-100/80 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500'
+            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs'
+            : 'bg-slate-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500'
         }`}
       >
         {isPriority ? (
-          <Siren className="w-4 h-4 text-red-600 dark:text-red-400" />
+          <AlertTriangle className="w-4 h-4 stroke-[2.2]" />
         ) : isMessenger ? (
-          <MessageCircle className="w-4 h-4" />
+          <MessageSquare className="w-4 h-4 stroke-[2]" />
         ) : (
-          <Globe2 className="w-4 h-4" />
+          <Globe className="w-4 h-4 stroke-[2]" />
         )}
       </div>
 
@@ -1281,9 +1285,7 @@ function NotificationRow({
           <p
             className={`text-xs truncate tracking-tight transition-colors ${
               !n.read
-                ? isPriority
-                  ? 'font-bold text-red-950 dark:text-red-100'
-                  : 'font-bold text-slate-900 dark:text-white'
+                ? 'font-bold text-slate-900 dark:text-white'
                 : 'font-medium text-slate-500 dark:text-slate-400'
             }`}
           >
@@ -1291,42 +1293,35 @@ function NotificationRow({
           </p>
 
           {!n.read && (
-            <span
-              className={`w-2 h-2 rounded-full shrink-0 ${
-                isPriority
-                  ? 'bg-red-600 ring-2 ring-red-500/30'
-                  : 'bg-[#0071E3] ring-2 ring-blue-500/30'
-              }`}
-            />
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-900 dark:bg-white shrink-0" />
           )}
 
           {isPriority ? (
             <span
-              className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full transition-colors flex items-center gap-1 ${
+              className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full transition-colors flex items-center gap-1 ${
                 !n.read
-                  ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 font-bold border border-red-500/30'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-normal border border-slate-200/50 dark:border-slate-700/50'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold'
+                  : 'bg-slate-100 dark:bg-white/[0.08] text-slate-500 dark:text-slate-400 font-normal border border-slate-200/60 dark:border-white/10'
               }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-red-600 shrink-0" />
               Priority
             </span>
           ) : isMessenger ? (
             <span
-              className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+              className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full transition-colors ${
                 !n.read
-                  ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-semibold border border-purple-500/30'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-normal border border-slate-200/50 dark:border-slate-700/50'
+                  ? 'bg-slate-200/80 dark:bg-white/15 text-slate-900 dark:text-white font-medium border border-slate-300/60 dark:border-white/15'
+                  : 'bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 font-normal border border-slate-200/60 dark:border-white/10'
               }`}
             >
               Messenger
             </span>
           ) : (
             <span
-              className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
+              className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full transition-colors ${
                 !n.read
-                  ? 'bg-blue-100 dark:bg-blue-900/40 text-[#0071E3] dark:text-blue-300 font-semibold border border-blue-500/30'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-normal border border-slate-200/50 dark:border-slate-700/50'
+                  ? 'bg-slate-200/80 dark:bg-white/15 text-slate-900 dark:text-white font-medium border border-slate-300/60 dark:border-white/15'
+                  : 'bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 font-normal border border-slate-200/60 dark:border-white/10'
               }`}
             >
               Scraper
@@ -1336,35 +1331,39 @@ function NotificationRow({
 
         {/* Barangay / Sender meta */}
         {(n.barangay || n.sender) && (
-          <p
-            className={`text-[11px] mb-1 transition-colors ${
+          <div
+            className={`flex items-center gap-1.5 text-[11px] mb-1 transition-colors ${
               !n.read
-                ? 'font-semibold text-slate-700 dark:text-slate-200'
+                ? 'font-medium text-slate-700 dark:text-slate-300'
                 : 'font-normal text-slate-400 dark:text-slate-500'
             }`}
           >
-            {n.barangay ? `📍 ${n.barangay}` : `👤 ${n.sender}`}
-          </p>
+            {n.barangay ? (
+              <>
+                <MapPin className="w-3 h-3 text-slate-400 dark:text-slate-500 shrink-0" />
+                <span className="truncate">{n.barangay}</span>
+              </>
+            ) : (
+              <>
+                <User className="w-3 h-3 text-slate-400 dark:text-slate-500 shrink-0" />
+                <span className="truncate">{n.sender}</span>
+              </>
+            )}
+          </div>
         )}
 
-        {/* Message snippet: Bold & highlighted when new, Gray & faded when seen */}
+        {/* Message snippet */}
         <p
           className={`text-xs line-clamp-2 leading-relaxed transition-colors ${
             !n.read
-              ? 'font-semibold text-slate-900 dark:text-slate-100'
-              : 'font-normal text-slate-400 dark:text-slate-500'
+              ? 'font-medium text-slate-800 dark:text-slate-200'
+              : 'font-normal text-slate-500 dark:text-slate-400'
           }`}
         >
           {n.message}
         </p>
 
-        <p
-          className={`text-[10px] mt-1.5 transition-colors tabular-nums ${
-            !n.read
-              ? 'font-semibold text-[#0071E3] dark:text-blue-400'
-              : 'font-normal text-slate-400/70 dark:text-slate-500'
-          }`}
-        >
+        <p className="text-[10px] mt-1.5 transition-colors tabular-nums font-normal text-slate-400 dark:text-slate-500">
           {timeAgo}
         </p>
       </div>
@@ -1376,7 +1375,7 @@ function NotificationRow({
           e.stopPropagation();
           onDelete();
         }}
-        className="absolute top-3 right-3 opacity-60 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all cursor-pointer active:scale-90"
+        className="absolute top-3 right-3 opacity-60 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/10 transition-all cursor-pointer active:scale-90"
         title="Delete notification"
         aria-label="Delete notification"
       >
@@ -1411,177 +1410,198 @@ function GlobalToast({
     t = t.replace(/^[🚨\s]*/g, '').replace(/^PRIORITY ALERT:\s*/i, '').trim();
     if (!t || t.toLowerCase() === 'high-urgency incident') {
       return toast.incidentType
-        ? `${toast.incidentType} Emergency Alert`
-        : 'High-Urgency Incident';
+        ? `${toast.incidentType} Emergency`
+        : 'High Urgency Incident';
+    }
+    if (t.toLowerCase() === 'new messenger message') {
+      return 'Resident Message';
+    }
+    if (t.toLowerCase() === 'new scraped comment') {
+      return 'Public Social Report';
     }
     return t;
   }, [toast.title, toast.incidentType]);
 
+  const appLabel = isPriority ? 'Emergency Dispatch' : isMessenger ? 'Messenger' : 'Scraper Feed';
+
   if (isPriority) {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.96 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 10, scale: 0.96 }}
-        transition={{ duration: 0.32, ease: APPLE_DECEL_EASE }}
-        className="pointer-events-auto relative w-full sm:w-[420px] rounded-3xl p-4.5 bg-white/95 dark:bg-[#150a0d]/95 backdrop-blur-2xl border border-red-500/25 dark:border-red-500/35 border-t-white/80 dark:border-t-red-400/20 shadow-[0_20px_50px_-10px_rgba(239,68,68,0.28),0_0_0_1px_rgba(239,68,68,0.08)] overflow-hidden"
+        layout
+        initial={{ opacity: 0, x: 72, scale: 0.96 }}
+        animate={{ opacity: 1, x: 0, scale: 1 }}
+        exit={{
+          opacity: 0,
+          x: 72,
+          scale: 0.96,
+          transition: { duration: 0.22, ease: [0.4, 0, 1, 1] },
+        }}
+        transition={{
+          duration: 0.44,
+          ease: APPLE_DECEL_EASE,
+          layout: { duration: 0.3, ease: APPLE_DECEL_EASE },
+        }}
+        role="alert"
+        aria-live="assertive"
+        onClick={() => onView(toast.targetPath)}
+        onMouseEnter={() => prefetchRoute(toast.targetPath)}
+        onPointerDown={() => prefetchRoute(toast.targetPath)}
+        className="pointer-events-auto group relative w-full sm:w-[360px] rounded-2xl p-4 bg-white dark:bg-[#111827] border border-slate-900/15 dark:border-white/15 shadow-[0_12px_36px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.5)] cursor-pointer transition-all hover:-translate-y-0.5 active:scale-[0.99] select-none"
       >
-        {/* Ambient radial emergency glow in top-left */}
-        <div className="pointer-events-none absolute -top-12 -left-12 w-40 h-40 bg-red-500/15 dark:bg-red-500/20 rounded-full blur-2xl" />
-
-        {/* Header Row: Beacon + Pill Badges + Close Button */}
-        <div className="flex items-start gap-3 relative z-10">
-          {/* Apple-style Concentric Glowing Beacon */}
-          <div className="relative shrink-0 mt-0.5">
-            <span className="absolute -inset-1 rounded-2xl bg-red-500/20 dark:bg-red-500/30 blur-xs" />
-            <div className="relative w-10 h-10 rounded-2xl flex items-center justify-center bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-md shadow-red-500/30">
-              <Siren className="w-5 h-5 text-white" />
+        {/* Top App Header Strip */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {/* App Icon */}
+            <div className="w-5 h-5 rounded-md bg-slate-900 text-white dark:bg-white dark:text-slate-900 flex items-center justify-center shrink-0 shadow-2xs">
+              <AlertTriangle className="w-3 h-3 stroke-[2.2]" />
             </div>
+            <span className="text-[11px] font-semibold text-slate-900 dark:text-white uppercase tracking-wider truncate">
+              {appLabel}
+            </span>
+            <span className="text-slate-300 dark:text-slate-600 text-xs">•</span>
+            <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
+              now
+            </span>
           </div>
 
-          {/* Details & Badges */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {/* Priority Pill */}
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-600 text-white shadow-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
-                Priority Alert
-              </span>
-
-              {/* Barangay Pill */}
-              {toast.barangay && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/60 border border-red-200/80 dark:border-red-900/60">
-                  <MapPin className="w-2.5 h-2.5 text-red-500" />
-                  {toast.barangay}
-                </span>
-              )}
-
-              {/* Incident Type Pill */}
-              {toast.incidentType && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/10 border border-slate-200/70 dark:border-white/10">
-                  {toast.incidentType}
-                </span>
-              )}
-            </div>
-
-            {/* Headline */}
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight mt-1.5 leading-snug">
-              {cleanTitle}
-            </h4>
-          </div>
-
-          {/* Frosted Circular Close Button */}
+          {/* Close button */}
           <button
-            onClick={() => onDismiss(toast.id)}
-            className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDismiss(toast.id);
+            }}
+            className="w-5 h-5 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
             title="Dismiss alert"
             aria-label="Dismiss alert"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-3 h-3" strokeWidth={2} />
           </button>
         </div>
 
-        {/* Message Bubble: Frosted, high legibility */}
-        {toast.message && (
-          <div className="mt-2.5 p-3 rounded-2xl bg-slate-50/90 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-normal line-clamp-2 select-text relative z-10">
-            &ldquo;{toast.message}&rdquo;
+        {/* Content Body */}
+        <div className="mt-2.5 space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight truncate flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-900 dark:bg-white shrink-0" />
+              <span className="truncate">{cleanTitle}</span>
+            </h4>
+            {toast.barangay && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 shrink-0">
+                <MapPin className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500" />
+                <span>{toast.barangay}</span>
+              </span>
+            )}
           </div>
-        )}
 
-        {/* Action Buttons Row */}
-        <div className="mt-3.5 flex items-center gap-2 relative z-10">
-          <button
-            onClick={() => onView(toast.targetPath)}
-            onMouseEnter={() => prefetchRoute(toast.targetPath)}
-            onPointerDown={() => prefetchRoute(toast.targetPath)}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-500 hover:to-rose-500 active:scale-[0.98] transition-all duration-150 shadow-md shadow-red-500/25 hover:shadow-lg hover:shadow-red-500/35 cursor-pointer"
-          >
-            <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
-            <span>View Immediate Incident</span>
-            <ArrowRight className="w-3 h-3" />
-          </button>
-
-          <button
-            onClick={() => onDismiss(toast.id)}
-            className="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 active:scale-[0.97] transition-all cursor-pointer"
-          >
-            Dismiss
-          </button>
+          {toast.message && (
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal line-clamp-2">
+              {toast.message}
+            </p>
+          )}
         </div>
 
-        {/* Sleek Sub-millimeter Countdown Bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-red-100 dark:bg-red-950/40 overflow-hidden">
-          <motion.div
-            className="h-full bg-gradient-to-r from-red-600 via-rose-500 to-amber-500"
-            initial={{ width: '100%' }}
-            animate={{ width: '0%' }}
-            transition={{ duration: 10, ease: 'linear' }}
-          />
+        {/* Action Row on Bottom */}
+        <div className="mt-3 flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-white/[0.06]">
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-900 text-white dark:bg-white dark:text-slate-900">
+            High Urgency
+          </span>
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 group-hover:bg-black dark:group-hover:bg-slate-100 shadow-2xs transition-colors">
+            <span>Review</span>
+            <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+          </span>
         </div>
       </motion.div>
     );
   }
 
+  // Standard Banner: Messenger / Scraper
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 10, scale: 0.96 }}
-      transition={{ duration: 0.32, ease: APPLE_DECEL_EASE }}
-      className="pointer-events-auto relative flex items-start gap-3 pl-4 pr-3 pt-3.5 pb-5 rounded-2xl border shadow-xl min-w-[310px] max-w-97.5 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-2xl border-slate-200/80 dark:border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.12)] overflow-hidden"
+      layout
+      initial={{ opacity: 0, x: 72, scale: 0.96 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{
+        opacity: 0,
+        x: 72,
+        scale: 0.96,
+        transition: { duration: 0.22, ease: [0.4, 0, 1, 1] },
+      }}
+      transition={{
+        duration: 0.44,
+        ease: APPLE_DECEL_EASE,
+        layout: { duration: 0.3, ease: APPLE_DECEL_EASE },
+      }}
+      role="status"
+      onClick={() => onView(toast.targetPath)}
+      onMouseEnter={() => prefetchRoute(toast.targetPath)}
+      onPointerDown={() => prefetchRoute(toast.targetPath)}
+      className="pointer-events-auto group relative w-full sm:w-[350px] rounded-2xl p-4 bg-white dark:bg-[#111827] border border-slate-200 dark:border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.4)] cursor-pointer transition-all hover:-translate-y-0.5 active:scale-[0.99] select-none"
     >
-      {/* Icon */}
-      <div
-        className={`shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center ${
-          isMessenger
-            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
-            : 'bg-blue-100 dark:bg-blue-900/30 text-[#0071E3] dark:text-sky-400'
-        }`}
-      >
-        {isMessenger ? (
-          <MessageCircle className="w-4 h-4" />
-        ) : (
-          <Globe2 className="w-4 h-4" />
-        )}
-      </div>
+      {/* Top App Header Strip (Apple OS notification style) */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-5 h-5 rounded-md bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center shrink-0 shadow-2xs">
+            {isMessenger ? (
+              <MessageSquare className="w-3 h-3 stroke-[2]" />
+            ) : (
+              <Globe className="w-3 h-3 stroke-[2]" />
+            )}
+          </div>
+          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider truncate">
+            {appLabel}
+          </span>
+          <span className="text-slate-300 dark:text-slate-600 text-xs">•</span>
+          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
+            now
+          </span>
+        </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{toast.title}</p>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">
-          {toast.message}
-        </p>
-        {/* View button */}
+        {/* Close button */}
         <button
-          onClick={() => onView(toast.targetPath)}
-          onMouseEnter={() => prefetchRoute(toast.targetPath)}
-          onPointerDown={() => prefetchRoute(toast.targetPath)}
-          className={`mt-2 flex items-center gap-1 text-xs font-semibold transition-colors cursor-pointer ${
-            isMessenger
-              ? 'text-purple-600 dark:text-purple-400 hover:text-purple-700'
-              : 'text-[#0071E3] dark:text-sky-400 hover:text-[#0077ED]'
-          }`}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDismiss(toast.id);
+          }}
+          className="w-5 h-5 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+          title="Dismiss notification"
+          aria-label="Dismiss notification"
         >
-          View
-          <ArrowRight className="w-3 h-3" />
+          <X className="w-3 h-3" strokeWidth={2} />
         </button>
       </div>
 
-      {/* Dismiss */}
-      <button
-        onClick={() => onDismiss(toast.id)}
-        className="shrink-0 mt-0.5 p-1 text-slate-300 hover:text-slate-500 dark:hover:text-slate-300 rounded-lg transition-colors cursor-pointer"
-      >
-        <X className="w-4 h-4" />
-      </button>
+      {/* Content Body */}
+      <div className="mt-2.5 space-y-0.5">
+        <h4 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight truncate">
+          {cleanTitle}
+        </h4>
 
-      {/* Progress bar */}
-      <motion.div
-        className={`absolute bottom-0 left-0 h-[3px] ${isMessenger ? 'bg-purple-500' : 'bg-[#0071E3]'}`}
-        initial={{ width: '100%' }}
-        animate={{ width: '0%' }}
-        transition={{ duration: 5.5, ease: 'linear' }}
-      />
+        {toast.message && (
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal line-clamp-2">
+            {toast.message}
+          </p>
+        )}
+      </div>
+
+      {/* Action Row on Bottom */}
+      <div className="mt-3 flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-white/[0.06]">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDismiss(toast.id);
+          }}
+          className="text-xs font-medium text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 px-2 py-1 rounded-md transition-colors cursor-pointer"
+        >
+          Dismiss
+        </button>
+        <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 group-hover:bg-black dark:group-hover:bg-slate-100 shadow-2xs transition-colors">
+          <span>Open</span>
+          <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+        </span>
+      </div>
     </motion.div>
   );
 }
@@ -1623,7 +1643,7 @@ function DeleteNotificationModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18, ease: APPLE_DECEL_EASE }}
+          transition={{ duration: 0.28, ease: 'easeOut' }}
           className="fixed inset-0 z-[220] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
           onClick={onClose}
         >
@@ -1633,25 +1653,31 @@ function DeleteNotificationModal({
             aria-modal="true"
             aria-labelledby="delete-notification-title"
             aria-describedby="delete-notification-desc"
-            initial={{ scale: 0.95, opacity: 0, y: 12 }}
+            initial={{ scale: 0.94, opacity: 0, y: 16 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 8 }}
-            transition={{ duration: 0.25, ease: APPLE_DECEL_EASE }}
+            exit={{
+              scale: 0.94,
+              opacity: 0,
+              y: 8,
+              transition: { duration: 0.18, ease: [0.16, 1, 0.3, 1] },
+            }}
+            transition={{
+              opacity: { duration: 0.32, ease: [0.16, 1, 0.3, 1] },
+              scale: { type: 'spring', stiffness: 220, damping: 26, mass: 0.8 },
+              y: { type: 'spring', stiffness: 220, damping: 26, mass: 0.8 },
+            }}
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-[0_24px_60px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.9)] p-5 sm:p-6 text-center relative overflow-hidden"
           >
-            {/* Ambient Red Glow */}
-            <div className="absolute -top-10 -right-10 w-28 h-28 bg-red-500/10 dark:bg-red-500/15 rounded-full blur-xl pointer-events-none" />
-
             {/* Icon */}
-            <div className="w-12 h-12 rounded-2xl bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 flex items-center justify-center mx-auto mb-3.5 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 flex items-center justify-center mx-auto mb-3.5 shadow-xs">
               <Trash2 className="w-5 h-5" />
             </div>
 
             {/* Title */}
             <h3
               id="delete-notification-title"
-              className="text-base sm:text-lg font-bold text-slate-800 dark:text-white tracking-tight"
+              className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight"
             >
               {isAll ? 'Clear All Notifications?' : 'Delete Notification?'}
             </h3>
@@ -1671,11 +1697,15 @@ function DeleteNotificationModal({
             {/* Preview snippet for single item */}
             {!isAll && notification && (
               <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5 text-left flex items-start gap-2.5">
-                <span className="shrink-0 mt-0.5 text-xs">
-                  {notification.type === 'messenger' ? '💬' : '🌐'}
+                <span className="shrink-0 mt-0.5">
+                  {notification.type === 'messenger' ? (
+                    <MessageSquare className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                  ) : (
+                    <Globe className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                  )}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
                     {notification.title}
                   </p>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
@@ -1697,7 +1727,7 @@ function DeleteNotificationModal({
               <button
                 type="button"
                 onClick={onConfirm}
-                className="w-full py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold text-white bg-red-600 hover:bg-red-700 active:scale-[0.98] transition-all shadow-[0_2px_10px_rgba(220,38,38,0.3)] cursor-pointer"
+                className="w-full py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold text-white bg-slate-900 hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 active:scale-[0.98] transition-all shadow-xs cursor-pointer"
               >
                 {isAll ? 'Clear All' : 'Delete'}
               </button>
