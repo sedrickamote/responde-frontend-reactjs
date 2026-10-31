@@ -10,9 +10,8 @@ import {
 } from 'lucide-react';
 import DatePicker from '../components/DatePicker';
 import FilterDropdown from '../components/DropDown';
-import { StaggerContainer, StaggerItem } from '../components/Stagger';
 import PageLoader from '../components/PageLoader';
-import PageTransition from '../components/Transition';
+import { StaggerContainer, StaggerItem } from '../components/Stagger';
 
 import {
   isReportIncomplete,
@@ -45,9 +44,9 @@ const backdropVariants = {
 };
 
 const modalVariants = {
-  hidden: { opacity: 0, scale: 0.98, y: 10 },
+  hidden: { opacity: 0, scale: 0.97, y: 12 },
   visible: { opacity: 1, scale: 1, y: 0 },
-  exit: { opacity: 0, scale: 0.98, y: 10 },
+  exit: { opacity: 0, scale: 0.97, y: 12 },
 };
 
 // ── Bulk bar: hardware-accelerated transform + opacity only ──
@@ -55,14 +54,6 @@ const barActionVariants = {
   hidden: { opacity: 0, y: -8, scale: 0.98 },
   visible: { opacity: 1, y: 0, scale: 1 },
   exit: { opacity: 0, y: -8, scale: 0.98 },
-};
-
-// ── Shake animation for validation errors ──
-export const shakeVariants = {
-  shake: {
-    x: [0, -6, 6, -6, 6, -3, 3, 0],
-    transition: { duration: 0.4, ease: 'easeInOut' },
-  },
 };
 
 // ── Toast Type ──
@@ -91,20 +82,18 @@ function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: nu
     return pages;
   };
 
-  // Always render pagination so controls remain accessible on all filter states
-
   return (
     <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 w-full sm:w-auto">
       <button
         type="button"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all bg-white/80 dark:bg-slate-800/80 backdrop-blur-md active:scale-[0.96] shadow-2xs cursor-pointer"
+        className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-white/10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md active:scale-[0.96] shadow-2xs cursor-pointer"
       >
-        <ChevronLeft className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Previous</span><span className="sm:hidden">Prev</span>
+        <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.75} /> <span className="hidden sm:inline">Previous</span><span className="sm:hidden">Prev</span>
       </button>
 
-      <div className="hidden sm:flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-md">
+      <div className="hidden sm:flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-white/5 backdrop-blur-md">
         {getPages().map((page, i) =>
           page === '...' ? (
             <span key={`dots-${i}`} className="w-7 h-7 flex items-center justify-center text-xs text-slate-400 dark:text-slate-500">...</span>
@@ -124,7 +113,7 @@ function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: nu
         )}
       </div>
 
-      <span className="sm:hidden px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-700 rounded-xl tabular-nums shadow-2xs">
+      <span className="sm:hidden px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-xl tabular-nums shadow-2xs">
         Page {currentPage} of {safeTotal}
       </span>
 
@@ -132,9 +121,9 @@ function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: nu
         type="button"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage >= safeTotal}
-        className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all bg-white/80 dark:bg-slate-800/80 backdrop-blur-md active:scale-[0.96] shadow-2xs cursor-pointer"
+        className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-white/10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md active:scale-[0.96] shadow-2xs cursor-pointer"
       >
-        <span className="hidden sm:inline">Next</span><span className="sm:hidden">Next</span> <ChevronRight className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Next</span><span className="sm:hidden">Next</span> <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.75} />
       </button>
     </div>
   );
@@ -148,15 +137,15 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
   }, [toast.id, onDismiss]);
 
   const icon = toast.type === 'success'
-    ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+    ? <CheckCircle2 className="w-4 h-4 text-emerald-500" strokeWidth={1.75} />
     : toast.type === 'error'
-      ? <AlertOctagon className="w-4 h-4 text-red-500" />
-      : <AlertTriangle className="w-4 h-4 text-blue-500" />;
+      ? <AlertOctagon className="w-4 h-4 text-rose-500" strokeWidth={1.75} />
+      : <AlertTriangle className="w-4 h-4 text-blue-500" strokeWidth={1.75} />;
 
   const borderTint = toast.type === 'success'
     ? 'border-emerald-500/20'
     : toast.type === 'error'
-      ? 'border-red-500/20'
+      ? 'border-rose-500/20'
       : 'border-blue-500/20';
 
   return (
@@ -165,16 +154,16 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -10, scale: 0.96 }}
       transition={APPLE_SPRING}
-      className={`flex items-center gap-3 px-4 py-3 rounded-2xl border ${borderTint} shadow-[0_10px_30px_rgba(0,0,0,0.12)] bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl min-w-70 max-w-95`}
+      className={`flex items-center gap-3 px-4 py-3 rounded-2xl border ${borderTint} shadow-[0_10px_30px_rgba(0,0,0,0.12)] bg-white/95 dark:bg-[#111827]/95 backdrop-blur-xl min-w-70 max-w-95`}
     >
       {icon}
       <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 flex-1 leading-snug">{toast.message}</span>
       <button
         type="button"
         onClick={() => onDismiss(toast.id)}
-        className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-90"
+        className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-90 cursor-pointer"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="w-3.5 h-3.5" strokeWidth={1.75} />
       </button>
     </motion.div>
   );
@@ -249,7 +238,7 @@ function BarangaySelect({ value, onChange, options }: BarangaySelectProps) {
       <button
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
-        className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left flex items-center justify-between transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 cursor-pointer select-none shadow-2xs"
+        className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-white/10 rounded-xl text-left flex items-center justify-between transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#0071E3] cursor-pointer select-none shadow-2xs"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
@@ -257,7 +246,8 @@ function BarangaySelect({ value, onChange, options }: BarangaySelectProps) {
           {isPlaceholder ? (value === 'Unknown' ? 'Unknown (Select Barangay)' : 'Select Barangay') : value}
         </span>
         <ChevronDown
-          className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-blue-500' : ''}`}
+          className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-[#0071E3]' : ''}`}
+          strokeWidth={1.75}
         />
       </button>
 
@@ -268,29 +258,29 @@ function BarangaySelect({ value, onChange, options }: BarangaySelectProps) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden"
+            className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden"
           >
             {/* Search filter */}
-            <div className="p-2 border-b border-slate-100 dark:border-slate-700/60 bg-slate-50/70 dark:bg-slate-900/40">
+            <div className="p-2 border-b border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-slate-900/40">
               <div className="relative flex items-center">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" strokeWidth={1.75} />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   placeholder="Search barangay..."
-                  className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-lg text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#0071E3]"
                   onClick={e => e.stopPropagation()}
                 />
               </div>
             </div>
 
-            {/* Scrollable List — Fixed max-height so it is scrollable and never stretches to the bottom */}
+            {/* Scrollable List */}
             <div
               ref={listRef}
               role="listbox"
-              className="max-h-52 overflow-y-auto overscroll-contain py-1 text-xs sm:text-sm divide-y divide-slate-100/60 dark:divide-slate-700/40"
+              className="max-h-52 overflow-y-auto overscroll-contain py-1 text-xs sm:text-sm divide-y divide-slate-100/60 dark:divide-white/5"
               style={{ scrollbarWidth: 'thin' }}
             >
               {filteredOptions.length === 0 ? (
@@ -313,12 +303,12 @@ function BarangaySelect({ value, onChange, options }: BarangaySelectProps) {
                       }}
                       className={`w-full text-left px-3.5 py-2 flex items-center justify-between transition-colors cursor-pointer select-none ${
                         isSelected
-                          ? 'bg-blue-50/80 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold'
-                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60'
+                          ? 'bg-blue-50/80 dark:bg-blue-900/30 text-[#0071E3] dark:text-sky-400 font-semibold'
+                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                       }`}
                     >
                       <span className="truncate">{opt}</span>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 ml-2" />}
+                      {isSelected && <Check className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400 shrink-0 ml-2" strokeWidth={2} />}
                     </button>
                   );
                 })
@@ -349,9 +339,9 @@ export default function IncidentReports() {
 
   // ── Toast State ──
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const toastIdRef = useState(0);
+  const toastIdRef = useRef(0);
   const showToast = (message: string, type: Toast['type'] = 'success') => {
-    const id = ++toastIdRef[0];
+    const id = ++toastIdRef.current;
     setToasts(prev => [...prev, { id, message, type }]);
   };
   const dismissToast = (id: number) => {
@@ -442,7 +432,7 @@ export default function IncidentReports() {
     return getIncompleteReasons({ barangay: b, type: t });
   }, [reviewingReport, editForm.barangay, editForm.type]);
 
-  // ── Bot conversation thread for the review modal (existing context data) ──
+  // ── Bot conversation thread for the review modal ──
   const { conversations: botConversations } = useBotConversations();
   const isBotReport = reviewingReport?.source === 'Bot';
   const isScraperReport = reviewingReport?.source === 'Scraper';
@@ -457,7 +447,6 @@ export default function IncidentReports() {
       sessions.find((c) => c.messages.some((m) => m.timestamp && new Date(m.timestamp).getTime() === reportTime)) ??
       sessions[0];
     if (session && session.messages.length > 0) return session.messages;
-    // Fallback: only the single message stored on the report
     return [{ sender: 'user', text: reviewingReport.originalText, timestamp: reviewingReport.createdAt || '' }];
   }, [reviewingReport, botConversations]);
 
@@ -598,7 +587,6 @@ export default function IncidentReports() {
       return;
     }
 
-    // Only validate coordinates if officer typed them (no fake coordinates injected)
     const rawCoords = (editForm.coordinates || '').trim();
     if (rawCoords) {
       if (!validateCoordinates(rawCoords)) {
@@ -798,57 +786,110 @@ export default function IncidentReports() {
     currentPage * itemsPerPage
   );
 
-  const getUrgencyColor = (urgency: string) => {
+  const getUrgencyBadge = (urgency: string) => {
     switch (urgency) {
       case 'High':
-        return 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20';
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+            <span>High</span>
+          </span>
+        );
       case 'Moderate':
-        return 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20';
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+            <span>Moderate</span>
+          </span>
+        );
       case 'Low':
-        return 'bg-slate-500/10 text-slate-600 dark:text-slate-300 border-slate-500/20';
       default:
-        return 'bg-slate-500/10 text-slate-600 dark:text-slate-300 border-slate-500/20';
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+            <span>Low</span>
+          </span>
+        );
     }
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'Earthquake': return 'text-amber-600 dark:text-amber-400';
-      case 'Fire': return 'text-rose-600 dark:text-rose-400';
-      case 'Flood': return 'text-cyan-600 dark:text-cyan-400';
-      case 'Landslide': return 'text-yellow-700 dark:text-yellow-500';
-      case 'Search & Rescue': return 'text-orange-600 dark:text-orange-400';
-      case 'Medical': return 'text-emerald-600 dark:text-emerald-400';
-      case 'Food & Water': return 'text-blue-600 dark:text-blue-400';
-      case 'Infrastructure': return 'text-purple-600 dark:text-purple-400';
-      default: return 'text-slate-600 dark:text-slate-400';
+  const getStatusBadge = (status: ReportStatus, isIncomplete: boolean) => {
+    if (activeTab === 'incomplete' || (isIncomplete && (status === 'pending' || status === 'under_review'))) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+          <span>Incomplete</span>
+        </span>
+      );
     }
-  };
-
-  const getStatusColor = (status: ReportStatus) => {
     switch (status) {
       case 'pending':
-        return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20';
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-[#0071E3] dark:text-sky-400 border border-blue-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />
+            <span>Pending</span>
+          </span>
+        );
       case 'under_review':
-        return 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20';
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <span>Under Review</span>
+          </span>
+        );
       case 'verified':
-        return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20';
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+            <span>Verified</span>
+          </span>
+        );
       case 'resolved':
-        return 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20';
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+            <span>Resolved</span>
+          </span>
+        );
       case 'rejected':
-        return 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20';
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+            <span>Rejected</span>
+          </span>
+        );
     }
   };
 
-  const getStatusLabel = (status: ReportStatus) => {
-    switch (status) {
-      case 'pending': return 'Pending';
-      case 'under_review': return 'Under Review';
-      case 'verified': return 'Verified';
-      case 'resolved': return 'Resolved';
-      case 'rejected': return 'Rejected';
+  const getTypeBadge = (type: string) => {
+    const norm = (type || '').trim().toLowerCase();
+    if (!norm || norm === 'none' || norm === 'unclassified') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+          <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" strokeWidth={1.75} />
+          <span>Out of Scope</span>
+        </span>
+      );
     }
+    const colorMap: Record<string, string> = {
+      'earthquake': 'text-amber-600 dark:text-amber-400',
+      'fire': 'text-rose-600 dark:text-rose-400',
+      'flood': 'text-cyan-600 dark:text-cyan-400',
+      'landslide': 'text-yellow-700 dark:text-yellow-500',
+      'search & rescue': 'text-orange-600 dark:text-orange-400',
+      'medical': 'text-emerald-600 dark:text-emerald-400',
+      'food & water': 'text-blue-600 dark:text-blue-400',
+      'infrastructure': 'text-purple-600 dark:text-purple-400',
+    };
+    const textColor = colorMap[norm] || 'text-slate-600 dark:text-slate-400';
+    return (
+      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${textColor}`}>
+        <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" />
+        <span>{type}</span>
+      </span>
+    );
   };
+
 
   const getRejectionLabel = (reason: string | null) => {
     switch (reason) {
@@ -864,958 +905,956 @@ export default function IncidentReports() {
   if (loading) return <PageLoader variant="incidents" />;
 
   return (
-    <PageTransition>
-      <div className="flex flex-col flex-1 min-h-0 gap-6 relative">
-        {loadError && (
-          <div role="alert" className="px-4 py-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-red-900/20 text-xs font-medium text-red-700 dark:text-red-300">
-            Could not load reports: {loadError}
-          </div>
-        )}
-
-        {/* Toast Notifications */}
-        <div className="fixed top-4 right-4 z-250 flex flex-col gap-2 pointer-events-none">
-          <AnimatePresence>
-            {toasts.map(toast => (
-              <div key={toast.id} className="pointer-events-auto">
-                <ToastItem toast={toast} onDismiss={dismissToast} />
-              </div>
-            ))}
-          </AnimatePresence>
+    <div className="incidents-soft flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-3.5 w-full h-full relative">
+      {loadError && (
+        <div role="alert" className="px-4 py-3 rounded-xl border border-rose-500/20 bg-rose-50/80 dark:bg-rose-950/20 text-xs font-medium text-rose-700 dark:text-rose-300">
+          Could not load reports: {loadError}
         </div>
+      )}
 
-        <StaggerContainer className="flex flex-col gap-4 sm:gap-6 pb-20 sm:pb-24 md:pb-8 w-full">
-          {/* Tabs — Apple macOS Segmented Control */}
-          <StaggerItem>
-            <div className="w-full">
-              <div className="p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 grid grid-cols-2 sm:inline-flex sm:items-center gap-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] w-full sm:w-auto">
-                {tabs.map((tab) => {
-                  const isActive = activeTab === tab.key;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setActiveTab(tab.key)}
-                      className={`relative px-3 py-2 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors duration-150 flex items-center justify-between sm:justify-center gap-2 select-none active:scale-[0.98] cursor-pointer ${isActive
-                        ? 'text-slate-900 dark:text-white'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                    >
-                      {isActive && (
-                        <motion.div
-                          layoutId="activeTabPill"
-                          transition={APPLE_SLIDE_SPRING}
-                          className="absolute inset-0 bg-white dark:bg-slate-700/90 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] border border-black/4 dark:border-white/10"
-                        />
-                      )}
-                      <span className="relative z-10 truncate">{tab.label}</span>
-                      <span
-                        className={`relative z-10 text-[10px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full transition-colors shrink-0 ${isActive
-                          ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
-                          : 'bg-slate-300/60 dark:bg-slate-700/60 text-slate-600 dark:text-slate-400'
-                          }`}
-                      >
-                        {tab.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+      {/* Toast Notifications */}
+      <div className="fixed top-4 right-4 z-250 flex flex-col gap-2 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <div key={toast.id} className="pointer-events-auto">
+              <ToastItem toast={toast} onDismiss={dismissToast} />
             </div>
-          </StaggerItem>
+          ))}
+        </AnimatePresence>
+      </div>
 
-          {/* Filter Bar & Bulk Selection */}
-          <StaggerItem className="relative z-30 flex flex-col gap-3">
-            {/* Filter Bar — Apple Frosted Glass Toolbar */}
-            <div className="relative z-30 backdrop-blur-xl bg-white/80 dark:bg-[#111827]/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-3 sm:p-4 shrink-0 border-t border-t-white/80 dark:border-t-white/10">
-              {/* Mobile Filter Header Toggle (< md) */}
-              <div className="flex md:hidden items-center justify-between w-full">
+      <StaggerContainer className="flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-3.5 w-full h-full">
+        {/* ── Top Page Header (Unified Soft UI Design) ── */}
+        <StaggerItem>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-500/20 shadow-xs">
+            <FileText className="w-5 h-5 sm:w-5.5 sm:h-5.5" strokeWidth={1.75} />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Incident Reports
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Review, triage, verify, and resolve emergency reports across Talisay City
+            </p>
+          </div>
+        </div>
+          </div>
+        </StaggerItem>
+
+        {/* ── Tabs (Apple macOS Segmented Control) ── */}
+        <StaggerItem>
+          <div className="w-full shrink-0">
+        <div className="p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 flex flex-wrap sm:inline-flex items-center gap-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] w-full sm:w-auto">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`relative px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors duration-150 flex items-center justify-between sm:justify-center gap-2 select-none active:scale-[0.98] cursor-pointer ${isActive
+                  ? 'text-slate-900 dark:text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTabPill"
+                    transition={APPLE_SLIDE_SPRING}
+                    className="absolute inset-0 bg-white dark:bg-slate-700/90 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] border border-black/4 dark:border-white/10"
+                  />
+                )}
+                <span className="relative z-10 truncate">{tab.label}</span>
+                <span
+                  className={`relative z-10 text-[10px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full transition-colors shrink-0 ${isActive
+                    ? 'bg-blue-50 dark:bg-blue-900/40 text-[#0071E3] dark:text-sky-400'
+                    : 'bg-slate-300/60 dark:bg-slate-700/60 text-slate-600 dark:text-slate-400'
+                    }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+          </div>
+        </StaggerItem>
+
+        {/* ── Filter Bar & Bulk Actions ── */}
+        <StaggerItem>
+          <div className="relative z-30 flex flex-col gap-2.5 shrink-0">
+        <div className="backdrop-blur-xl bg-white/80 dark:bg-[#111827]/80 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.04)] p-3 sm:p-3.5 shrink-0">
+          {/* Mobile Filter Header Toggle (< md) */}
+          <div className="flex md:hidden items-center justify-between w-full">
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+              className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none"
+            >
+              <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-[#0071E3] dark:text-sky-400 flex items-center justify-center">
+                <Filter className="w-3.5 h-3.5" strokeWidth={1.75} />
+              </div>
+              <span>Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0071E3] text-white">
+                  {activeFilterCount}
+                </span>
+              )}
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${mobileFiltersOpen ? 'rotate-180' : ''}`} strokeWidth={1.75} />
+            </button>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-[#0071E3] dark:text-sky-400 hover:underline cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" strokeWidth={1.75} />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
+
+          {/* Filter Controls */}
+          <div className={`${mobileFiltersOpen ? 'grid' : 'hidden'} md:flex md:flex-wrap grid-cols-2 gap-2 sm:gap-2.5 md:gap-3 md:items-center pt-2.5 md:pt-0`}>
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0 border border-slate-200/50 dark:border-white/5">
+              <Filter className="w-3.5 h-3.5 text-[#0071E3]" strokeWidth={1.75} />
+              <span>Filters</span>
+            </div>
+
+            {/* Source Toggle Filter: [Bot] [Scraper] */}
+            <div className="col-span-2 sm:col-span-1 md:col-span-auto inline-flex items-center p-0.5 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl border border-slate-200/70 dark:border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] gap-1 shrink-0 h-[34px] sm:h-[36px]">
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterSource(prev => (prev === 'bot' ? 'all' : 'bot'));
+                  setCurrentPage(1);
+                }}
+                className={`h-full inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold tracking-tight transition-all duration-200 select-none active:scale-[0.97] cursor-pointer ${
+                  filterSource === 'bot'
+                    ? "bg-[#0071E3] text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
+                }`}
+                title={filterSource === 'bot' ? 'Click to show all sources' : 'Filter by Bot reports'}
+              >
+                <Bot className={`w-3.5 h-3.5 ${filterSource === 'bot' ? 'text-white' : 'text-[#0071E3]'}`} strokeWidth={1.75} />
+                <span>Bot</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterSource(prev => (prev === 'scraper' ? 'all' : 'scraper'));
+                  setCurrentPage(1);
+                }}
+                className={`h-full inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold tracking-tight transition-all duration-200 select-none active:scale-[0.97] cursor-pointer ${
+                  filterSource === 'scraper'
+                    ? "bg-[#0071E3] text-white shadow-xs"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
+                }`}
+                title={filterSource === 'scraper' ? 'Click to show all sources' : 'Filter by Scraper reports'}
+              >
+                <Globe className={`w-3.5 h-3.5 ${filterSource === 'scraper' ? 'text-white' : 'text-purple-500'}`} strokeWidth={1.75} />
+                <span>Scraper</span>
+              </button>
+            </div>
+
+            <div className="col-span-1 md:col-span-auto min-w-[130px]">
+              <FilterDropdown
+                value={filterBarangay}
+                options={['All Barangays', ...Array.from(new Set([...TALISAY_BARANGAYS, ...reports.map(r => r.barangay)])).sort()]}
+                onChange={setFilterBarangay}
+              />
+            </div>
+
+            <div className="col-span-1 md:col-span-auto min-w-[120px]">
+              <FilterDropdown
+                value={filterType}
+                options={[
+                  'All Types',
+                  ...Array.from(new Set([...BASE_INCIDENT_TYPES, ...reports.map(r => r.type)]))
+                    .filter(t => Boolean(t) && t.toLowerCase() !== 'unclassified')
+                    .sort()
+                ]}
+                onChange={setFilterType}
+              />
+            </div>
+
+            <div className="col-span-2 sm:col-span-1 md:col-span-auto min-w-[120px]">
+              <FilterDropdown
+                value={filterUrgency}
+                options={['All Urgency', 'High', 'Moderate', 'Low']}
+                onChange={setFilterUrgency}
+              />
+            </div>
+
+            <div className="col-span-2 md:col-span-auto flex flex-wrap sm:flex-nowrap items-center gap-2 md:ml-auto w-full md:w-auto">
+              <div className="flex items-center gap-1.5 flex-1 sm:flex-initial min-w-[125px]">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                  From:
+                </span>
+                <DatePicker value={fromDate} onChange={setFromDate} placeholder="Select Date" />
+              </div>
+              <div className="flex items-center gap-1.5 flex-1 sm:flex-initial min-w-[125px]">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                  To:
+                </span>
+                <DatePicker value={toDate} onChange={setToDate} placeholder="Select Date" />
+              </div>
+              {hasActiveFilters && (
                 <button
                   type="button"
-                  onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
-                  className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none"
+                  onClick={resetFilters}
+                  className="inline-flex items-center justify-center w-[34px] h-[34px] sm:w-[36px] sm:h-[36px] text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-xl transition-all duration-150 active:scale-[0.95] cursor-pointer shrink-0 ml-auto sm:ml-0 border border-blue-500/20"
+                  title="Reset all filters"
+                  aria-label="Reset all filters"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                    <Filter className="w-3.5 h-3.5" />
-                  </div>
-                  <span>Filters</span>
-                  {activeFilterCount > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-600 text-white">
-                      {activeFilterCount}
-                    </span>
-                  )}
-                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${mobileFiltersOpen ? 'rotate-180' : ''}`} />
+                  <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
                 </button>
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    onClick={resetFilters}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#0071E3] dark:text-sky-400 hover:underline cursor-pointer"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Reset</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Filter Controls — 2-column compact grid on mobile, inline flex row with wrap on tablet and desktop */}
-              <div className={`${mobileFiltersOpen ? 'grid' : 'hidden'} md:flex md:flex-wrap grid-cols-2 gap-2 sm:gap-2.5 md:gap-3 md:items-center pt-2.5 md:pt-0`}>
-                <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0 border border-slate-200/50 dark:border-slate-700/50">
-                  <Filter className="w-3.5 h-3.5 text-[#0071E3]" />
-                  <span>Filters</span>
-                </div>
-
-                {/* Source Toggle Filter: [Bot] [Scraper] */}
-                <div className="col-span-2 sm:col-span-1 md:col-span-auto inline-flex items-center p-0.5 sm:p-1 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl border border-slate-200/70 dark:border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] gap-1 shrink-0 h-[34px] sm:h-[38px]">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilterSource(prev => (prev === 'bot' ? 'all' : 'bot'));
-                      setCurrentPage(1);
-                    }}
-                    className={`h-full inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold tracking-tight transition-all duration-200 select-none active:scale-[0.97] cursor-pointer ${
-                      filterSource === 'bot'
-                        ? "bg-[oklch(62.3%_0.214_259.815)] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)]"
-                        : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
-                    }`}
-                    title={filterSource === 'bot' ? 'Click to show all sources' : 'Filter by Bot reports'}
-                  >
-                    <Bot className={`w-3.5 h-3.5 ${filterSource === 'bot' ? 'text-white' : 'text-[#0071E3]'}`} />
-                    <span>Bot</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilterSource(prev => (prev === 'scraper' ? 'all' : 'scraper'));
-                      setCurrentPage(1);
-                    }}
-                    className={`h-full inline-flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold tracking-tight transition-all duration-200 select-none active:scale-[0.97] cursor-pointer ${
-                      filterSource === 'scraper'
-                        ? "bg-[oklch(62.3%_0.214_259.815)] text-white shadow-[0_2px_8px_rgba(0,113,227,0.35)]"
-                        : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
-                    }`}
-                    title={filterSource === 'scraper' ? 'Click to show all sources' : 'Filter by Scraper reports'}
-                  >
-                    <Globe className={`w-3.5 h-3.5 ${filterSource === 'scraper' ? 'text-white' : 'text-purple-500'}`} />
-                    <span>Scraper</span>
-                  </button>
-                </div>
-
-                <div className="col-span-1 md:col-span-auto min-w-[130px]">
-                  <FilterDropdown
-                    value={filterBarangay}
-                    options={['All Barangays', ...Array.from(new Set([...TALISAY_BARANGAYS, ...reports.map(r => r.barangay)])).sort()]}
-                    onChange={setFilterBarangay}
-                  />
-                </div>
-
-                <div className="col-span-1 md:col-span-auto min-w-[120px]">
-                  <FilterDropdown
-                    value={filterType}
-                    options={[
-                      'All Types',
-                      ...Array.from(new Set([...BASE_INCIDENT_TYPES, ...reports.map(r => r.type)]))
-                        .filter(t => Boolean(t) && t.toLowerCase() !== 'unclassified')
-                        .sort()
-                    ]}
-                    onChange={setFilterType}
-                  />
-                </div>
-
-                <div className="col-span-2 sm:col-span-1 md:col-span-auto min-w-[120px]">
-                  <FilterDropdown
-                    value={filterUrgency}
-                    options={['All Urgency', 'High', 'Moderate', 'Low']}
-                    onChange={setFilterUrgency}
-                  />
-                </div>
-
-                <div className="col-span-2 md:col-span-auto flex flex-wrap sm:flex-nowrap items-center gap-2.5 sm:gap-3 md:ml-auto w-full md:w-auto">
-                  <div className="flex items-center gap-2 flex-1 sm:flex-initial min-w-[130px]">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                      From:
-                    </span>
-                    <DatePicker value={fromDate} onChange={setFromDate} placeholder="Select Date" />
-                  </div>
-                  <div className="flex items-center gap-2 flex-1 sm:flex-initial min-w-[130px]">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                      To:
-                    </span>
-                    <DatePicker value={toDate} onChange={setToDate} placeholder="Select Date" />
-                  </div>
-                  {hasActiveFilters && (
-                    <button
-                      type="button"
-                      onClick={resetFilters}
-                      className="inline-flex items-center justify-center w-[34px] h-[34px] sm:w-[38px] sm:h-[38px] text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-xl transition-all duration-150 active:scale-[0.95] cursor-pointer shrink-0 ml-auto sm:ml-0"
-                      title="Reset all filters"
-                      aria-label="Reset all filters"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Bulk Actions — Apple Floating Island */}
-            <AnimatePresence mode="wait">
-              {selectedIds.length > 0 && (
-                <motion.div
-                  key="bulk-actions"
-                  variants={barActionVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  transition={APPLE_SPRING}
-                  className="relative z-20 flex flex-wrap items-center justify-between gap-2.5 bg-blue-50/90 dark:bg-blue-950/40 backdrop-blur-md border border-blue-200/80 dark:border-blue-800/60 rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3 shrink-0 shadow-sm"
-                >
-                  <span className="text-xs font-semibold text-blue-800 dark:text-blue-300">
-                    {selectedIds.length} report{selectedIds.length > 1 ? 's' : ''} selected
-                  </span>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {activeTab === 'verified' && (
-                      <button
-                        type="button"
-                        onClick={handleBulkResolve}
-                        className="px-3.5 py-1.5 text-xs font-semibold text-emerald-700 bg-white dark:bg-slate-800 border border-emerald-200/80 dark:border-emerald-700/80 dark:text-emerald-300 rounded-xl hover:bg-emerald-50 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Mark Resolved
-                      </button>
-                    )}
-                    {activeTab === 'rejected' && (
-                      <button
-                        type="button"
-                        onClick={handleBulkRestore}
-                        className="px-3.5 py-1.5 text-xs font-semibold text-blue-700 bg-white dark:bg-slate-800 border border-blue-200/80 dark:border-blue-700/80 dark:text-blue-300 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" /> Restore to Pending
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
               )}
-            </AnimatePresence>
-          </StaggerItem>
-
-          {/* Table — Apple Pro Data Table */}
-          <StaggerItem className="flex flex-col flex-1 min-h-0 w-full">
-            <div className="relative z-10 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col flex-1 min-h-0">
-              <div className="overflow-x-auto w-full flex-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-                <table className="w-full min-w-[880px] text-sm text-left border-collapse">
-                  <thead className="bg-slate-50/90 dark:bg-slate-800/60 backdrop-blur-md border-b border-slate-200/70 dark:border-slate-800 sticky top-0 z-10">
-                    <tr>
-                      <th className="px-3.5 py-3.5 w-10">
-                        <input
-                          type="checkbox"
-                          checked={paginatedReports.length > 0 && paginatedReports.every(r => selectedIds.includes(r.id))}
-                          onChange={toggleSelectAll}
-                          className="rounded-md border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer transition-all"
-                        />
-                      </th>
-                      <th className="px-3.5 py-3.5 w-28 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">ID</th>
-                      <th className="px-3.5 py-3.5 min-w-[140px] text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Barangay</th>
-                      <th className="px-3.5 py-3.5 min-w-[140px] text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Type</th>
-                      <th className="px-3.5 py-3.5 w-24 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Urgency</th>
-                      <th className="px-3.5 py-3.5 w-28 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Status</th>
-                      <th className="px-3.5 py-3.5 w-20 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Source</th>
-                      <th className="px-3.5 py-3.5 w-24 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Time</th>
-                      <th className="px-4 py-3.5 min-w-[130px] text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 text-right sticky right-0 z-20 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-md shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] dark:shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.3)]">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                    {paginatedReports.length === 0 ? (
-                      <tr className="h-full">
-                        <td colSpan={9} className="h-full px-4 text-center text-slate-400 dark:text-slate-500 align-middle">
-                          <div className="flex flex-col items-center justify-center py-20">
-                            <span className="text-sm font-medium">
-                              {activeTab === 'incomplete'
-                                ? 'No incomplete reports. All reports have complete information!'
-                                : 'No reports found.'}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      paginatedReports.map((report, index) => (
-                        <motion.tr
-                          key={report.id}
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{
-                            duration: 0.25,
-                            ease: EASE_OUT,
-                            delay: Math.min(index * 0.025, 0.2),
-                          }}
-                          className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors border-b border-slate-100 dark:border-slate-800/80 group ${selectedIds.includes(report.id)
-                            ? 'bg-blue-50/40 dark:bg-blue-900/15'
-                            : report.status === 'pending'
-                              ? 'bg-blue-50/20 dark:bg-blue-900/5'
-                              : ''
-                            }`}
-                        >
-                          <td className="px-3.5 py-3.5 w-10">
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.includes(report.id)}
-                              onChange={() => toggleSelect(report.id)}
-                              className="rounded-md border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer transition-all"
-                            />
-                          </td>
-                          <td className="px-3.5 py-3.5 w-28 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
-                              {report.status === 'pending' && (
-                                <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 ring-4 ring-blue-500/20 animate-pulse" title="Pending" />
-                              )}
-                              <span
-                                className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700 truncate inline-block"
-                                title={`Original ID: ${report.id}`}
-                              >
-                                {formatReportCode(report.id, report.source)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-3.5 py-3.5 text-slate-900 dark:text-slate-100 font-medium whitespace-nowrap">
-                            {(!report.barangay || report.barangay.trim().toLowerCase() === 'unknown') ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
-                                <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
-                                Unknown Barangay
-                              </span>
-                            ) : (
-                              report.barangay
-                            )}
-                          </td>
-                          <td className={`px-4 py-3.5 whitespace-nowrap font-medium text-xs ${getTypeColor(report.type)}`}>
-                            {(!report.type || report.type.trim().toLowerCase() === 'none' || report.type.trim().toLowerCase() === 'unclassified') ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
-                                <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
-                                Out of Scope (None)
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                                {report.type}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3.5 whitespace-nowrap">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getUrgencyColor(report.urgency)}`}>
-                              {report.urgency}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3.5 whitespace-nowrap">
-                            {activeTab === 'incomplete' || (isReportIncomplete(report) && (report.status === 'pending' || report.status === 'under_review')) ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                Incomplete
-                              </span>
-                            ) : (
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusColor(report.status)}`}>
-                                <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                                {getStatusLabel(report.status)}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3.5 whitespace-nowrap">
-                            {(report.source || '').trim().toLowerCase() === 'scraper' ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/25">
-                                <Globe className="w-3 h-3" />
-                                <span>Scraper</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[oklch(62.3%_0.214_259.815)]/10 dark:bg-[oklch(62.3%_0.214_259.815)]/20 text-[oklch(62.3%_0.214_259.815)] border border-[oklch(62.3%_0.214_259.815)]/20">
-                                <Bot className="w-3 h-3" />
-                                <span>Bot</span>
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-3.5 py-3.5 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap font-mono w-24">
-                            {report.time}
-                          </td>
-                          <td className="px-4 py-3.5 text-right whitespace-nowrap min-w-[130px] sticky right-0 z-10 bg-white/95 dark:bg-[#111827]/95 group-hover:bg-slate-50/95 dark:group-hover:bg-slate-800/95 backdrop-blur-md shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] dark:shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.3)]">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {(report.status === 'pending' || report.status === 'under_review') && (
-                                <button
-                                  type="button"
-                                  onClick={() => openReview(report)}
-                                  className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer ${
-                                    isReportIncomplete(report)
-                                      ? 'text-amber-700 dark:text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30'
-                                      : 'text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20'
-                                  }`}
-                                >
-                                  <ShieldCheck className="w-3.5 h-3.5" /> {isReportIncomplete(report) ? 'Review & Complete' : 'Review'}
-                                </button>
-                              )}
-
-                              {report.status === 'verified' && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => openReview(report)}
-                                    className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-slate-700 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
-                                  >
-                                    <Eye className="w-3.5 h-3.5" /> View
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate(`/geospatial?focus=${report.id}`)}
-                                    className="px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
-                                  >
-                                    <MapPinned className="w-3.5 h-3.5" /> Map
-                                  </button>
-                                </>
-                              )}
-
-                              {(report.status === 'resolved' || report.status === 'rejected') && (
-                                <button
-                                  type="button"
-                                  onClick={() => openReview(report)}
-                                  className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-slate-700 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
-                                >
-                                  <Eye className="w-3.5 h-3.5" /> View
-                                </button>
-                              )}
-
-                              {report.status === 'rejected' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRestore(report.id)}
-                                  className="px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
-                                >
-                                  <RotateCcw className="w-3.5 h-3.5" /> Restore
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </motion.tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Table Bottom Footer: Pagination right in the bottom of the table! */}
-              <div className="border-t border-slate-100 dark:border-slate-800/80 px-4 sm:px-6 py-3 bg-slate-50/70 dark:bg-slate-900/60 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-                <div className="text-xs text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap shrink-0">
-                  {filteredReports.length === 0
-                    ? 'No reports to display'
-                    : `Showing ${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, filteredReports.length)} of ${filteredReports.length} reports`}
-                </div>
-
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                />
-              </div>
             </div>
-          </StaggerItem>
-        </StaggerContainer>
+          </div>
+        </div>
 
-        {/* Review & Verify Modal — Apple macOS Pro Sheet */}
-        <AnimatePresence>
-          {reviewingReport && editForm && (
+        {/* Bulk Actions Floating Island */}
+        <AnimatePresence mode="wait">
+          {selectedIds.length > 0 && (
             <motion.div
-              key="review-modal-backdrop"
-              variants={backdropVariants}
+              key="bulk-actions"
+              variants={barActionVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[200] flex items-center justify-center p-2.5 sm:p-6 bg-black/40 backdrop-blur-md"
-              onClick={closeReview}
+              transition={APPLE_SPRING}
+              className="relative z-20 flex flex-wrap items-center justify-between gap-2.5 bg-blue-50/90 dark:bg-blue-950/40 backdrop-blur-md border border-blue-200/80 dark:border-blue-800/60 rounded-2xl px-4 sm:px-5 py-2.5 shrink-0 shadow-sm"
             >
-              <motion.div
-                variants={modalVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                transition={APPLE_SPRING}
-                className="bg-white/95 dark:bg-[#111827]/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] w-full max-w-3xl max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col transform-gpu will-change-transform"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-3.5 sm:py-4.5 border-b border-slate-100 dark:border-slate-800/80 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md shrink-0 rounded-t-2xl sm:rounded-t-3xl z-10">
-                  <div className="flex items-center flex-wrap gap-2 sm:gap-3 min-w-0">
-                    <span
-                      className="font-mono text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700"
-                      title={`Original ID: ${reviewingReport.id}`}
-                    >
-                      {formatReportCode(reviewingReport.id, reviewingReport.source)}
-                    </span>
-                    <span className="font-mono text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline max-w-[200px] truncate" title={reviewingReport.id}>
-                      ({reviewingReport.id})
-                    </span>
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(reviewingReport.status)}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                      {getStatusLabel(reviewingReport.status)}
-                    </span>
-                    {reviewingReport.possibleDuplicateOf && (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
-                        <AlertTriangle className="w-3 h-3" /> Duplicate #{reviewingReport.possibleDuplicateOf}
-                      </span>
-                    )}
-                  </div>
+              <span className="text-xs font-semibold text-blue-800 dark:text-blue-300">
+                {selectedIds.length} report{selectedIds.length > 1 ? 's' : ''} selected
+              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                {activeTab === 'verified' && (
                   <button
                     type="button"
-                    onClick={closeReview}
-                    className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all active:scale-90 shrink-0"
+                    onClick={handleBulkResolve}
+                    className="px-3.5 py-1.5 text-xs font-semibold text-emerald-700 bg-white dark:bg-slate-800 border border-emerald-200/80 dark:border-emerald-700/80 dark:text-emerald-300 rounded-xl hover:bg-emerald-50 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
                   >
-                    <X className="w-4 h-4" />
+                    <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={1.75} /> Mark Resolved
                   </button>
-                </div>
-
-                {/* Body */}
-                <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-5 sm:space-y-6 overflow-y-auto" style={{ maxHeight: 'calc(92vh - 130px)' }}>
-                  <StaggerContainer className="space-y-6">
-                    <StaggerItem>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* LEFT: Original Report */}
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                            {isBotReport ? <Bot className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />} {isBotReport ? 'Bot Conversation' : 'Original Report'}
-                          </div>
-
-                          {isBotReport ? (
-                            <div className="bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden flex flex-col">
-                              {/* Header row: user, source, date */}
-                              <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-300">
-                                <span className="flex items-center gap-1.5 min-w-0">
-                                  <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                  <span className="truncate font-semibold">{reviewingReport.reporter}</span>
-                                </span>
-                                <span className="flex items-center gap-1.5 shrink-0">
-                                  <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
-                                  {reviewingReport.source}
-                                </span>
-                                <span className="flex items-center gap-1.5 shrink-0">
-                                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                  {reviewingReport.time}
-                                </span>
-                              </div>
-
-                              {/* Scrollable chat thread */}
-                              <div className="h-72 overflow-y-auto p-4 space-y-3 bg-slate-50/40 dark:bg-[#0B0F17]/40">
-                                {botThread.map((msg, idx) =>
-                                  msg.sender === 'bot' ? (
-                                    <div key={idx} className="flex items-end gap-2 justify-end">
-                                      <div className="flex flex-col items-end max-w-[82%]">
-                                        <div className="bg-[#0071E3] text-white rounded-[20px] rounded-br-[4px] px-4 py-2.5 shadow-[0_2px_10px_rgba(0,113,227,0.22)]">
-                                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                                        </div>
-                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 mr-1 font-medium">
-                                          {formatBubbleTime(msg.timestamp)}
-                                        </span>
-                                      </div>
-                                      <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-[11px] font-bold text-[#0071E3] dark:text-blue-400 shrink-0 mb-4 ring-1 ring-blue-500/20">
-                                        <Bot className="w-3.5 h-3.5" />
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div key={idx} className="flex items-end gap-2 justify-start">
-                                      <div className="w-7 h-7 rounded-full bg-slate-500 flex items-center justify-center text-[10px] font-bold text-white shrink-0 mb-4 ring-1 ring-black/5">
-                                        {(reviewingReport.reporter || '?').trim().charAt(0).toUpperCase()}
-                                      </div>
-                                      <div className="flex flex-col items-start max-w-[82%]">
-                                        <div className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-[20px] rounded-bl-[4px] px-4 py-2.5">
-                                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                                        </div>
-                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 ml-1 font-medium">
-                                          {formatBubbleTime(msg.timestamp)}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  )
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl p-4.5 border border-slate-200/60 dark:border-slate-700/60 space-y-3.5">
-                              <p className="text-sm text-slate-700 dark:text-slate-200 italic leading-relaxed">
-                                &quot;{reviewingReport.originalText}&quot;
-                              </p>
-                              <div className="pt-3 border-t border-slate-200/60 dark:border-slate-700/60 grid grid-cols-2 gap-2.5 text-xs">
-                                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                                  <User className="w-3.5 h-3.5 text-slate-400" />
-                                  <span className="truncate">{reviewingReport.reporter}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                                  <Phone className="w-3.5 h-3.5 text-slate-400" />
-                                  <span className="truncate">{reviewingReport.contact || '—'}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                                  {(reviewingReport.source || '').trim().toLowerCase() === 'scraper' ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                                      <Globe className="w-3 h-3" /> Scraper
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[oklch(62.3%_0.214_259.815)]/10 text-[oklch(62.3%_0.214_259.815)] border border-[oklch(62.3%_0.214_259.815)]/20">
-                                      <Bot className="w-3 h-3" /> Bot
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                  <span className="truncate">{reviewingReport.time}</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {reviewingReport.verifiedBy && (
-                            <div className="bg-emerald-500/10 rounded-xl p-3 border border-emerald-500/20">
-                              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                Verified by {reviewingReport.verifiedBy} at {reviewingReport.verifiedAt}
-                              </p>
-                            </div>
-                          )}
-
-                          {reviewingReport.rejectionReason && (
-                            <div className="bg-rose-500/10 rounded-xl p-3 border border-rose-500/20">
-                              <p className="text-xs text-rose-700 dark:text-rose-400 font-semibold flex items-center gap-1.5">
-                                <AlertOctagon className="w-3.5 h-3.5" />
-                                Rejected: {getRejectionLabel(reviewingReport.rejectionReason)}
-                              </p>
-                            </div>
-                          )}
-
-                          {reviewingReport.action && (
-                            <div className="bg-blue-500/10 rounded-xl p-3 border border-blue-500/20">
-                              <p className="text-xs text-blue-700 dark:text-blue-400 font-semibold flex items-center gap-1.5">
-                                <Send className="w-3.5 h-3.5" />
-                                Action: {reviewingReport.action}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* RIGHT: Officer Edit Form */}
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                            <ShieldCheck className="w-3.5 h-3.5" /> Officer Review
-                          </div>
-
-                          <div className="space-y-3">
-                            {/* Incomplete warning banner */}
-                            {isModalReportIncomplete && (
-                              <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-3.5 flex items-start gap-3">
-                                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
-                                      Incomplete / Out of Scope
-                                    </span>
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold">
-                                      {modalIncompleteReasons.join(' • ')}
-                                    </span>
-                                  </div>
-                                  <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed">
-                                    Assign a valid Barangay and a disaster Type before verifying. Reports with unknown barangays or out-of-scope types cannot be plotted on the geospatial map.
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-
-                            <div>
-                              <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
-                              <BarangaySelect
-                                value={editForm.barangay || ''}
-                                options={TALISAY_BARANGAYS}
-                                onChange={selected => {
-                                  setEditForm(prev => ({
-                                    ...prev,
-                                    barangay: selected,
-                                  }));
-                                }}
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Type</label>
-                                <select
-                                  value={editForm.type || ''}
-                                  onChange={e => setEditForm(prev => ({ ...prev, type: e.target.value }))}
-                                  className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all cursor-pointer"
-                                >
-                                  {!editForm.type && (
-                                    <option value="" disabled>Select Type</option>
-                                  )}
-                                  {availableIncidentTypes.map(t => (
-                                    <option key={t} value={t}>{t}</option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div>
-                                <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Urgency</label>
-                                <select
-                                  value={editForm.urgency || ''}
-                                  onChange={e => setEditForm(prev => ({ ...prev, urgency: e.target.value }))}
-                                  className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all"
-                                >
-                                  {['High', 'Moderate', 'Low'].map(u => (
-                                    <option key={u} value={u}>{u}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Landmark</label>
-                              <input
-                                type="text"
-                                value={editForm.landmark || ''}
-                                onChange={e => setEditForm(prev => ({ ...prev, landmark: e.target.value }))}
-                                className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all"
-                                placeholder="e.g. Near 7-Eleven, in front of school..."
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                                Phone Number
-                              </label>
-                              <input
-                                type="text"
-                                value={editForm.contact || ''}
-                                onChange={e => setEditForm(prev => ({ ...prev, contact: e.target.value }))}
-                                className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none font-mono transition-all"
-                                placeholder="e.g. 0912-345-6789"
-                              />
-                            </div>
-
-                            <motion.div
-                              key={shakeKey}
-                              animate={coordError ? { x: [0, -6, 6, -6, 6, -3, 3, 0] } : { x: 0 }}
-                              transition={{ duration: 0.4, ease: 'easeInOut' }}
-                            >
-                              <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                                Coordinates (lat, lng)
-                                {coordError && (
-                                  <span className="ml-2 text-rose-500 font-normal lowercase">— invalid format</span>
-                                )}
-                              </label>
-                              <input
-                                type="text"
-                                value={editForm.coordinates || ''}
-                                onChange={e => {
-                                  const formatted = formatCoordinates(e.target.value);
-                                  setEditForm(prev => ({ ...prev, coordinates: formatted }));
-                                  if (coordError && validateCoordinates(formatted)) {
-                                    setCoordError(false);
-                                  }
-                                }}
-                                className={`w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none font-mono transition-all ${coordError
-                                  ? 'border-rose-400 dark:border-rose-600 bg-rose-50 dark:bg-rose-900/10'
-                                  : 'border-slate-200 dark:border-slate-700'
-                                  }`}
-                                placeholder="14.0951, 121.0203"
-                              />
-                            </motion.div>
-
-                            <div>
-                              <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                                Action Taken / Response Notes
-                              </label>
-                              <input
-                                type="text"
-                                value={editForm.action || ''}
-                                onChange={e => setEditForm(prev => ({ ...prev, action: e.target.value, actionTaken: e.target.value }))}
-                                className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all"
-                                placeholder="e.g. Dispatched rescue boat, verified with Barangay Captain..."
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </StaggerItem>
-
-                    {/* Verification Checklist — Apple Interactive Setting Cards */}
-                    {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
-                      <StaggerItem>
-                        <div className="bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl p-4.5 border border-slate-200/60 dark:border-slate-700/60">
-                          <h4 className="text-xs uppercase tracking-wider font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-                            <ShieldCheck className="w-4 h-4 text-blue-500" /> Verification Checklist
-                          </h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                            {[
-                              {
-                                key: 'barangayCorrect',
-                                label: isBotReport
-                                  ? 'Barangay & phone number verified'
-                                  : isScraperReport
-                                    ? 'Barangay & location verified'
-                                    : 'Barangay & coordinates verified',
-                              },
-                              { key: 'typeAccurate', label: 'Incident type is accurate' },
-                              { key: 'locationReal', label: 'Location / landmark is real' },
-                              { key: 'notDuplicate', label: 'Not a duplicate report' },
-                              { key: 'urgencyAppropriate', label: 'Urgency level is appropriate' },
-                            ].map((item) => (
-                              <label
-                                key={item.key}
-                                className={`p-3 rounded-xl border transition-all flex items-center gap-3 cursor-pointer select-none active:scale-[0.98] ${checklist[item.key as keyof typeof checklist]
-                                  ? 'bg-blue-50/70 dark:bg-blue-900/25 border-blue-200 dark:border-blue-800/80 text-blue-950 dark:text-blue-200'
-                                  : 'bg-white/70 dark:bg-slate-800/40 border-slate-200/70 dark:border-slate-700/70 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800'
-                                  }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checklist[item.key as keyof typeof checklist]}
-                                  onChange={(e) => setChecklist(prev => ({ ...prev, [item.key]: e.target.checked }))}
-                                  className="rounded-md border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer"
-                                />
-                                <span className="text-xs font-medium leading-snug">
-                                  {item.label}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      </StaggerItem>
-                    )}
-
-                    {/* Rejection Panel */}
-                    <AnimatePresence>
-                      {showRejectPanel && (
-                        <motion.div
-                          initial={{ opacity: 0, scaleY: 0.95 }}
-                          animate={{ opacity: 1, scaleY: 1 }}
-                          exit={{ opacity: 0, scaleY: 0.95 }}
-                          transition={{ duration: 0.2, ease: EASE_OUT }}
-                          style={{ originY: 0 }}
-                          className="bg-rose-500/10 rounded-2xl p-4.5 border border-rose-500/20 space-y-3"
-                        >
-                          <label className="block text-xs font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">
-                            Rejection Reason
-                          </label>
-                          <select
-                            value={rejectReason}
-                            onChange={e => setRejectReason(e.target.value)}
-                            className="w-full px-3.5 py-2 text-sm bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-rose-500 outline-none"
-                          >
-                            <option value="">Select a reason...</option>
-                            <option value="spam_or_fake">Spam / Fake Report</option>
-                            <option value="duplicate">Duplicate Report</option>
-                            <option value="outside_jurisdiction">Outside Talisay Jurisdiction</option>
-                            <option value="not_disaster_related">Not Disaster-Related</option>
-                            <option value="insufficient_info">Insufficient Information</option>
-                          </select>
-                          <div className="flex items-center gap-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={handleReject}
-                              disabled={!rejectReason}
-                              className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all active:scale-[0.97]"
-                            >
-                              Confirm Reject
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setShowRejectPanel(false)}
-                              className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all active:scale-[0.97]"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </StaggerContainer>
-                </div>
-
-                {/* Footer Actions */}
-                <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-2 px-4 sm:px-6 py-3.5 sm:py-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-900/60 backdrop-blur-md shrink-0 rounded-b-2xl sm:rounded-b-3xl">
-                  <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
-                    {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={handleSaveDraft}
-                          className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl transition-all active:scale-[0.97] flex items-center"
-                        >
-                          Save Draft
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowRejectPanel(true)}
-                          className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97]"
-                        >
-                          <AlertOctagon className="w-3.5 h-3.5" /> Reject
-                        </button>
-                      </>
-                    )}
-
-                    {/* Save Changes button for verified or resolved reports */}
-                    {(reviewingReport.status === 'verified' || reviewingReport.status === 'resolved') && (
-                      <button
-                        type="button"
-                        onClick={handleSaveDraft}
-                        className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl transition-all active:scale-[0.97] flex items-center"
-                      >
-                        Save Changes
-                      </button>
-                    )}
-
-                    {reviewingReport.status === 'verified' && (
-                      <button
-                        type="button"
-                        onClick={handleResolve}
-                        className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97]"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Mark Resolved
-                      </button>
-                    )}
-
-                    {reviewingReport.status === 'rejected' && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleRestore(reviewingReport.id);
-                          closeReview();
-                        }}
-                        className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97]"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" /> Restore to Pending
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={closeReview}
-                      className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl transition-all active:scale-[0.97] flex items-center"
-                    >
-                      Close
-                    </button>
-
-                    {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
-                      <button
-                        type="button"
-                        onClick={handleVerify}
-                        disabled={!allChecklistChecked || isModalReportIncomplete}
-                        title={
-                          isModalReportIncomplete
-                            ? `Cannot verify: ${modalIncompleteReasons.join(', ')}`
-                            : !allChecklistChecked
-                              ? 'Complete the checklist first'
-                              : 'Verify and plot on map'
-                        }
-                        className="flex-1 sm:flex-none justify-center px-5 py-2 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-[0_2px_8px_rgba(0,113,227,0.25)] flex items-center gap-1.5 active:scale-[0.97]"
-                      >
-                        <Send className="w-3.5 h-3.5" /> Verify & Plot
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
+                )}
+                {activeTab === 'rejected' && (
+                  <button
+                    type="button"
+                    onClick={handleBulkRestore}
+                    className="px-3.5 py-1.5 text-xs font-semibold text-[#0071E3] bg-white dark:bg-slate-800 border border-blue-200/80 dark:border-blue-700/80 dark:text-sky-300 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} /> Restore to Pending
+                  </button>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
+          </div>
+        </StaggerItem>
+
+        {/* ── Table (Soft UI Evolution Data Table) ── */}
+        <StaggerItem className="flex-1 min-h-0 flex flex-col">
+          <div className="relative z-10 bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.03)] overflow-hidden flex flex-col flex-1 min-h-0">
+        <div className="overflow-x-auto w-full flex-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
+          <table className="w-full min-w-[880px] text-sm text-left border-collapse">
+            <thead className="bg-slate-50/90 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/70 dark:border-white/10 sticky top-0 z-10">
+              <tr>
+                <th className="px-3.5 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={paginatedReports.length > 0 && paginatedReports.every(r => selectedIds.includes(r.id))}
+                    onChange={toggleSelectAll}
+                    className="rounded-md border-slate-300 dark:border-slate-600 text-[#0071E3] focus:ring-0 w-4 h-4 cursor-pointer transition-all"
+                  />
+                </th>
+                <th className="px-3.5 py-3 w-28 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">ID</th>
+                <th className="px-3.5 py-3 min-w-[140px] text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Barangay</th>
+                <th className="px-3.5 py-3 min-w-[140px] text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Type</th>
+                <th className="px-3.5 py-3 w-24 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Urgency</th>
+                <th className="px-3.5 py-3 w-28 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Status</th>
+                <th className="px-3.5 py-3 w-20 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Source</th>
+                <th className="px-3.5 py-3 w-24 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Time</th>
+                <th className="px-4 py-3 min-w-[130px] text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 text-right sticky right-0 z-20 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-md shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] dark:shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.3)]">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+              {paginatedReports.length === 0 ? (
+                <tr className="h-full">
+                  <td colSpan={9} className="h-full px-4 text-center text-slate-400 dark:text-slate-500 align-middle">
+                    <div className="flex flex-col items-center justify-center py-20">
+                      <span className="text-sm font-medium">
+                        {activeTab === 'incomplete'
+                          ? 'No incomplete reports. All reports have complete information!'
+                          : 'No reports found.'}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                paginatedReports.map((report, index) => (
+                  <motion.tr
+                    key={report.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.25,
+                      ease: EASE_OUT,
+                      delay: Math.min(index * 0.02, 0.15),
+                    }}
+                    className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors border-b border-slate-100 dark:border-white/5 group ${selectedIds.includes(report.id)
+                      ? 'bg-blue-50/40 dark:bg-blue-900/15'
+                      : report.status === 'pending'
+                        ? 'bg-blue-50/20 dark:bg-blue-900/5'
+                        : ''
+                      }`}
+                  >
+                    <td className="px-3.5 py-3.5 w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(report.id)}
+                        onChange={() => toggleSelect(report.id)}
+                        className="rounded-md border-slate-300 dark:border-slate-600 text-[#0071E3] focus:ring-0 w-4 h-4 cursor-pointer transition-all"
+                      />
+                    </td>
+                    <td className="px-3.5 py-3.5 w-28 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        {report.status === 'pending' && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 ring-4 ring-blue-500/20 animate-pulse" title="Pending" />
+                        )}
+                        <span
+                          className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-white/5 truncate inline-block"
+                          title={`Original ID: ${report.id}`}
+                        >
+                          {formatReportCode(report.id, report.source)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-3.5 py-3.5 text-slate-900 dark:text-slate-100 font-medium whitespace-nowrap">
+                      {(!report.barangay || report.barangay.trim().toLowerCase() === 'unknown') ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                          <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" strokeWidth={1.75} />
+                          <span>Unknown Barangay</span>
+                        </span>
+                      ) : (
+                        <span>{report.barangay}</span>
+                      )}
+                    </td>
+                    <td className="px-3.5 py-3.5 whitespace-nowrap">
+                      {getTypeBadge(report.type)}
+                    </td>
+                    <td className="px-3.5 py-3.5 whitespace-nowrap">
+                      {getUrgencyBadge(report.urgency)}
+                    </td>
+                    <td className="px-3.5 py-3.5 whitespace-nowrap">
+                      {getStatusBadge(report.status, isReportIncomplete(report))}
+                    </td>
+                    <td className="px-3.5 py-3.5 whitespace-nowrap">
+                      {(report.source || '').trim().toLowerCase() === 'scraper' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/25">
+                          <Globe className="w-3 h-3" strokeWidth={1.75} />
+                          <span>Scraper</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 border border-blue-500/20">
+                          <Bot className="w-3 h-3" strokeWidth={1.75} />
+                          <span>Bot</span>
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3.5 py-3.5 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap font-mono tabular-nums w-24">
+                      {report.time}
+                    </td>
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap min-w-[130px] sticky right-0 z-10 bg-white/95 dark:bg-[#111827]/95 group-hover:bg-slate-50/95 dark:group-hover:bg-slate-800/95 backdrop-blur-md shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] dark:shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.3)]">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {(report.status === 'pending' || report.status === 'under_review') && (
+                          <button
+                            type="button"
+                            onClick={() => openReview(report)}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer ${
+                              isReportIncomplete(report)
+                                ? 'text-amber-700 dark:text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30'
+                                : 'text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20'
+                            }`}
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5" strokeWidth={1.75} />
+                            <span>{isReportIncomplete(report) ? 'Review & Complete' : 'Review'}</span>
+                          </button>
+                        )}
+
+                        {report.status === 'verified' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openReview(report)}
+                              className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-white/10 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5" strokeWidth={1.75} />
+                              <span>View</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/geospatial?focus=${report.id}`)}
+                              className="px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
+                            >
+                              <MapPinned className="w-3.5 h-3.5" strokeWidth={1.75} />
+                              <span>Map</span>
+                            </button>
+                          </>
+                        )}
+
+                        {(report.status === 'resolved' || report.status === 'rejected') && (
+                          <button
+                            type="button"
+                            onClick={() => openReview(report)}
+                            className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-white/10 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5" strokeWidth={1.75} />
+                            <span>View</span>
+                          </button>
+                        )}
+
+                        {report.status === 'rejected' && (
+                          <button
+                            type="button"
+                            onClick={() => handleRestore(report.id)}
+                            className="px-3 py-1.5 text-xs font-semibold text-[#0071E3] dark:text-sky-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.96] shadow-2xs cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
+                            <span>Restore</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Table Bottom Footer: Pagination */}
+        <div className="border-t border-slate-100 dark:border-white/10 px-4 sm:px-6 py-3 bg-slate-50/70 dark:bg-slate-900/60 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap shrink-0">
+            {filteredReports.length === 0
+              ? 'No reports to display'
+              : `Showing ${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, filteredReports.length)} of ${filteredReports.length} reports`}
+          </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </div>
       </div>
-    </PageTransition>
+        </StaggerItem>
+      </StaggerContainer>
+
+      {/* ── Review & Verify Modal (Soft UI Evolution Pro Sheet) ── */}
+      <AnimatePresence>
+        {reviewingReport && editForm && (
+          <motion.div
+            key="review-modal-backdrop"
+            variants={backdropVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-slate-900/50 dark:bg-black/70 backdrop-blur-md"
+            onClick={closeReview}
+          >
+            <motion.div
+              variants={modalVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              transition={APPLE_SPRING}
+              className="bg-white dark:bg-[#111827] rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] w-full max-w-4xl max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col transform-gpu will-change-transform"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 dark:border-white/10 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md shrink-0 rounded-t-2xl sm:rounded-t-3xl z-10">
+                <div className="flex items-center flex-wrap gap-2 sm:gap-2.5 min-w-0">
+                  <span
+                    className="font-mono text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-white/10"
+                    title={`Original ID: ${reviewingReport.id}`}
+                  >
+                    {formatReportCode(reviewingReport.id, reviewingReport.source)}
+                  </span>
+                  <span className="font-mono text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline max-w-[200px] truncate" title={reviewingReport.id}>
+                    ({reviewingReport.id})
+                  </span>
+                  {getStatusBadge(reviewingReport.status, isReportIncomplete(reviewingReport))}
+                  {reviewingReport.possibleDuplicateOf && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                      <AlertTriangle className="w-3 h-3 text-amber-500" strokeWidth={1.75} />
+                      <span>Duplicate #{reviewingReport.possibleDuplicateOf}</span>
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={closeReview}
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all active:scale-90 shrink-0 cursor-pointer"
+                  title="Close Modal"
+                >
+                  <X className="w-4 h-4" strokeWidth={1.75} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-5 sm:space-y-6 overflow-y-auto" style={{ maxHeight: 'calc(92vh - 130px)' }}>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+                  {/* LEFT: Original Report / Chat Thread */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      {isBotReport ? <Bot className="w-3.5 h-3.5" strokeWidth={1.75} /> : <FileText className="w-3.5 h-3.5" strokeWidth={1.75} />}
+                      <span>{isBotReport ? 'Bot Conversation' : 'Original Report'}</span>
+                    </div>
+
+                    {isBotReport ? (
+                      <div className="bg-slate-50/80 dark:bg-slate-900/50 rounded-2xl border border-slate-200/70 dark:border-white/10 overflow-hidden flex flex-col">
+                        {/* Header row: user, source, date */}
+                        <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-200/60 dark:border-white/5 text-xs text-slate-600 dark:text-slate-300">
+                          <span className="flex items-center gap-1.5 min-w-0">
+                            <User className="w-3.5 h-3.5 text-slate-400 shrink-0" strokeWidth={1.75} />
+                            <span className="truncate font-semibold">{reviewingReport.reporter}</span>
+                          </span>
+                          <span className="flex items-center gap-1.5 shrink-0">
+                            <MessageSquare className="w-3.5 h-3.5 text-slate-400" strokeWidth={1.75} />
+                            <span>{reviewingReport.source}</span>
+                          </span>
+                          <span className="flex items-center gap-1.5 shrink-0">
+                            <Clock className="w-3.5 h-3.5 text-slate-400" strokeWidth={1.75} />
+                            <span>{reviewingReport.time}</span>
+                          </span>
+                        </div>
+
+                        {/* Scrollable chat thread */}
+                        <div className="h-72 overflow-y-auto p-4 space-y-3 bg-slate-50/40 dark:bg-[#0B0F17]/40">
+                          {botThread.map((msg, idx) =>
+                            msg.sender === 'bot' ? (
+                              <div key={idx} className="flex items-end gap-2 justify-end">
+                                <div className="flex flex-col items-end max-w-[82%]">
+                                  <div className="bg-[#0071E3] text-white rounded-[18px] rounded-br-[4px] px-3.5 py-2.5 shadow-xs">
+                                    <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 mr-1 font-medium">
+                                    {formatBubbleTime(msg.timestamp)}
+                                  </span>
+                                </div>
+                                <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-[11px] font-bold text-[#0071E3] dark:text-blue-400 shrink-0 mb-4 ring-1 ring-blue-500/20">
+                                  <Bot className="w-3.5 h-3.5" strokeWidth={1.75} />
+                                </div>
+                              </div>
+                            ) : (
+                              <div key={idx} className="flex items-end gap-2 justify-start">
+                                <div className="w-7 h-7 rounded-full bg-slate-500 flex items-center justify-center text-[10px] font-bold text-white shrink-0 mb-4 ring-1 ring-black/5">
+                                  {(reviewingReport.reporter || '?').trim().charAt(0).toUpperCase()}
+                                </div>
+                                <div className="flex flex-col items-start max-w-[82%]">
+                                  <div className="bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-[18px] rounded-bl-[4px] px-3.5 py-2.5">
+                                    <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 ml-1 font-medium">
+                                    {formatBubbleTime(msg.timestamp)}
+                                  </span>
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-50/80 dark:bg-slate-900/50 rounded-2xl p-4.5 border border-slate-200/70 dark:border-white/10 space-y-3.5">
+                        <p className="text-sm text-slate-700 dark:text-slate-200 italic leading-relaxed">
+                          &quot;{reviewingReport.originalText}&quot;
+                        </p>
+                        <div className="pt-3 border-t border-slate-200/60 dark:border-white/5 grid grid-cols-2 gap-2.5 text-xs">
+                          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                            <User className="w-3.5 h-3.5 text-slate-400" strokeWidth={1.75} />
+                            <span className="truncate">{reviewingReport.reporter}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                            <Phone className="w-3.5 h-3.5 text-slate-400" strokeWidth={1.75} />
+                            <span className="truncate">{reviewingReport.contact || '—'}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                            {(reviewingReport.source || '').trim().toLowerCase() === 'scraper' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                <Globe className="w-3 h-3" strokeWidth={1.75} /> Scraper
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-[#0071E3] dark:text-sky-400 border border-blue-500/20">
+                                <Bot className="w-3 h-3" strokeWidth={1.75} /> Bot
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                            <Clock className="w-3.5 h-3.5 text-slate-400" strokeWidth={1.75} />
+                            <span className="truncate">{reviewingReport.time}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {reviewingReport.verifiedBy && (
+                      <div className="bg-emerald-500/10 rounded-xl p-3 border border-emerald-500/20">
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={1.75} />
+                          <span>Verified by {reviewingReport.verifiedBy} at {reviewingReport.verifiedAt}</span>
+                        </p>
+                      </div>
+                    )}
+
+                    {reviewingReport.rejectionReason && (
+                      <div className="bg-rose-500/10 rounded-xl p-3 border border-rose-500/20">
+                        <p className="text-xs text-rose-700 dark:text-rose-400 font-semibold flex items-center gap-1.5">
+                          <AlertOctagon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                          <span>Rejected: {getRejectionLabel(reviewingReport.rejectionReason)}</span>
+                        </p>
+                      </div>
+                    )}
+
+                    {reviewingReport.action && (
+                      <div className="bg-blue-500/10 rounded-xl p-3 border border-blue-500/20">
+                        <p className="text-xs text-[#0071E3] dark:text-sky-400 font-semibold flex items-center gap-1.5">
+                          <Send className="w-3.5 h-3.5" strokeWidth={1.75} />
+                          <span>Action: {reviewingReport.action}</span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* RIGHT: Officer Edit Form */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#0071E3]" strokeWidth={1.75} />
+                      <span>Officer Review</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Incomplete warning banner */}
+                      {isModalReportIncomplete && (
+                        <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-3.5 flex items-start gap-3">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" strokeWidth={1.75} />
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                                Incomplete / Out of Scope
+                              </span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold">
+                                {modalIncompleteReasons.join(' • ')}
+                              </span>
+                            </div>
+                            <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed">
+                              Assign a valid Barangay and a disaster Type before verifying. Reports with unknown barangays or out-of-scope types cannot be plotted on the geospatial map.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
+                        <BarangaySelect
+                          value={editForm.barangay || ''}
+                          options={TALISAY_BARANGAYS}
+                          onChange={selected => {
+                            setEditForm(prev => ({
+                              ...prev,
+                              barangay: selected,
+                            }));
+                          }}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Type</label>
+                          <select
+                            value={editForm.type || ''}
+                            onChange={e => setEditForm(prev => ({ ...prev, type: e.target.value }))}
+                            className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-white/10 rounded-xl text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-[#0071E3] outline-none transition-all cursor-pointer shadow-2xs"
+                          >
+                            {!editForm.type && (
+                              <option value="" disabled>Select Type</option>
+                            )}
+                            {availableIncidentTypes.map(t => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Urgency</label>
+                          <select
+                            value={editForm.urgency || ''}
+                            onChange={e => setEditForm(prev => ({ ...prev, urgency: e.target.value }))}
+                            className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-white/10 rounded-xl text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-[#0071E3] outline-none transition-all cursor-pointer shadow-2xs"
+                          >
+                            {['High', 'Moderate', 'Low'].map(u => (
+                              <option key={u} value={u}>{u}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Landmark</label>
+                        <input
+                          type="text"
+                          value={editForm.landmark || ''}
+                          onChange={e => setEditForm(prev => ({ ...prev, landmark: e.target.value }))}
+                          className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-white/10 rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-[#0071E3] outline-none transition-all shadow-2xs"
+                          placeholder="e.g. Near 7-Eleven, in front of school..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                          Phone Number
+                        </label>
+                        <input
+                          type="text"
+                          value={editForm.contact || ''}
+                          onChange={e => setEditForm(prev => ({ ...prev, contact: e.target.value }))}
+                          className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-white/10 rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-[#0071E3] outline-none font-mono transition-all shadow-2xs"
+                          placeholder="e.g. 0912-345-6789"
+                        />
+                      </div>
+
+                      <motion.div
+                        key={shakeKey}
+                        animate={coordError ? { x: [0, -6, 6, -6, 6, -3, 3, 0] } : { x: 0 }}
+                        transition={{ duration: 0.4, ease: 'easeInOut' }}
+                      >
+                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                          Coordinates (lat, lng)
+                          {coordError && (
+                            <span className="ml-2 text-rose-500 font-normal lowercase">— invalid format</span>
+                          )}
+                        </label>
+                        <input
+                          type="text"
+                          value={editForm.coordinates || ''}
+                          onChange={e => {
+                            const formatted = formatCoordinates(e.target.value);
+                            setEditForm(prev => ({ ...prev, coordinates: formatted }));
+                            if (coordError && validateCoordinates(formatted)) {
+                              setCoordError(false);
+                            }
+                          }}
+                          className={`w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-[#0071E3] outline-none font-mono transition-all shadow-2xs ${coordError
+                            ? 'border-rose-400 dark:border-rose-600 bg-rose-50 dark:bg-rose-900/10'
+                            : 'border-slate-200/80 dark:border-white/10'
+                            }`}
+                          placeholder="14.0951, 121.0203"
+                        />
+                      </motion.div>
+
+                      <div>
+                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                          Action Taken / Response Notes
+                        </label>
+                        <input
+                          type="text"
+                          value={editForm.action || ''}
+                          onChange={e => setEditForm(prev => ({ ...prev, action: e.target.value, actionTaken: e.target.value }))}
+                          className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-white/10 rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-[#0071E3] outline-none transition-all shadow-2xs"
+                          placeholder="e.g. Dispatched rescue boat, verified with Barangay Captain..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Verification Checklist — Apple Interactive Setting Cards */}
+                {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
+                  <div className="bg-slate-50/80 dark:bg-slate-900/50 rounded-2xl p-4 sm:p-4.5 border border-slate-200/70 dark:border-white/10">
+                    <h4 className="text-xs uppercase tracking-wider font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-[#0071E3]" strokeWidth={1.75} />
+                      <span>Verification Checklist</span>
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                      {[
+                        {
+                          key: 'barangayCorrect',
+                          label: isBotReport
+                            ? 'Barangay & phone number verified'
+                            : isScraperReport
+                              ? 'Barangay & location verified'
+                              : 'Barangay & coordinates verified',
+                        },
+                        { key: 'typeAccurate', label: 'Incident type is accurate' },
+                        { key: 'locationReal', label: 'Location / landmark is real' },
+                        { key: 'notDuplicate', label: 'Not a duplicate report' },
+                        { key: 'urgencyAppropriate', label: 'Urgency level is appropriate' },
+                      ].map((item) => (
+                        <label
+                          key={item.key}
+                          className={`p-3 rounded-xl border transition-all flex items-center gap-3 cursor-pointer select-none active:scale-[0.98] ${checklist[item.key as keyof typeof checklist]
+                            ? 'bg-blue-50/80 dark:bg-blue-900/25 border-blue-200 dark:border-blue-800/80 text-blue-950 dark:text-blue-200'
+                            : 'bg-white/80 dark:bg-slate-800/40 border-slate-200/70 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800'
+                            }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checklist[item.key as keyof typeof checklist]}
+                            onChange={(e) => setChecklist(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                            className="rounded-md border-slate-300 dark:border-slate-600 text-[#0071E3] focus:ring-0 w-4 h-4 cursor-pointer"
+                          />
+                          <span className="text-xs font-medium leading-snug">
+                            {item.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Rejection Panel */}
+                <AnimatePresence>
+                  {showRejectPanel && (
+                    <motion.div
+                      initial={{ opacity: 0, scaleY: 0.95 }}
+                      animate={{ opacity: 1, scaleY: 1 }}
+                      exit={{ opacity: 0, scaleY: 0.95 }}
+                      transition={{ duration: 0.2, ease: EASE_OUT }}
+                      style={{ originY: 0 }}
+                      className="bg-rose-500/10 rounded-2xl p-4 sm:p-4.5 border border-rose-500/20 space-y-3"
+                    >
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+                        Rejection Reason
+                      </label>
+                      <select
+                        value={rejectReason}
+                        onChange={e => setRejectReason(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-700 rounded-xl text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-rose-500 outline-none"
+                      >
+                        <option value="">Select a reason...</option>
+                        <option value="spam_or_fake">Spam / Fake Report</option>
+                        <option value="duplicate">Duplicate Report</option>
+                        <option value="outside_jurisdiction">Outside Talisay Jurisdiction</option>
+                        <option value="not_disaster_related">Not Disaster-Related</option>
+                        <option value="insufficient_info">Insufficient Information</option>
+                      </select>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleReject}
+                          disabled={!rejectReason}
+                          className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all active:scale-[0.97] cursor-pointer"
+                        >
+                          Confirm Reject
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowRejectPanel(false)}
+                          className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all active:scale-[0.97] cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-2 px-4 sm:px-6 py-3.5 sm:py-4 border-t border-slate-100 dark:border-white/10 bg-slate-50/80 dark:bg-slate-900/70 backdrop-blur-md shrink-0 rounded-b-2xl sm:rounded-b-3xl">
+                <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
+                  {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleSaveDraft}
+                        className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-xl transition-all active:scale-[0.97] flex items-center cursor-pointer"
+                      >
+                        Save Draft
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowRejectPanel(true)}
+                        className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
+                      >
+                        <AlertOctagon className="w-3.5 h-3.5" strokeWidth={1.75} /> Reject
+                      </button>
+                    </>
+                  )}
+
+                  {/* Save Changes button for verified or resolved reports */}
+                  {(reviewingReport.status === 'verified' || reviewingReport.status === 'resolved') && (
+                    <button
+                      type="button"
+                      onClick={handleSaveDraft}
+                      className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-xl transition-all active:scale-[0.97] flex items-center cursor-pointer"
+                    >
+                      Save Changes
+                    </button>
+                  )}
+
+                  {reviewingReport.status === 'verified' && (
+                    <button
+                      type="button"
+                      onClick={handleResolve}
+                      className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={1.75} /> Mark Resolved
+                    </button>
+                  )}
+
+                  {reviewingReport.status === 'rejected' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleRestore(reviewingReport.id);
+                        closeReview();
+                      }}
+                      className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-[#0071E3] dark:text-sky-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} /> Restore to Pending
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={closeReview}
+                    className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-xl transition-all active:scale-[0.97] flex items-center cursor-pointer"
+                  >
+                    Close
+                  </button>
+
+                  {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
+                    <button
+                      type="button"
+                      onClick={handleVerify}
+                      disabled={!allChecklistChecked || isModalReportIncomplete}
+                      title={
+                        isModalReportIncomplete
+                          ? `Cannot verify: ${modalIncompleteReasons.join(', ')}`
+                          : !allChecklistChecked
+                            ? 'Complete the checklist first'
+                            : 'Verify and plot on map'
+                      }
+                      className="flex-1 sm:flex-none justify-center px-5 py-2 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-[0_2px_8px_rgba(0,113,227,0.25)] flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" strokeWidth={1.75} /> Verify & Plot
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
