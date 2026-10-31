@@ -911,7 +911,7 @@ export default function IncidentReports() {
   if (loading) return <PageLoader variant="incidents" />;
 
   return (
-    <div className="incidents-soft flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-3.5 w-full h-full relative">
+    <div className="incidents-soft flex flex-col flex-1 min-h-full space-y-3 sm:space-y-3.5 w-full relative">
       {loadError && (
         <div role="alert" className="px-4 py-3 rounded-xl border border-rose-500/20 bg-rose-50/80 dark:bg-rose-950/20 text-xs font-medium text-rose-700 dark:text-rose-300">
           Could not load reports: {loadError}
@@ -929,7 +929,7 @@ export default function IncidentReports() {
         </AnimatePresence>
       </div>
 
-      <StaggerContainer className="flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-3.5 w-full h-full">
+      <StaggerContainer className="flex flex-col flex-1 space-y-3 sm:space-y-3.5 w-full">
         {/* ── Top Page Header (Unified Soft UI Design) ── */}
         <StaggerItem>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
@@ -952,7 +952,7 @@ export default function IncidentReports() {
         {/* ── Tabs (Apple macOS Segmented Control) ── */}
         <StaggerItem>
           <div className="w-full shrink-0">
-        <div className="p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 flex flex-wrap sm:inline-flex items-center gap-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] w-full sm:w-auto">
+        <div className="p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 flex overflow-x-auto no-scrollbar sm:inline-flex items-center gap-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] w-full sm:w-auto">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
@@ -960,7 +960,7 @@ export default function IncidentReports() {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`relative px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors duration-150 flex items-center justify-between sm:justify-center gap-2 select-none active:scale-[0.98] cursor-pointer ${isActive
+                className={`relative px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors duration-150 flex items-center justify-between sm:justify-center gap-2 select-none active:scale-[0.98] cursor-pointer shrink-0 whitespace-nowrap ${isActive
                   ? 'text-slate-900 dark:text-white'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
@@ -1165,9 +1165,155 @@ export default function IncidentReports() {
         </StaggerItem>
 
         {/* ── Table (Soft UI Evolution Data Table) ── */}
-        <StaggerItem className="flex-1 min-h-0 flex flex-col">
+        <StaggerItem className="w-full flex-1 min-h-0 flex flex-col">
           <div className="relative z-10 bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.03)] overflow-hidden flex flex-col flex-1 min-h-0">
-        <div className="overflow-x-auto w-full flex-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
+        {/* Mobile Incident Cards (< sm) */}
+        <div className="sm:hidden divide-y divide-slate-100 dark:divide-white/5 overflow-y-auto flex-1">
+          {paginatedReports.length === 0 ? (
+            <div className="py-16 px-4 text-center text-slate-400 dark:text-slate-500">
+              <span className="text-sm font-medium">
+                {activeTab === 'incomplete'
+                  ? 'No incomplete reports. All reports have complete information!'
+                  : 'No reports found.'}
+              </span>
+            </div>
+          ) : (
+            paginatedReports.map((report) => (
+              <div
+                key={report.id}
+                className={`p-3.5 space-y-3 transition-colors ${
+                  selectedIds.includes(report.id)
+                    ? 'bg-blue-50/40 dark:bg-blue-900/15'
+                    : report.status === 'pending'
+                      ? 'bg-blue-50/20 dark:bg-blue-900/5'
+                      : ''
+                }`}
+              >
+                {/* Top Row: Select Checkbox, ID Code, Source Pill, Time */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(report.id)}
+                      onChange={() => toggleSelect(report.id)}
+                      className="rounded-md border-slate-300 dark:border-slate-600 text-[#0071E3] focus:ring-0 w-4 h-4 cursor-pointer"
+                    />
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {report.status === 'pending' && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 ring-4 ring-blue-500/20 animate-pulse" title="Pending" />
+                      )}
+                      <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-white/5 truncate">
+                        {formatReportCode(report.id, report.source)}
+                      </span>
+                    </div>
+                    {(report.source || '').trim().toLowerCase() === 'scraper' ? (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/25 shrink-0">
+                        <Globe className="w-2.5 h-2.5" />
+                        <span>Scraper</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-blue-500/10 dark:bg-blue-500/20 text-[#0071E3] dark:text-sky-400 border border-blue-500/20 shrink-0">
+                        <Bot className="w-2.5 h-2.5" />
+                        <span>Bot</span>
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-slate-400 dark:text-slate-500 text-[11px] font-mono tabular-nums shrink-0">
+                    {report.time}
+                  </span>
+                </div>
+
+                {/* Middle Row: Barangay & Type */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                    {(!report.barangay || report.barangay.trim().toLowerCase() === 'unknown') ? (
+                      <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold">
+                        <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" strokeWidth={1.75} />
+                        <span>Unknown Barangay</span>
+                      </span>
+                    ) : (
+                      <span>{report.barangay}</span>
+                    )}
+                  </div>
+                  <div className="shrink-0">
+                    {getTypeBadge(report.type)}
+                  </div>
+                </div>
+
+                {/* Bottom Row: Badges & Action Buttons */}
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-white/5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {getUrgencyBadge(report.urgency)}
+                    {getStatusBadge(report.status, isReportIncomplete(report))}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {(report.status === 'pending' || report.status === 'under_review') && (
+                      <button
+                        type="button"
+                        onClick={() => openReview(report)}
+                        className={`px-3 py-1.5 min-h-[36px] text-xs font-semibold rounded-xl transition-all flex items-center gap-1 active:scale-[0.96] shadow-2xs cursor-pointer ${
+                          isReportIncomplete(report)
+                            ? 'text-amber-700 dark:text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30'
+                            : 'text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20'
+                        }`}
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        <span>{isReportIncomplete(report) ? 'Complete' : 'Review'}</span>
+                      </button>
+                    )}
+
+                    {report.status === 'verified' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => openReview(report)}
+                          className="px-2.5 py-1.5 min-h-[36px] text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-white/10 rounded-xl transition-all flex items-center gap-1 active:scale-[0.96] shadow-2xs cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" strokeWidth={1.75} />
+                          <span>View</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/geospatial?focus=${report.id}`)}
+                          className="px-2.5 py-1.5 min-h-[36px] text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-all flex items-center gap-1 active:scale-[0.96] shadow-2xs cursor-pointer"
+                        >
+                          <MapPinned className="w-3.5 h-3.5" strokeWidth={1.75} />
+                          <span>Map</span>
+                        </button>
+                      </>
+                    )}
+
+                    {(report.status === 'resolved' || report.status === 'rejected') && (
+                      <button
+                        type="button"
+                        onClick={() => openReview(report)}
+                        className="px-2.5 py-1.5 min-h-[36px] text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-white/10 rounded-xl transition-all flex items-center gap-1 active:scale-[0.96] shadow-2xs cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        <span>View</span>
+                      </button>
+                    )}
+
+                    {report.status === 'rejected' && (
+                      <button
+                        type="button"
+                        onClick={() => handleRestore(report.id)}
+                        className="px-2.5 py-1.5 min-h-[36px] text-xs font-semibold text-[#0071E3] dark:text-sky-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl transition-all flex items-center gap-1 active:scale-[0.96] shadow-2xs cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
+                        <span>Restore</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop/Tablet Table (>= sm) */}
+        <div className="hidden sm:block overflow-x-auto w-full flex-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
           <table className="w-full min-w-[880px] text-sm text-left border-collapse">
             <thead className="bg-slate-50/90 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/70 dark:border-white/10 sticky top-0 z-10">
               <tr>
@@ -1372,7 +1518,7 @@ export default function IncidentReports() {
             animate="visible"
             exit="exit"
             transition={{ duration: 0.28, ease: 'easeOut' }}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-slate-900/50 dark:bg-black/70 backdrop-blur-md"
+            className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-900/50 dark:bg-black/70 backdrop-blur-md"
             onClick={closeReview}
           >
             <motion.div
@@ -1381,11 +1527,11 @@ export default function IncidentReports() {
               animate="visible"
               exit="exit"
               transition={MODAL_TRANSITION}
-              className="bg-white dark:bg-[#111827] rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] w-full max-w-4xl max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col transform-gpu will-change-transform"
+              className="bg-white dark:bg-[#111827] rounded-t-3xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] w-full max-w-4xl max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col transform-gpu will-change-transform"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 dark:border-white/10 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md shrink-0 rounded-t-2xl sm:rounded-t-3xl z-10">
+              <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 dark:border-white/10 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md shrink-0 rounded-t-3xl z-10">
                 <div className="flex items-center flex-wrap gap-2 sm:gap-2.5 min-w-0">
                   <span
                     className="font-mono text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-white/10"
@@ -1773,21 +1919,21 @@ export default function IncidentReports() {
               </div>
 
               {/* Modal Footer Actions */}
-              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-2 px-4 sm:px-6 py-3.5 sm:py-4 border-t border-slate-100 dark:border-white/10 bg-slate-50/80 dark:bg-slate-900/70 backdrop-blur-md shrink-0 rounded-b-2xl sm:rounded-b-3xl">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-2 px-4 sm:px-6 py-3.5 sm:py-4 border-t border-slate-100 dark:border-white/10 bg-slate-50/80 dark:bg-slate-900/70 backdrop-blur-md shrink-0 rounded-b-none sm:rounded-b-3xl">
                 <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
                   {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
                     <>
                       <button
                         type="button"
                         onClick={handleSaveDraft}
-                        className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-xl transition-all active:scale-[0.97] flex items-center cursor-pointer"
+                        className="flex-1 sm:flex-none justify-center px-4 py-2.5 min-h-[42px] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-xl transition-all active:scale-[0.97] flex items-center cursor-pointer"
                       >
                         Save Draft
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowRejectPanel(true)}
-                        className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
+                        className="flex-1 sm:flex-none justify-center px-4 py-2.5 min-h-[42px] text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
                       >
                         <AlertOctagon className="w-3.5 h-3.5" strokeWidth={1.75} /> Reject
                       </button>
@@ -1799,7 +1945,7 @@ export default function IncidentReports() {
                     <button
                       type="button"
                       onClick={handleSaveDraft}
-                      className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-xl transition-all active:scale-[0.97] flex items-center cursor-pointer"
+                      className="flex-1 sm:flex-none justify-center px-4 py-2.5 min-h-[42px] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-xl transition-all active:scale-[0.97] flex items-center cursor-pointer"
                     >
                       Save Changes
                     </button>
@@ -1809,7 +1955,7 @@ export default function IncidentReports() {
                     <button
                       type="button"
                       onClick={handleResolve}
-                      className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
+                      className="flex-1 sm:flex-none justify-center px-4 py-2.5 min-h-[42px] text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={1.75} /> Mark Resolved
                     </button>
@@ -1822,7 +1968,7 @@ export default function IncidentReports() {
                         handleRestore(reviewingReport.id);
                         closeReview();
                       }}
-                      className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-[#0071E3] dark:text-sky-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
+                      className="flex-1 sm:flex-none justify-center px-4 py-2.5 min-h-[42px] text-xs font-semibold text-[#0071E3] dark:text-sky-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} /> Restore to Pending
                     </button>
@@ -1833,7 +1979,7 @@ export default function IncidentReports() {
                   <button
                     type="button"
                     onClick={closeReview}
-                    className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-xl transition-all active:scale-[0.97] flex items-center cursor-pointer"
+                    className="flex-1 sm:flex-none justify-center px-4 py-2.5 min-h-[42px] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-xl transition-all active:scale-[0.97] flex items-center cursor-pointer"
                   >
                     Close
                   </button>
@@ -1850,7 +1996,7 @@ export default function IncidentReports() {
                             ? 'Complete the checklist first'
                             : 'Verify and plot on map'
                       }
-                      className="flex-1 sm:flex-none justify-center px-5 py-2 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-[0_2px_8px_rgba(0,113,227,0.25)] flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
+                      className="flex-1 sm:flex-none justify-center px-5 py-2.5 min-h-[42px] text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-[0_2px_8px_rgba(0,113,227,0.25)] flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" strokeWidth={1.75} /> Verify & Plot
                     </button>
