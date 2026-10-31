@@ -721,7 +721,7 @@ export default function ScraperFeed() {
   }
 
   return (
-    <div className="scraper-soft flex flex-col flex-1 min-h-full space-y-3 sm:space-y-3.5 w-full relative">
+    <div className="scraper-soft flex flex-col flex-1 w-full lg:h-full lg:min-h-0 space-y-3 sm:space-y-3.5 relative">
       {/* Toast Notifications — Top Right */}
       <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
         <AnimatePresence>
@@ -733,7 +733,7 @@ export default function ScraperFeed() {
         </AnimatePresence>
       </div>
 
-      <StaggerContainer className="flex flex-col flex-1 space-y-3 sm:space-y-3.5 w-full">
+      <StaggerContainer className="flex flex-col flex-1 space-y-3 sm:space-y-3.5 w-full lg:h-full lg:min-h-0">
         {/* Stage 1: Top Page Header */}
         <StaggerItem>
       {/* ── Top Page Header (Unified Soft UI Design) ── */}
@@ -853,9 +853,9 @@ export default function ScraperFeed() {
         </StaggerItem>
 
         {/* Stage 3: Two Column Layout / Responsive Split-Pane */}
-        <StaggerItem className="flex-1 min-h-0 flex flex-col">
+        <StaggerItem className="flex-1 lg:min-h-0 flex flex-col">
           {/* Two Column Layout / Responsive Split-Pane */}
-          <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 lg:gap-6 min-h-0 h-full">
+          <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 lg:gap-6 lg:min-h-0 lg:h-full">
             {/* LEFT: Post List — Soft Feed Sidebar */}
             <div
               className={`
@@ -949,7 +949,7 @@ export default function ScraperFeed() {
 
               {/* Scrollable Post Cards List */}
               <div
-                className="flex-1 overflow-y-auto min-h-0 p-2 sm:p-2.5 pb-8 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800"
+                className="flex-1 overflow-y-auto min-h-0 p-2 sm:p-2.5 pb-3 md:pb-4 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800"
                 style={{
                   maskImage: 'linear-gradient(to bottom, black calc(100% - 48px), transparent 100%)',
                   WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 48px), transparent 100%)',

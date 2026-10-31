@@ -911,7 +911,7 @@ export default function IncidentReports() {
   if (loading) return <PageLoader variant="incidents" />;
 
   return (
-    <div className="incidents-soft flex flex-col flex-1 min-h-full space-y-3 sm:space-y-3.5 w-full relative">
+    <div className="incidents-soft flex flex-col flex-1 w-full lg:h-full lg:min-h-0 space-y-3 sm:space-y-3.5 relative">
       {loadError && (
         <div role="alert" className="px-4 py-3 rounded-xl border border-rose-500/20 bg-rose-50/80 dark:bg-rose-950/20 text-xs font-medium text-rose-700 dark:text-rose-300">
           Could not load reports: {loadError}
@@ -929,7 +929,7 @@ export default function IncidentReports() {
         </AnimatePresence>
       </div>
 
-      <StaggerContainer className="flex flex-col flex-1 space-y-3 sm:space-y-3.5 w-full">
+      <StaggerContainer className="flex flex-col flex-1 space-y-3 sm:space-y-3.5 w-full lg:h-full lg:min-h-0">
         {/* ── Top Page Header (Unified Soft UI Design) ── */}
         <StaggerItem>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
@@ -1165,10 +1165,10 @@ export default function IncidentReports() {
         </StaggerItem>
 
         {/* ── Table (Soft UI Evolution Data Table) ── */}
-        <StaggerItem className="w-full flex-1 min-h-0 flex flex-col">
-          <div className="relative z-10 bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.03)] overflow-hidden flex flex-col flex-1 min-h-0">
+        <StaggerItem className="w-full flex-1 lg:min-h-0 flex flex-col">
+          <div className="relative z-10 bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.03)] overflow-hidden flex flex-col flex-1 lg:min-h-0">
         {/* Mobile Incident Cards (< sm) */}
-        <div className="sm:hidden divide-y divide-slate-100 dark:divide-white/5 overflow-y-auto flex-1">
+        <div className="sm:hidden divide-y divide-slate-100 dark:divide-white/5">
           {paginatedReports.length === 0 ? (
             <div className="py-16 px-4 text-center text-slate-400 dark:text-slate-500">
               <span className="text-sm font-medium">
@@ -1313,7 +1313,7 @@ export default function IncidentReports() {
         </div>
 
         {/* Desktop/Tablet Table (>= sm) */}
-        <div className="hidden sm:block overflow-x-auto w-full flex-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
+        <div className="hidden sm:block overflow-x-auto overflow-y-auto w-full flex-1 min-h-0 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
           <table className="w-full min-w-[880px] text-sm text-left border-collapse">
             <thead className="bg-slate-50/90 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/70 dark:border-white/10 sticky top-0 z-10">
               <tr>
