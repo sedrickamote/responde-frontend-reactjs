@@ -24,11 +24,31 @@ interface ReportsContextValue {
     getReportsByBarangay: () => Record<string, Report[]>;
 }
 
+const REPORTS_CACHE_KEY = 'responde_cached_reports';
+
 const ReportsContext = createContext<ReportsContextValue | null>(null);
 
 export function ReportsProvider({ children }: { children: ReactNode }) {
-    const [reports, setReports] = useState<Report[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
+    const [reports, setReports] = useState<Report[]>(() => {
+        try {
+            const raw = sessionStorage.getItem(REPORTS_CACHE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch {}
+        return [];
+    });
+    const [loading, setLoading] = useState<boolean>(() => {
+        try {
+            const raw = sessionStorage.getItem(REPORTS_CACHE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return false;
+            }
+        } catch {}
+        return true;
+    });
     const { triggerPriorityAlert } = useNotifications();
     const knownReportIdsRef = useRef<Set<string>>(new Set());
     const isFirstLoadRef = useRef<boolean>(true);
@@ -70,6 +90,9 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
         // Cache known IDs and update state
         knownReportIdsRef.current = new Set(liveData.map((r) => r.id));
         isFirstLoadRef.current = false;
+        try {
+            sessionStorage.setItem(REPORTS_CACHE_KEY, JSON.stringify(liveData));
+        } catch {}
         setReports(liveData);
     }, [triggerPriorityAlert]);
 

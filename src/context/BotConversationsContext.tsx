@@ -49,6 +49,7 @@ function normalizeBarangayName(name: string): string {
 export const initialBotConversations: BotConversation[] = [];
 
 const STORAGE_KEY = 'responde_bot_status_overrides_v2';
+const BOT_CONVERSATIONS_CACHE_KEY = 'responde_cached_bot_conversations';
 const INACTIVITY_GAP_MS = 60 * 60 * 1000;
 const POLL_INTERVAL_MS = 60_000; // 60s standard poll interval to reduce server pressure
 const BACKOFF_INTERVAL_MS = 120_000; // 2 min backoff when rate-limited
@@ -80,6 +81,18 @@ export function BotConversationsProvider({ children }: { children: ReactNode }) 
 
   const [conversations, setConversations] = useState<BotConversation[]>(() => {
     const overrides = getInitialOverrides();
+    try {
+      const cached = sessionStorage.getItem(BOT_CONVERSATIONS_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached) as BotConversation[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((c) => ({
+            ...c,
+            status: overrides[c.id] || c.status,
+          }));
+        }
+      }
+    } catch {}
     return initialBotConversations.map((c) => ({
       ...c,
       status: overrides[c.id] || c.status,
@@ -88,6 +101,8 @@ export function BotConversationsProvider({ children }: { children: ReactNode }) 
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const conversationsRef = useRef(conversations);
+  conversationsRef.current = conversations;
 
   const updateConversationStatus = useCallback((id: string, newStatus: 'Incomplete' | 'Complete') => {
     setStatusOverrides((prev) => {
@@ -126,7 +141,7 @@ export function BotConversationsProvider({ children }: { children: ReactNode }) 
       if (netErr.name === 'AbortError') return;
       console.warn('[BotConversationsContext] Fetch warning:', netErr.message);
       // Only set error state if we have no conversations yet to prevent screen-blanking
-      setError((prev) => (conversations.length === 0 ? (netErr.message || 'Failed to fetch conversations') : prev));
+      setError((prev) => (conversationsRef.current.length === 0 ? (netErr.message || 'Failed to fetch conversations') : prev));
       if (isFirst) setLoading(false);
       return;
     }
@@ -235,17 +250,21 @@ export function BotConversationsProvider({ children }: { children: ReactNode }) 
           };
         });
 
+      try {
+        sessionStorage.setItem(BOT_CONVERSATIONS_CACHE_KEY, JSON.stringify(mapped));
+      } catch {}
+
       setConversations(mapped);
     } else {
       setConversations([]);
     }
 
     if (isFirst) setLoading(false);
-  }, [conversations.length]);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchConversations(true, controller.signal);
+    fetchConversations(conversationsRef.current.length === 0, controller.signal);
 
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
