@@ -36,8 +36,8 @@ function Bone({
  */
 function DashboardSkeleton() {
   return (
-    <div className="dashboard-soft flex flex-col flex-1 min-h-0 w-full h-full relative" aria-busy="true" aria-label="Loading dashboard...">
-      <div className="flex flex-col flex-1 min-h-0 space-y-4 sm:space-y-5 w-full h-full">
+    <div className="dashboard-soft flex flex-col flex-1 min-h-full w-full relative" aria-busy="true" aria-label="Loading dashboard...">
+      <div className="flex flex-col flex-1 space-y-4 sm:space-y-5 w-full">
         {/* ── Top Header Bar ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
           <div className="space-y-1.5">
@@ -47,7 +47,7 @@ function DashboardSkeleton() {
         </div>
 
         {/* ── Row 1: 4 Raised Stat Cards ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 shrink-0">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3 md:gap-4 shrink-0">
           {[...Array(4)].map((_, i) => (
             <div
               key={i}
@@ -67,9 +67,9 @@ function DashboardSkeleton() {
         </div>
 
         {/* ── Row 2: Main 2-Column Section (8-col Latest Reports & 4-col Reports by Type) ── */}
-        <div className="grid grid-cols-12 gap-4 sm:gap-5 lg:gap-6 flex-1 min-h-0 w-full items-stretch">
+        <div className="grid grid-cols-12 gap-4 sm:gap-5 lg:gap-6 lg:flex-1 lg:min-h-0 w-full items-stretch">
           {/* Left Column: Latest Reports Table (Col 8) */}
-          <div className="col-span-12 lg:col-span-8 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden h-full">
+          <div className="col-span-12 lg:col-span-8 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden lg:h-full">
             {/* Header Row */}
             <div className="p-4 sm:p-5 border-b border-slate-200/70 dark:border-white/10 flex flex-wrap items-center justify-between gap-3 shrink-0">
               <Bone className="h-5 w-32 rounded-lg" />
@@ -113,7 +113,7 @@ function DashboardSkeleton() {
           </div>
 
           {/* Right Column: Reports by Type Card (Col 4) */}
-          <div className="col-span-12 lg:col-span-4 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden h-full">
+          <div className="col-span-12 lg:col-span-4 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden lg:h-full">
             {/* Header */}
             <div className="p-4 sm:p-5 border-b border-slate-200/70 dark:border-white/10 flex items-center justify-between gap-3 shrink-0">
               <Bone className="h-5 w-32 rounded-lg" />

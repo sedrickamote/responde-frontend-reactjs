@@ -795,11 +795,11 @@ export default function Settings() {
 
         {/* 2. CALM MAC-OS SEGMENTED NAVIGATION TABS */}
         <StaggerItem>
-          <div className="p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 flex flex-wrap sm:inline-flex items-center gap-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] w-full sm:w-auto overflow-x-auto">
+          <div className="p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 flex overflow-x-auto no-scrollbar sm:inline-flex items-center gap-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setActiveTab('profile')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-[0.98] shrink-0 whitespace-nowrap ${
                 activeTab === 'profile'
                   ? 'bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-xs font-semibold'
                   : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40 font-medium'
@@ -813,7 +813,7 @@ export default function Settings() {
               <button
                 type="button"
                 onClick={() => setActiveTab('team')}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-[0.98] shrink-0 whitespace-nowrap ${
                   activeTab === 'team'
                     ? 'bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-xs font-semibold'
                     : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40 font-medium'
@@ -827,7 +827,7 @@ export default function Settings() {
             <button
               type="button"
               onClick={() => setActiveTab('security')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-[0.98] shrink-0 whitespace-nowrap ${
                 activeTab === 'security'
                   ? 'bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-xs font-semibold'
                   : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40 font-medium'
@@ -840,7 +840,7 @@ export default function Settings() {
             <button
               type="button"
               onClick={() => setActiveTab('preferences')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-[0.98] shrink-0 whitespace-nowrap ${
                 activeTab === 'preferences'
                   ? 'bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-xs font-semibold'
                   : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40 font-medium'
