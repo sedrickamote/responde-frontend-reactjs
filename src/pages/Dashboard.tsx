@@ -453,7 +453,7 @@ export default function Dashboard() {
         <StaggerItem className="w-full flex flex-col flex-1 lg:min-h-0">
           <div className="grid grid-cols-12 gap-4 sm:gap-5 lg:gap-6 flex-1 lg:min-h-0 w-full items-stretch">
         {/* Left Column: Latest Reports Table (Col 8) */}
-        <div className="col-span-12 lg:col-span-8 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden lg:h-full">
+        <div className="order-2 md:order-1 col-span-12 lg:col-span-8 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden lg:h-full">
           {/* Header Row */}
           <div className="p-4 sm:p-5 border-b border-slate-200/70 dark:border-white/10 flex flex-wrap items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2.5">
@@ -640,7 +640,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right Column: Reports by Type with Interactive Bar Chart (Col 4) */}
-        <div className="col-span-12 lg:col-span-4 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex flex-col lg:h-full">
+        <div className="order-1 md:order-2 col-span-12 lg:col-span-4 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex flex-col lg:h-full">
           {/* Header Row with View Mode Switcher and Clear Filter Pill */}
           <div className="flex items-center justify-between pb-3.5 border-b border-slate-200/70 dark:border-white/10 shrink-0 gap-2">
             <div className="flex items-center gap-2 min-w-0">
