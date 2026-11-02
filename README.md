@@ -20,11 +20,10 @@
   - [5.5. Intent-Based Triage & Incident Type Normalization](#55-intent-based-triage--incident-type-normalization)
   - [5.6. Scoped Context Provider Architecture](#56-scoped-context-provider-architecture)
   - [5.7. Secure HttpOnly Development Proxying](#57-secure-httponly-development-proxying)
-- [6. Capstone Defense Study Guide & Panelist Q&A](#6-capstone-defense-study-guide--panelist-qa)
-- [7. Project Directory Structure](#7-project-directory-structure)
-- [8. Installation & Deployment Guide](#8-installation--deployment-guide)
-- [9. Database Schema & Data Dictionary](#9-database-schema--data-dictionary)
-- [10. Project Credits & Attributions](#10-project-credits--attributions)
+- [6. Project Directory Structure](#6-project-directory-structure)
+- [7. Installation & Deployment Guide](#7-installation--deployment-guide)
+- [8. Database Schema & Data Dictionary](#8-database-schema--data-dictionary)
+- [9. Project Credits & Attributions](#9-project-credits--attributions)
 
 ---
 
@@ -489,63 +488,7 @@ proxy: {
 
 ---
 
-## 6. Capstone Defense Study Guide & Panelist Q&A
-
-This section is prepared specifically to help the project team review for panelist inquiries during the capstone defense.
-
-### ❓ Question 1: "Why did you build RESPONDE as a Single-Page Application (SPA) using React 19 instead of a traditional multi-page website?"
-> **Answer**:  
-> In a disaster operations center, dispatchers cannot afford full-page browser reloads when new emergency alerts arrive. React 19's virtual DOM diffing, combined with client-side routing, enables instant view transitions without losing scroll position, form inputs, or active filter selections. Furthermore, React 19 allows seamless integration with Supabase real-time WebSockets, updating KPI counters and map pins dynamically without screen flickering.
-
----
-
-### ❓ Question 2: "What is the difference between Code Splitting and Vendor Chunking, and why did you implement both?"
-> **Answer**:  
-> - **Code Splitting (`React.lazy`)** splits our own application code *by route*. If an officer never visits the Geospatial Map, they never download the map page's code. This drastically reduces the initial download size on the login and dashboard screens.  
-> - **Vendor Chunking (`manualChunks` in Vite)** splits third-party `node_modules` libraries into separate, cacheable files (e.g., `vendor-maplibre`, `vendor-supabase`, `vendor-react`). Because third-party libraries rarely change, the browser caches them long-term. When we deploy code changes or bug fixes to our pages, the user's browser only downloads the tiny updated page chunk (`~35 kB`), while reusing the cached vendor files (`~1 MB`).
-
----
-
-### ❓ Question 3: "Why did you choose MapLibre GL over Google Maps API or basic Leaflet for the primary map engine?"
-> **Answer**:  
-> 1. **Zero Recurring API Costs**: Google Maps charges per map load and tile request, which is cost-prohibitive for municipal governments operating 24/7 disaster monitoring screens. MapLibre GL is completely open-source.  
-> 2. **Hardware-Accelerated WebGL Rendering**: MapLibre GL utilizes the device's GPU to render vector tiles, enabling smooth 60 FPS panning, zooming, and dynamic boundary highlighting across 21 barangays without lag.  
-> 3. **Offline & Self-Hosted Tile Capabilities**: Vector tile styles can be cached locally, allowing command center displays to continue functioning during partial internet disruptions.
-
----
-
-### ❓ Question 4: "How does the system prevent fake reports or spam comments from appearing on the official disaster map?"
-> **Answer**:  
-> Through our **Human-in-the-Loop Verification Pipeline**:  
-> - Raw reports from Facebook Messenger or scraped comments enter as `PENDING`.  
-> - An officer must open the incident, review the original raw text, check reporter credentials, and complete a mandatory **5-Point Verification Checklist**.  
-> - **Only incidents marked `VERIFIED` are queried by the Geospatial Map**. The backend and map queries explicitly enforce `status = 'verified'`. If an incident is marked `REJECTED`, it is cataloged with a structured reason (`spam_or_fake`, `outside_jurisdiction`, etc.) for audit purposes, but is permanently excluded from the map.
-
----
-
-### ❓ Question 5: "How does your Messenger Bot segment continuous chat messages from the same user into distinct incident reports?"
-> **Answer**:  
-> We implemented a **time-based session windowing heuristic** (`INACTIVITY_GAP_MS = 60 * 60 * 1000`, or 1 hour). If a resident reports a flooded street at 8:00 AM, and messages again at 8:15 AM with a contact number, the system groups them into the *same* conversation session. However, if the same resident sends another message 3 days later during a completely different weather event, the timestamp difference exceeds 1 hour, causing the system to automatically instantiate a *new* incident session ID.
-
----
-
-### ❓ Question 6: "How did you fix the layout jumping issue when switching between conversations in the Messenger Bot logs?"
-> **Answer**:  
-> In early versions, Framer Motion's `<AnimatePresence>` without `mode="wait"` caused the outgoing conversation and the incoming conversation to exist in the DOM at the exact same moment. Because both were full-height flex containers, the incoming conversation was forced down below the outgoing one, pushing the header into the middle of the screen. We resolved this by:  
-> 1. Adding `mode="wait"`, ensuring the previous thread finishes its exit animation and unmounts *before* the new thread enters.  
-> 2. Decoupling the card header into a pinned, non-animated container (`shrink-0 border-b`) so that only the inner messages thread animates, guaranteeing zero layout displacement.
-
----
-
-### ❓ Question 7: "How is citizen data privacy protected in the system?"
-> **Answer**:  
-> - **Row-Level Security (RLS)**: Enforced in PostgreSQL / Supabase, ensuring only authenticated service roles and verified MDRRMO staff tokens can read or mutate sensitive tables.  
-> - **HttpOnly Session Cookies**: Authentication tokens are not stored in JavaScript-accessible `localStorage` (which is vulnerable to XSS attacks); they are passed via secure `HttpOnly` cookies.  
-> - **Public Landing Isolation**: The public landing page is completely decoupled from the admin dashboard. Context providers that fetch sensitive reports do not even mount unless an officer has successfully authenticated.
-
----
-
-## 7. Project Directory Structure
+## 6. Project Directory Structure
 
 ```
 responde-frontend-reactjs/
@@ -609,7 +552,7 @@ responde-frontend-reactjs/
 
 ---
 
-## 8. Installation & Deployment Guide
+## 7. Installation & Deployment Guide
 
 ### Prerequisites
 - **Node.js**: `v18.0.0` or higher (Node `v20+` recommended)
@@ -665,7 +608,7 @@ npm run preview
 
 ---
 
-## 9. Database Schema & Data Dictionary
+## 8. Database Schema & Data Dictionary
 
 ### Table: `conversations` (Messenger Bot Intake)
 | Field | Type | Description |
@@ -696,7 +639,7 @@ npm run preview
 
 ---
 
-## 10. Project Credits & Attributions
+## 9. Project Credits & Attributions
 
 - **Agency Partner**: Municipal Disaster Risk Reduction and Management Office (MDRRMO) — Talisay, Batangas, Philippines
 - **Academic Institution**: Batangas State University (The National Engineering University)
