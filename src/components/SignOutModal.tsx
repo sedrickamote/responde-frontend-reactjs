@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence, type Transition } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { LogOut, X, Loader2 } from 'lucide-react';
 import type { AuthUser } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
@@ -13,30 +13,61 @@ interface SignOutModalProps {
   user?: AuthUser | null;
 }
 
-const backdropVariants = {
+// ── Motion tokens (Ambatubazz Apple Quadratic Deceleration) ──
+const AMBATUBAZZ_EASE = [0.25, 0.46, 0.45, 0.94] as const;
+const RAPID_EXIT_EASE = [0.4, 0, 1, 1] as const;
+
+const backdropVariants: Variants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1 },
-  exit: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { duration: 0.26, ease: AMBATUBAZZ_EASE },
+  },
+  exit: {
+    opacity: 0,
+    transition: { duration: 0.16, ease: RAPID_EXIT_EASE },
+  },
 };
 
-const modalVariants = {
-  hidden: { opacity: 0, scale: 0.94, y: 16 },
-  visible: { opacity: 1, scale: 1, y: 0 },
-  exit: { opacity: 0, scale: 0.94, y: 10 },
+const modalVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.96, y: 14 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { duration: 0.32, ease: AMBATUBAZZ_EASE },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.96,
+    y: 8,
+    transition: { duration: 0.16, ease: RAPID_EXIT_EASE },
+  },
 };
 
-const springTransition: Transition = {
-  opacity: { duration: 0.32, ease: [0.16, 1, 0.3, 1] },
-  scale: { type: 'spring', damping: 26, stiffness: 220, mass: 0.8 },
-  y: { type: 'spring', damping: 26, stiffness: 220, mass: 0.8 },
-};
+/**
+ * UserRoleBadge: Clean, non-glaring slate pill badge with a 6px semantic status micro-dot
+ * matching Section 3 of the Soft UI Minimalist Redesign Plan.
+ */
+function UserRoleBadge({ role }: { role?: string | null }) {
+  const norm = (role || '').toLowerCase().trim();
+  let dotColor = 'bg-emerald-500 ring-emerald-500/25';
+  let label = 'Staff';
 
-function formatRole(role?: string | null): string {
-  if (!role) return 'Staff';
-  return role
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  if (norm === 'super_admin') {
+    dotColor = 'bg-purple-500 ring-purple-500/25';
+    label = 'Super Admin';
+  } else if (norm === 'admin') {
+    dotColor = 'bg-sky-500 ring-sky-500/25';
+    label = 'Admin';
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 shadow-2xs whitespace-nowrap shrink-0">
+      <span className={`w-1.5 h-1.5 rounded-full ${dotColor} shrink-0 ring-2`} />
+      <span>{label}</span>
+    </span>
+  );
 }
 
 export default function SignOutModal({
@@ -113,8 +144,7 @@ export default function SignOutModal({
           initial="hidden"
           animate="visible"
           exit="exit"
-          transition={{ duration: 0.28, ease: 'easeOut' }}
-          className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-slate-950/50 dark:bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-slate-950/45 dark:bg-black/75 backdrop-blur-md"
           onClick={() => {
             if (!isLoading) onClose();
           }}
@@ -130,12 +160,11 @@ export default function SignOutModal({
             initial="hidden"
             animate="visible"
             exit="exit"
-            transition={springTransition}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl border border-white/80 dark:border-white/10 shadow-[0_24px_50px_rgba(0,0,0,0.22)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7)] p-6 sm:p-7 relative overflow-hidden"
+            className="w-full max-w-md bg-white dark:bg-[#111827] backdrop-blur-2xl rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.18),0_1px_3px_rgba(15,23,42,0.05),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_28px_70px_-15px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.08)] p-6 sm:p-7 relative overflow-hidden transform-gpu will-change-transform"
           >
-            {/* Ambient background accent */}
-            <div className="absolute -top-12 -right-12 w-32 h-32 bg-red-500/10 dark:bg-red-500/15 rounded-full blur-2xl pointer-events-none" />
+            {/* Ambient top-right rose accent glow */}
+            <div className="absolute -top-16 -right-16 w-36 h-36 bg-rose-500/10 dark:bg-rose-500/15 rounded-full blur-3xl pointer-events-none" />
 
             {/* Top Close Button */}
             <button
@@ -144,22 +173,22 @@ export default function SignOutModal({
               onClick={onClose}
               disabled={isLoading}
               aria-label="Close dialog"
-              className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors disabled:opacity-40 cursor-pointer active:scale-95"
+              className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40 cursor-pointer active:scale-90"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" strokeWidth={2} />
             </button>
 
             {/* Content */}
             <div className="flex flex-col items-center text-center">
-              {/* Icon Container */}
-              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 flex items-center justify-center mb-4 shadow-xs">
-                <LogOut className="w-6 h-6 sm:w-7 sm:h-7 translate-x-0.5" strokeWidth={2} />
+              {/* Soft UI Evolution squircle tile with LogOut icon */}
+              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-b from-rose-50 to-rose-100/70 dark:from-rose-950/40 dark:to-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-500/20 flex items-center justify-center mb-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_4px_16px_rgba(244,63,94,0.12)] shrink-0">
+                <LogOut className="w-6 h-6 sm:w-6.5 sm:h-6.5 translate-x-0.5" strokeWidth={2} />
               </div>
 
               {/* Title & Description */}
               <h3
                 id="signout-modal-title"
-                className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white tracking-tight"
+                className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight"
               >
                 Do you want to sign out?
               </h3>
@@ -170,11 +199,11 @@ export default function SignOutModal({
                 You will be signed out of your session and redirected to the login screen.
               </p>
 
-              {/* Current user card summary */}
+              {/* Current user card summary (Soft UI Recessed Well) */}
               {user && (
-                <div className="w-full mt-4 p-3 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5 flex items-center gap-3 text-left">
+                <div className="w-full mt-5 p-3 sm:p-3.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-200/80 dark:border-white/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] flex items-center gap-3 text-left">
                   {avatarUrl && !imgError ? (
-                    <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 ring-2 ring-white dark:ring-slate-800 shadow-xs">
+                    <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 ring-2 ring-white dark:ring-slate-700 shadow-xs">
                       <img
                         src={avatarUrl}
                         alt={displayName}
@@ -184,23 +213,21 @@ export default function SignOutModal({
                       />
                     </div>
                   ) : (
-                    <div className="w-9 h-9 rounded-full bg-blue-600 dark:bg-blue-500 text-white font-semibold text-xs flex items-center justify-center shadow-xs shrink-0 ring-2 ring-white dark:ring-slate-800">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-600 via-teal-600 to-sky-500 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0 ring-2 ring-white dark:ring-slate-700">
                       {initial}
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">
+                    <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
                       {displayName}
                     </p>
                     {user.email && (
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">
                         {user.email}
                       </p>
                     )}
                   </div>
-                  <span className="shrink-0 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60">
-                    {formatRole(user.role)}
-                  </span>
+                  <UserRoleBadge role={user.role} />
                 </div>
               )}
 
@@ -211,7 +238,7 @@ export default function SignOutModal({
                   type="button"
                   onClick={onClose}
                   disabled={isLoading}
-                  className="w-full py-2.5 px-4 min-h-[44px] rounded-xl text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-slate-700/80 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  className="w-full py-2.5 px-4 min-h-[44px] rounded-xl text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 bg-slate-100/90 hover:bg-slate-200/80 dark:bg-slate-800/90 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 shadow-2xs transition-all active:scale-[0.97] disabled:opacity-50 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -220,7 +247,7 @@ export default function SignOutModal({
                   type="button"
                   onClick={onConfirm}
                   disabled={isLoading}
-                  className="w-full py-2.5 px-4 min-h-[44px] rounded-xl text-xs sm:text-sm font-semibold text-white bg-red-600 hover:bg-red-700 shadow-sm shadow-red-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+                  className="w-full py-2.5 px-4 min-h-[44px] rounded-xl text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-red-600 via-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 border border-red-500/40 shadow-[0_4px_14px_rgba(225,29,72,0.32),inset_0_1px_1px_rgba(255,255,255,0.25)] hover:shadow-[0_6px_20px_rgba(225,29,72,0.42)] transition-all active:scale-[0.97] flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
                 >
                   {isLoading ? (
                     <>
@@ -229,7 +256,7 @@ export default function SignOutModal({
                     </>
                   ) : (
                     <>
-                      <LogOut className="w-4 h-4" />
+                      <LogOut className="w-4 h-4" strokeWidth={2} />
                       <span>Sign Out</span>
                     </>
                   )}

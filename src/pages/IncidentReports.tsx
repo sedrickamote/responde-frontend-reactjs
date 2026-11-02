@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import {
   Filter, X, Eye, ChevronLeft, ChevronRight, ChevronDown,
   Clock, User, Phone, MessageSquare,
@@ -17,6 +17,7 @@ import {
   isReportIncomplete,
   getIncompleteReasons,
   formatReportCode,
+  BASE_INCIDENT_TYPES,
   type Report,
   type ReportStatus,
 } from '../services/incidentService';
@@ -27,7 +28,7 @@ import { formatPhilippineTimeOnly, getPhilippineTimestampNow } from '../utils/da
 
 export type TabKey = 'under_review' | 'incomplete' | 'verified' | 'resolved' | 'rejected';
 
-export const BASE_INCIDENT_TYPES = ['Earthquake', 'Fire', 'Flood', 'Landslide', 'None'] as const;
+export { BASE_INCIDENT_TYPES };
 
 const formatBubbleTime = (iso?: string) => formatPhilippineTimeOnly(iso);
 
@@ -35,25 +36,37 @@ const formatBubbleTime = (iso?: string) => formatPhilippineTimeOnly(iso);
 const APPLE_SPRING = { type: 'spring', stiffness: 340, damping: 34, mass: 0.8 } as const;
 const APPLE_SLIDE_SPRING = { type: 'spring', stiffness: 380, damping: 36, mass: 0.9 } as const;
 const EASE_OUT = [0.23, 1, 0.32, 1] as const;
+const AMBATUBAZZ_EASE = [0.25, 0.46, 0.45, 0.94] as const;
+const RAPID_EXIT_EASE = [0.4, 0, 1, 1] as const;
 
-// ── Animation presets (Apple HIG & Emil Kowalski craft bar) ──
-const backdropVariants = {
+// ── Modal animation presets (Ambatubazz Apple Quadratic Deceleration) ──
+const backdropVariants: Variants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1 },
-  exit: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { duration: 0.28, ease: AMBATUBAZZ_EASE },
+  },
+  exit: {
+    opacity: 0,
+    transition: { duration: 0.18, ease: RAPID_EXIT_EASE },
+  },
 };
 
-const modalVariants = {
-  hidden: { opacity: 0, scale: 0.95, y: 16 },
-  visible: { opacity: 1, scale: 1, y: 0 },
-  exit: { opacity: 0, scale: 0.95, y: 10 },
+const modalVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.96, y: 16 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { duration: 0.34, ease: AMBATUBAZZ_EASE },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.96,
+    y: 10,
+    transition: { duration: 0.18, ease: RAPID_EXIT_EASE },
+  },
 };
-
-const MODAL_TRANSITION = {
-  opacity: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
-  scale: { type: 'spring', stiffness: 220, damping: 26, mass: 0.8 },
-  y: { type: 'spring', stiffness: 220, damping: 26, mass: 0.8 },
-} as const;
 
 // ── Bulk bar: hardware-accelerated transform + opacity only ──
 const barActionVariants = {
@@ -249,7 +262,7 @@ function BarangaySelect({ value, onChange, options }: BarangaySelectProps) {
         aria-expanded={isOpen}
       >
         <span className={`truncate ${isPlaceholder ? 'text-slate-400 dark:text-slate-500 font-normal' : 'text-slate-800 dark:text-slate-100 font-medium'}`}>
-          {isPlaceholder ? (value === 'Unknown' ? 'Unknown (Select Barangay)' : 'Select Barangay') : value}
+          {value === 'None' ? 'None (Missing / Unknown)' : isPlaceholder ? (value === 'Unknown' ? 'Unknown (Select Barangay)' : 'Select Barangay') : value}
         </span>
         <ChevronDown
           className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-[#0071E3]' : ''}`}
@@ -313,7 +326,7 @@ function BarangaySelect({ value, onChange, options }: BarangaySelectProps) {
                           : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                       }`}
                     >
-                      <span className="truncate">{opt}</span>
+                      <span className="truncate">{opt === 'None' ? 'None (Missing / Unknown)' : opt}</span>
                       {isSelected && <Check className="w-3.5 h-3.5 text-[#0071E3] dark:text-sky-400 shrink-0 ml-2" strokeWidth={2} />}
                     </button>
                   );
@@ -354,7 +367,7 @@ export default function IncidentReports() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlBarangay = searchParams.get('barangay');
   const urlFocus = searchParams.get('focus');
 
@@ -365,19 +378,7 @@ export default function IncidentReports() {
   const [filterUrgency, setFilterUrgency] = useState('All Urgency');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  useEffect(() => {
-    if (urlFocus && reports.length > 0) {
-      const match = reports.find((r) => r.id === urlFocus);
-      if (match) {
-        setReviewingReport(match);
-        if (match.status === 'verified' || match.status === 'resolved' || match.status === 'rejected') {
-          setActiveTab(match.status);
-        } else {
-          setActiveTab(isReportIncomplete(match) ? 'incomplete' : 'under_review');
-        }
-      }
-    }
-  }, [urlFocus, reports]);
+  const openedFocusRef = useRef<string | null>(null);
 
   const resetFilters = () => {
     setFilterSource('all');
@@ -416,6 +417,8 @@ export default function IncidentReports() {
   });
   const [showRejectPanel, setShowRejectPanel] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [showIncompletePanel, setShowIncompletePanel] = useState(false);
+  const [incompleteReasonChoice, setIncompleteReasonChoice] = useState<'barangay' | 'type' | 'both'>('both');
 
   // ── Validation State ──
   const [coordError, setCoordError] = useState(false);
@@ -456,6 +459,18 @@ export default function IncidentReports() {
     return [{ sender: 'user', text: reviewingReport.originalText, timestamp: reviewingReport.createdAt || '' }];
   }, [reviewingReport, botConversations]);
 
+  const botThreadScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (reviewingReport && botThread.length > 0) {
+      const timer = setTimeout(() => {
+        if (botThreadScrollRef.current) {
+          botThreadScrollRef.current.scrollTop = botThreadScrollRef.current.scrollHeight;
+        }
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [reviewingReport?.id, botThread.length]);
+
   const tabs = [
     {
       key: 'under_review' as const,
@@ -488,6 +503,14 @@ export default function IncidentReports() {
     setCurrentPage(1);
     setSelectedIds([]);
   }, [activeTab, filterSource, filterBarangay, filterType, filterUrgency, fromDate, toDate]);
+
+  const availableBarangayOptions = useMemo(() => {
+    const extra = reports
+      .map(r => r.barangay)
+      .filter((b): b is string => Boolean(b && typeof b === 'string' && !['none', 'unknown', 'unspecified', 'n/a', 'all barangays'].includes(b.toLowerCase().trim())));
+    const sorted = Array.from(new Set([...TALISAY_BARANGAYS, ...extra])).sort();
+    return ['All Barangays', 'None', 'Unknown', ...sorted];
+  }, [reports]);
 
   const availableIncidentTypes = useMemo(() => {
     const set = new Set<string>(BASE_INCIDENT_TYPES);
@@ -532,8 +555,52 @@ export default function IncidentReports() {
     setReviewingReport(null);
     setEditForm({});
     setShowRejectPanel(false);
+    setShowIncompletePanel(false);
+    setIncompleteReasonChoice('both');
     setCoordError(false);
+    if (searchParams.has('focus')) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('focus');
+      setSearchParams(nextParams, { replace: true });
+    }
+    openedFocusRef.current = null;
   };
+
+  useEffect(() => {
+    if (urlFocus && reports.length > 0 && openedFocusRef.current !== urlFocus) {
+      const match = reports.find((r) => r.id === urlFocus);
+      if (match) {
+        openedFocusRef.current = urlFocus;
+        const targetTab: TabKey = (match.status === 'verified' || match.status === 'resolved' || match.status === 'rejected')
+          ? match.status
+          : isReportIncomplete(match)
+            ? 'incomplete'
+            : 'under_review';
+        setActiveTab(targetTab);
+
+        // Find match position in targetTab to ensure the page with the report is active
+        const tabReports = reports.filter((r) => {
+          if (targetTab === 'verified') return r.status === 'verified';
+          if (targetTab === 'resolved') return r.status === 'resolved';
+          if (targetTab === 'rejected') return r.status === 'rejected';
+          if (targetTab === 'incomplete') return (r.status === 'pending' || r.status === 'under_review') && isReportIncomplete(r);
+          return (r.status === 'pending' || r.status === 'under_review') && !isReportIncomplete(r);
+        });
+        const matchIdx = tabReports.findIndex((r) => r.id === match.id);
+        if (matchIdx !== -1) {
+          const targetPage = Math.floor(matchIdx / 10) + 1;
+          setCurrentPage(targetPage);
+        }
+
+        // Apple-grade calm cascade: allow the 4-stage page cascade to establish before presenting the review sheet
+        const timer = setTimeout(() => {
+          openReview(match);
+        }, 140);
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [urlFocus, reports]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>
@@ -564,14 +631,24 @@ export default function IncidentReports() {
     if (!reviewingReport || !editForm) return;
     const targetId = reviewingReport.id;
     const isOngoingStatus = reviewingReport.status === 'verified' || reviewingReport.status === 'resolved';
-    const actionDesc = editForm.action || (isOngoingStatus ? 'Updated report details' : 'Draft saved');
+    const finalBarangay = editForm.barangay !== undefined ? editForm.barangay : reviewingReport.barangay;
+    const finalType = editForm.type !== undefined ? editForm.type : reviewingReport.type;
+    const isIncomplete = isReportIncomplete({ barangay: finalBarangay, type: finalType });
+    const actionDesc = editForm.action || (isOngoingStatus ? 'Updated report details' : isIncomplete ? 'Flagged as incomplete' : 'Draft saved');
     const updated = {
       ...reviewingReport,
       ...editForm,
       action: actionDesc,
       actionTaken: actionDesc,
     } as Report;
-    showToast(isOngoingStatus ? `Report #${targetId} changes saved` : `Report #${targetId} draft saved`, 'info');
+    showToast(
+      isOngoingStatus
+        ? `Report #${targetId} changes saved`
+        : isIncomplete
+          ? `Report #${targetId} saved to Incomplete tab`
+          : `Report #${targetId} draft saved`,
+      isIncomplete ? 'info' : 'info'
+    );
     closeReview();
 
     try {
@@ -581,15 +658,53 @@ export default function IncidentReports() {
     }
   };
 
+  const handleMarkIncomplete = async () => {
+    if (!reviewingReport) return;
+    const targetId = reviewingReport.id;
+    const newBarangay = 'None';
+    const newType = (incompleteReasonChoice === 'type' || incompleteReasonChoice === 'both')
+      ? 'None'
+      : (editForm.type || reviewingReport.type || 'None');
+    const reasonText = incompleteReasonChoice === 'barangay'
+      ? 'Missing Barangay'
+      : incompleteReasonChoice === 'type'
+        ? 'Incident not mentioned'
+        : 'Missing Barangay and Incident';
+    const actionDesc = `Flagged as incomplete (${reasonText})`;
+
+    const updated: Report = {
+      ...reviewingReport,
+      ...editForm,
+      barangay: newBarangay,
+      type: newType,
+      action: actionDesc,
+      actionTaken: actionDesc,
+    };
+
+    showToast(`Report #${targetId} moved to Incomplete tab (${reasonText})`, 'info');
+    closeReview();
+
+    try {
+      await contextUpdateReport(targetId, updated);
+    } catch (err) {
+      console.error('Failed to mark report incomplete:', err);
+    }
+  };
+
   const handleVerify = async () => {
     if (!reviewingReport || !editForm) return;
 
-    // Guard: Report must be complete before it can be verified
+    // Guard: Report must have a valid barangay and an active disaster type before it can be verified
     const currentBarangay = (editForm.barangay || reviewingReport.barangay || '').trim();
     const currentType = (editForm.type || reviewingReport.type || '').trim();
     if (isReportIncomplete({ barangay: currentBarangay, type: currentType })) {
       const reasons = getIncompleteReasons({ barangay: currentBarangay, type: currentType });
-      showToast(`Cannot verify incomplete report. Please resolve: ${reasons.join(', ')}`, 'error');
+      showToast(`Cannot verify report with missing barangay. Please resolve: ${reasons.join(', ')}`, 'error');
+      return;
+    }
+    const isNoneType = !currentType || currentType.toLowerCase() === 'none' || currentType.toLowerCase() === 'unclassified';
+    if (isNoneType) {
+      showToast('Cannot verify a report with incident type "None". Please assign a valid incident type or reject it.', 'error');
       return;
     }
 
@@ -763,11 +878,21 @@ export default function IncidentReports() {
         if (filterSource === 'bot' && rSource !== 'bot') return false;
         if (filterSource === 'scraper' && rSource !== 'scraper') return false;
       }
-      if (filterBarangay !== 'All Barangays' && r.barangay?.toLowerCase() !== filterBarangay.toLowerCase()) return false;
+      if (filterBarangay !== 'All Barangays') {
+        const normFilter = filterBarangay.toLowerCase().trim();
+        const repBarangay = (r.barangay || '').toLowerCase().trim();
+        if (normFilter === 'none' || normFilter === 'unknown') {
+          if (repBarangay && repBarangay !== 'none' && repBarangay !== 'unknown' && repBarangay !== 'unspecified' && repBarangay !== 'n/a') {
+            return false;
+          }
+        } else if (repBarangay !== normFilter) {
+          return false;
+        }
+      }
       if (filterType !== 'All Types') {
         const normFilter = filterType.toLowerCase();
         const repType = (r.type || 'none').toLowerCase();
-        if (normFilter === 'none') {
+        if (normFilter === 'none' || normFilter === 'unknown') {
           if (repType !== 'none' && repType !== 'unclassified') return false;
         } else if (repType !== normFilter) {
           return false;
@@ -793,22 +918,31 @@ export default function IncidentReports() {
   );
 
   const getUrgencyBadge = (urgency: string) => {
-    switch (urgency) {
-      case 'High':
+    const norm = (urgency || '').trim().toLowerCase();
+    switch (norm) {
+      case 'critical':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-ping shrink-0" />
+            <span>Critical</span>
+          </span>
+        );
+      case 'high':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
             <span>High</span>
           </span>
         );
-      case 'Moderate':
+      case 'moderate':
+      case 'medium':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
             <span>Moderate</span>
           </span>
         );
-      case 'Low':
+      case 'low':
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/20">
@@ -873,7 +1007,7 @@ export default function IncidentReports() {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
           <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" strokeWidth={1.75} />
-          <span>Out of Scope</span>
+          <span>None</span>
         </span>
       );
     }
@@ -882,6 +1016,9 @@ export default function IncidentReports() {
       'fire': 'text-rose-600 dark:text-rose-400',
       'flood': 'text-cyan-600 dark:text-cyan-400',
       'landslide': 'text-yellow-700 dark:text-yellow-500',
+      'general': 'text-slate-600 dark:text-slate-400',
+      'typhoon': 'text-indigo-600 dark:text-indigo-400',
+      'volcanic eruption': 'text-orange-600 dark:text-orange-400',
       'search & rescue': 'text-orange-600 dark:text-orange-400',
       'medical': 'text-emerald-600 dark:text-emerald-400',
       'food & water': 'text-blue-600 dark:text-blue-400',
@@ -1014,10 +1151,11 @@ export default function IncidentReports() {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-[#0071E3] dark:text-sky-400 hover:underline cursor-pointer"
+                className="inline-flex items-center justify-center w-7 h-7 text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-lg border border-blue-500/20 transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
+                title="Reset all filters"
+                aria-label="Reset all filters"
               >
-                <RotateCcw className="w-3 h-3" strokeWidth={1.75} />
-                <span>Reset</span>
+                <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
               </button>
             )}
           </div>
@@ -1069,7 +1207,7 @@ export default function IncidentReports() {
             <div className="col-span-1 md:col-span-auto min-w-[130px]">
               <FilterDropdown
                 value={filterBarangay}
-                options={['All Barangays', ...Array.from(new Set([...TALISAY_BARANGAYS, ...reports.map(r => r.barangay)])).sort()]}
+                options={availableBarangayOptions}
                 onChange={setFilterBarangay}
               />
             </div>
@@ -1090,7 +1228,7 @@ export default function IncidentReports() {
             <div className="col-span-2 sm:col-span-1 md:col-span-auto min-w-[120px]">
               <FilterDropdown
                 value={filterUrgency}
-                options={['All Urgency', 'High', 'Moderate', 'Low']}
+                options={['All Urgency', 'Low', 'Moderate', 'High', 'Critical']}
                 onChange={setFilterUrgency}
               />
             </div>
@@ -1178,17 +1316,22 @@ export default function IncidentReports() {
               </span>
             </div>
           ) : (
-            paginatedReports.map((report) => (
-              <div
-                key={report.id}
-                className={`p-3.5 space-y-3 transition-colors ${
-                  selectedIds.includes(report.id)
-                    ? 'bg-blue-50/40 dark:bg-blue-900/15'
-                    : report.status === 'pending'
-                      ? 'bg-blue-50/20 dark:bg-blue-900/5'
-                      : ''
-                }`}
-              >
+            paginatedReports.map((report) => {
+              const isFocused = urlFocus === report.id;
+              return (
+                <div
+                  key={report.id}
+                  id={`mobile-report-${report.id}`}
+                  className={`p-3.5 space-y-3 transition-all duration-300 ${
+                    isFocused
+                      ? 'bg-blue-50/70 dark:bg-blue-900/30 ring-2 ring-blue-500/40 shadow-xs rounded-xl'
+                      : selectedIds.includes(report.id)
+                        ? 'bg-blue-50/40 dark:bg-blue-900/15'
+                        : report.status === 'pending'
+                          ? 'bg-blue-50/20 dark:bg-blue-900/5'
+                          : ''
+                  }`}
+                >
                 {/* Top Row: Select Checkbox, ID Code, Source Pill, Time */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -1308,7 +1451,8 @@ export default function IncidentReports() {
                   </div>
                 </div>
               </div>
-            ))
+            );
+          })
           )}
         </div>
 
@@ -1349,23 +1493,29 @@ export default function IncidentReports() {
                   </td>
                 </tr>
               ) : (
-                paginatedReports.map((report, index) => (
-                  <motion.tr
-                    key={report.id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.25,
-                      ease: EASE_OUT,
-                      delay: Math.min(index * 0.02, 0.15),
-                    }}
-                    className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors border-b border-slate-100 dark:border-white/5 group ${selectedIds.includes(report.id)
-                      ? 'bg-blue-50/40 dark:bg-blue-900/15'
-                      : report.status === 'pending'
-                        ? 'bg-blue-50/20 dark:bg-blue-900/5'
-                        : ''
+                paginatedReports.map((report, index) => {
+                  const isFocused = urlFocus === report.id;
+                  return (
+                    <motion.tr
+                      key={report.id}
+                      id={`report-row-${report.id}`}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.25,
+                        ease: EASE_OUT,
+                        delay: Math.min(index * 0.02, 0.15),
+                      }}
+                      className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-all border-b border-slate-100 dark:border-white/5 group ${
+                        isFocused
+                          ? 'bg-blue-50/70 dark:bg-blue-900/30 ring-1 ring-blue-500/40 shadow-xs'
+                          : selectedIds.includes(report.id)
+                            ? 'bg-blue-50/40 dark:bg-blue-900/15'
+                            : report.status === 'pending'
+                              ? 'bg-blue-50/20 dark:bg-blue-900/5'
+                              : ''
                       }`}
-                  >
+                    >
                     <td className="px-3.5 py-3.5 w-10">
                       <input
                         type="checkbox"
@@ -1484,7 +1634,8 @@ export default function IncidentReports() {
                       </div>
                     </td>
                   </motion.tr>
-                ))
+                );
+              })
               )}
             </tbody>
           </table>
@@ -1517,7 +1668,6 @@ export default function IncidentReports() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            transition={{ duration: 0.28, ease: 'easeOut' }}
             className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-900/50 dark:bg-black/70 backdrop-blur-md"
             onClick={closeReview}
           >
@@ -1526,7 +1676,6 @@ export default function IncidentReports() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              transition={MODAL_TRANSITION}
               className="bg-white dark:bg-[#111827] rounded-t-3xl sm:rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] w-full max-w-4xl max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col transform-gpu will-change-transform"
               onClick={(e) => e.stopPropagation()}
             >
@@ -1589,7 +1738,7 @@ export default function IncidentReports() {
                         </div>
 
                         {/* Scrollable chat thread */}
-                        <div className="h-72 overflow-y-auto p-4 space-y-3 bg-slate-50/40 dark:bg-[#0B0F17]/40">
+                        <div ref={botThreadScrollRef} className="h-72 overflow-y-auto p-4 space-y-3 bg-slate-50/40 dark:bg-[#0B0F17]/40">
                           {botThread.map((msg, idx) =>
                             msg.sender === 'bot' ? (
                               <div key={idx} className="flex items-end gap-2 justify-end">
@@ -1716,7 +1865,7 @@ export default function IncidentReports() {
                         <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
                         <BarangaySelect
                           value={editForm.barangay || ''}
-                          options={TALISAY_BARANGAYS}
+                          options={['None', 'Unknown', ...TALISAY_BARANGAYS]}
                           onChange={selected => {
                             setEditForm(prev => ({
                               ...prev,
@@ -1738,7 +1887,9 @@ export default function IncidentReports() {
                               <option value="" disabled>Select Type</option>
                             )}
                             {availableIncidentTypes.map(t => (
-                              <option key={t} value={t}>{t}</option>
+                              <option key={t} value={t}>
+                                {t.toLowerCase() === 'none' ? 'None (Incident Not Mentioned / Out of Scope)' : t}
+                              </option>
                             ))}
                           </select>
                         </div>
@@ -1750,7 +1901,7 @@ export default function IncidentReports() {
                             onChange={e => setEditForm(prev => ({ ...prev, urgency: e.target.value }))}
                             className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-white/10 rounded-xl text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-[#0071E3] outline-none transition-all cursor-pointer shadow-2xs"
                           >
-                            {['High', 'Moderate', 'Low'].map(u => (
+                            {['Low', 'Moderate', 'High', 'Critical'].map(u => (
                               <option key={u} value={u}>{u}</option>
                             ))}
                           </select>
@@ -1916,6 +2067,84 @@ export default function IncidentReports() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* Incomplete Panel */}
+                <AnimatePresence>
+                  {showIncompletePanel && (
+                    <motion.div
+                      initial={{ opacity: 0, scaleY: 0.95 }}
+                      animate={{ opacity: 1, scaleY: 1 }}
+                      exit={{ opacity: 0, scaleY: 0.95 }}
+                      transition={{ duration: 0.2, ease: EASE_OUT }}
+                      style={{ originY: 0 }}
+                      className="bg-amber-500/10 rounded-2xl p-4 sm:p-4.5 border border-amber-500/20 space-y-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" strokeWidth={1.75} />
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                          Mark as Incomplete
+                        </label>
+                      </div>
+                      <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed">
+                        Specify what vital information is missing. The report will be moved to the <strong>Incomplete</strong> queue for follow-up.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIncompleteReasonChoice('barangay')}
+                          className={`p-2.5 rounded-xl border text-left text-xs font-medium transition-all cursor-pointer ${
+                            incompleteReasonChoice === 'barangay'
+                              ? 'bg-amber-500/20 border-amber-500/40 text-amber-900 dark:text-amber-200 ring-1 ring-amber-500/30'
+                              : 'bg-white/60 dark:bg-slate-800/60 border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          <div className="font-semibold text-amber-800 dark:text-amber-300">Missing Barangay</div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Location unknown / unstated</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIncompleteReasonChoice('type')}
+                          className={`p-2.5 rounded-xl border text-left text-xs font-medium transition-all cursor-pointer ${
+                            incompleteReasonChoice === 'type'
+                              ? 'bg-amber-500/20 border-amber-500/40 text-amber-900 dark:text-amber-200 ring-1 ring-amber-500/30'
+                              : 'bg-white/60 dark:bg-slate-800/60 border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          <div className="font-semibold text-amber-800 dark:text-amber-300">No Incident Stated</div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Disaster or emergency type not mentioned</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIncompleteReasonChoice('both')}
+                          className={`p-2.5 rounded-xl border text-left text-xs font-medium transition-all cursor-pointer ${
+                            incompleteReasonChoice === 'both'
+                              ? 'bg-amber-500/20 border-amber-500/40 text-amber-900 dark:text-amber-200 ring-1 ring-amber-500/30'
+                              : 'bg-white/60 dark:bg-slate-800/60 border-slate-200/80 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          <div className="font-semibold text-amber-800 dark:text-amber-300">Both Missing</div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Neither location nor incident known</div>
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleMarkIncomplete}
+                          className="px-4 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-all active:scale-[0.97] cursor-pointer shadow-xs"
+                        >
+                          Confirm & Move to Incomplete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowIncompletePanel(false)}
+                          className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all active:scale-[0.97] cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Modal Footer Actions */}
@@ -1923,16 +2152,43 @@ export default function IncidentReports() {
                 <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
                   {(reviewingReport.status === 'pending' || reviewingReport.status === 'under_review') && (
                     <>
+                      {isModalReportIncomplete ? (
+                        <button
+                          type="button"
+                          onClick={handleSaveDraft}
+                          className="flex-1 sm:flex-none justify-center px-4 py-2.5 min-h-[42px] text-xs font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
+                          title="Save changes and keep in Incomplete tab"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" strokeWidth={1.75} />
+                          <span>Save to Incomplete</span>
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleSaveDraft}
+                            className="flex-1 sm:flex-none justify-center px-4 py-2.5 min-h-[42px] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-xl transition-all active:scale-[0.97] flex items-center cursor-pointer"
+                          >
+                            Save Draft
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowIncompletePanel(true);
+                              setShowRejectPanel(false);
+                            }}
+                            className="flex-1 sm:flex-none justify-center px-4 py-2.5 min-h-[42px] text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5" strokeWidth={1.75} /> Mark Incomplete
+                          </button>
+                        </>
+                      )}
                       <button
                         type="button"
-                        onClick={handleSaveDraft}
-                        className="flex-1 sm:flex-none justify-center px-4 py-2.5 min-h-[42px] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-xl transition-all active:scale-[0.97] flex items-center cursor-pointer"
-                      >
-                        Save Draft
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowRejectPanel(true)}
+                        onClick={() => {
+                          setShowRejectPanel(true);
+                          setShowIncompletePanel(false);
+                        }}
                         className="flex-1 sm:flex-none justify-center px-4 py-2.5 min-h-[42px] text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
                       >
                         <AlertOctagon className="w-3.5 h-3.5" strokeWidth={1.75} /> Reject

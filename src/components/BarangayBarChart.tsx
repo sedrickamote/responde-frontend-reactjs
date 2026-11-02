@@ -27,6 +27,7 @@ const ACCENT_BLUE = '#0071E3';
 const RED = '#DC2626';
 
 const URGENCY_BAR_COLOR: Record<string, string> = {
+  Critical: '#8B5CF6',
   High: RED,
   Moderate: '#F59E0B',
   Low: '#10B981',

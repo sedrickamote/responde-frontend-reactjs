@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -21,6 +21,7 @@ import { useReports } from '../context/ReportsContext';
 import { formatReportCode } from '../services/incidentService';
 import PageLoader from '../components/PageLoader';
 import { StaggerContainer, StaggerItem } from '../components/Stagger';
+import { prefetchRoute } from '../components/Layout';
 
 const APPLE_SPRING = { type: 'spring', stiffness: 340, damping: 34, mass: 0.8 } as const;
 
@@ -117,6 +118,14 @@ export default function Dashboard() {
   const [filterUrgency, setFilterUrgency] = useState<'All' | 'High' | 'Mod' | 'Low'>('All');
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'chart' | 'bars'>('chart');
+
+  // Idle prefetch: warm up the Incident Reports chunk so navigations are instantaneous
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      prefetchRoute('/incident-reports');
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
 
   const userGreeting = useMemo(() => {
     const fullName = user?.full_name?.trim();
@@ -507,11 +516,13 @@ export default function Dashboard() {
                   <div
                     key={report.id}
                     onClick={() => {
-                      const rType = report.type || 'General';
-                      setSelectedType((prev) => (prev === rType ? null : rType));
+                      navigate(`/incident-reports?focus=${report.id}`);
                     }}
-                    className={`p-3.5 space-y-2.5 transition-colors cursor-pointer ${
-                      isTypeMatch ? 'bg-blue-50/50 dark:bg-blue-900/15' : 'active:bg-slate-50 dark:active:bg-slate-800/40'
+                    onMouseEnter={() => prefetchRoute('/incident-reports')}
+                    onPointerDown={() => prefetchRoute('/incident-reports')}
+                    onTouchStart={() => prefetchRoute('/incident-reports')}
+                    className={`p-3.5 space-y-2.5 transition-all duration-150 cursor-pointer active:scale-[0.99] hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${
+                      isTypeMatch ? 'bg-blue-50/50 dark:bg-blue-900/15' : ''
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -539,6 +550,9 @@ export default function Dashboard() {
                           e.stopPropagation();
                           navigate(`/incident-reports?focus=${report.id}`);
                         }}
+                        onMouseEnter={() => prefetchRoute('/incident-reports')}
+                        onPointerDown={() => prefetchRoute('/incident-reports')}
+                        onTouchStart={() => prefetchRoute('/incident-reports')}
                         className="px-3 py-1.5 min-h-[36px] text-xs font-semibold text-[#0071E3] dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-xl transition-all active:scale-[0.96] shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
                       >
                         <ShieldCheck className="w-3.5 h-3.5" />
@@ -578,9 +592,10 @@ export default function Dashboard() {
                       <tr
                         key={report.id}
                         onClick={() => {
-                          const rType = report.type || 'General';
-                          setSelectedType((prev) => (prev === rType ? null : rType));
+                          navigate(`/incident-reports?focus=${report.id}`);
                         }}
+                        onMouseEnter={() => prefetchRoute('/incident-reports')}
+                        onPointerDown={() => prefetchRoute('/incident-reports')}
                         className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition-colors group cursor-pointer ${
                           isTypeMatch ? 'bg-blue-50/50 dark:bg-blue-900/15' : ''
                         }`}
@@ -608,7 +623,12 @@ export default function Dashboard() {
                         <td className="px-4 py-3.5 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
-                            onClick={() => navigate(`/incident-reports?focus=${report.id}`)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/incident-reports?focus=${report.id}`);
+                            }}
+                            onMouseEnter={() => prefetchRoute('/incident-reports')}
+                            onPointerDown={() => prefetchRoute('/incident-reports')}
                             className="px-3 py-1.5 text-xs font-semibold text-[#0071E3] dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-xl transition-all active:scale-[0.96] shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
                           >
                             <ShieldCheck className="w-3.5 h-3.5" />
@@ -631,6 +651,8 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => navigate('/incident-reports')}
+              onMouseEnter={() => prefetchRoute('/incident-reports')}
+              onPointerDown={() => prefetchRoute('/incident-reports')}
               className="inline-flex items-center gap-1 font-semibold text-[#0071E3] hover:text-[#0077ED] dark:text-sky-400 dark:hover:text-sky-300 transition-colors cursor-pointer"
             >
               <span>View all incident reports</span>

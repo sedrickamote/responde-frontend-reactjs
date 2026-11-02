@@ -95,8 +95,17 @@ function App() {
                   <Settings />
                 </Suspense>
               } />
+
+              {/* URL Aliases to prevent any 404 or blank screens */}
+              <Route path="/incidents" element={<Navigate to="/incident-reports" replace />} />
+              <Route path="/map" element={<Navigate to="/geospatial-map" replace />} />
+              <Route path="/logs" element={<Navigate to="/messenger-bot-logs" replace />} />
+              <Route path="/feed" element={<Navigate to="/scraper-feed" replace />} />
             </Route>
           </Route>
+
+          {/* Catch-all fallback route */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

@@ -9,6 +9,7 @@ import {
   Sun, Moon, Copy, Check, MapPin, AlertTriangle, User,
 } from 'lucide-react';
 import SignOutModal from './SignOutModal';
+import GlobalSearch from './GlobalSearch';
 import {
   useNotifications,
   type AppNotification,
@@ -575,88 +576,6 @@ export default function Layout() {
           })}
         </nav>
 
-        {/* User Identity & Theme Toggle (Next to admin name, on top of divider line) */}
-        <div className="px-2.5 pb-2.5 pt-1 shrink-0">
-          <div
-            className={`
-              p-2 rounded-xl
-              bg-white/50 dark:bg-white/5
-              border border-white/60 dark:border-white/10
-              shadow-[0_2px_8px_rgba(0,0,0,0.03),inset_0_1px_1px_rgba(255,255,255,0.7)]
-              dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)]
-              backdrop-blur-md
-              flex items-center select-none
-              md:justify-center md:px-0 md:gap-0
-              ${collapsed && !mobileOpen ? 'lg:justify-center lg:px-0 lg:gap-0' : 'justify-between gap-2 lg:px-2.5'}
-            `}
-            title={`${user?.full_name || user?.username || 'User'} (${user?.role ? user.role.replace('_', ' ') : 'Staff'})`}
-          >
-            <div className={`flex items-center gap-2.5 min-w-0 ${collapsed && !mobileOpen ? 'justify-center' : 'flex-1'}`}>
-              <UserAvatar
-                src={user?.avatar_url}
-                name={user?.full_name}
-                username={user?.username}
-                size="sm"
-                className="ring-1 ring-white/80 dark:ring-white/10 shrink-0"
-              />
-              <div
-                className={`
-                  flex flex-col min-w-0 transition-all duration-300 overflow-hidden whitespace-nowrap
-                  block md:hidden lg:block
-                  ${collapsed && !mobileOpen ? 'lg:w-0 lg:opacity-0' : 'lg:w-auto lg:opacity-100 flex-1'}
-                `}
-              >
-                <p className="text-xs font-semibold text-slate-800 dark:text-white truncate leading-tight">
-                  {user?.full_name || user?.username || 'User Profile'}
-                </p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
-                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate capitalize">
-                    {user?.role ? user.role.replace('_', ' ') : 'Staff'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Light / Dark Mode Button Next to Admin Name */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className={`
-                p-1.5 rounded-lg flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0
-                hover:bg-white/60 dark:hover:bg-white/10 text-slate-400 hover:text-slate-700 dark:hover:text-amber-300
-                block md:hidden lg:block
-                ${collapsed && !mobileOpen ? 'lg:hidden' : 'lg:block'}
-              `}
-              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-4 h-4 text-amber-400" strokeWidth={1.75} />
-              ) : (
-                <Moon className="w-4 h-4 text-slate-600 dark:text-slate-300" strokeWidth={1.75} />
-              )}
-            </button>
-          </div>
-
-          {/* Collapsed mode theme toggle (when collapsed) */}
-          {collapsed && !mobileOpen && (
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="mt-1.5 w-full p-2 rounded-xl flex items-center justify-center hover:bg-white/50 dark:hover:bg-white/10 text-slate-400 hover:text-slate-700 dark:hover:text-amber-300 transition-colors cursor-pointer"
-              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-4 h-4 text-amber-400" strokeWidth={1.75} />
-              ) : (
-                <Moon className="w-4 h-4 text-slate-600 dark:text-slate-300" strokeWidth={1.75} />
-              )}
-            </button>
-          )}
-        </div>
-
         {/* thin divider */}
         <div className="mx-3 h-px bg-white/60 dark:bg-white/10 shrink-0 shadow-[0_1px_0_rgba(0,0,0,0.03)]" />
 
@@ -734,31 +653,22 @@ export default function Layout() {
               >
                 <Menu className="w-5 h-5" />
               </button>
-              {/* Search — floating pill inside the floating header */}
-              <div className="hidden sm:flex items-center relative flex-1 max-w-sm">
-                <div className="
-                w-full flex items-center gap-2 px-3
-                bg-white/50 dark:bg-slate-800/60
-                border border-white/60 dark:border-white/10
-                shadow-sm
-                rounded-xl
-                transition-all duration-200
-                focus-within:bg-white/80 dark:focus-within:bg-slate-800/90
-                focus-within:border-blue-400/60 dark:focus-within:border-blue-500/50
-                focus-within:shadow-[0_4px_16px_rgba(59,130,246,0.14),inset_0_1px_2px_rgba(255,255,255,0.8)]
-                dark:focus-within:shadow-[0_4px_16px_rgba(59,130,246,0.22)]
-              ">
-                  <Search className="shrink-0 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search incidents, logs, or barangays..."
-                    className="w-full py-2 bg-transparent border-0 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none"
-                  />
-                </div>
-              </div>
+              {/* Global Search Component */}
+              <GlobalSearch />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
+              {/* ── Mobile Search Button (< sm) ── */}
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-global-search'))}
+                className="p-2 sm:hidden text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10 rounded-xl transition-colors active:scale-95 cursor-pointer"
+                aria-label="Open search"
+                title="Search incidents, logs, or barangays"
+              >
+                <Search className="w-5 h-5" strokeWidth={1.75} />
+              </button>
+
               {/* ── Notification Bell ── */}
               <div ref={notifRef} className="relative z-10">
                 <button
@@ -1187,21 +1097,9 @@ export default function Layout() {
 
         {/* ── Content Area: scrolls independently between Top Header and Bottom Navigation ── */}
         <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden px-3 pt-3 pb-3 sm:px-5 md:pt-3.5 md:pb-0 md:pr-0 md:pl-2 lg:pt-3.5 lg:pr-0 lg:pl-2">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4, transition: { duration: 0.12, ease: [0.4, 0, 1, 1] } }}
-              transition={{
-                duration: 0.22,
-                ease: [0.23, 1, 0.32, 1],
-              }}
-              className="flex-1 flex flex-col min-h-full h-full w-full"
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+          <div className="flex-1 flex flex-col min-h-full h-full w-full">
+            <Outlet />
+          </div>
         </div>
 
         {/* ── Mobile Docked Bottom Navigation Bar (<768px): separated by clean space from content ── */}

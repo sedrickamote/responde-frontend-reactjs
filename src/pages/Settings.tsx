@@ -1266,15 +1266,19 @@ export default function Settings() {
                                     </button>
                                   )}
 
-                                  {currentUser?.role === 'super_admin' && !isSelf && u.role !== 'super_admin' && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeleteModalUser(u)}
-                                      className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition-colors cursor-pointer active:scale-95"
-                                      title="Delete personnel account"
-                                    >
-                                      <Trash2 className="w-4 h-4" strokeWidth={1.75} />
-                                    </button>
+                                  {currentUser?.role === 'super_admin' && (
+                                    !isSelf && u.role !== 'super_admin' ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeleteModalUser(u)}
+                                        className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors cursor-pointer active:scale-95 shrink-0"
+                                        title="Delete personnel account"
+                                      >
+                                        <Trash2 className="w-4 h-4" strokeWidth={1.75} />
+                                      </button>
+                                    ) : (
+                                      <div className="w-7 h-7 shrink-0" aria-hidden="true" />
+                                    )
                                   )}
                                 </div>
                               </td>
@@ -1607,12 +1611,22 @@ export default function Settings() {
 
       {/* 1. INVITE USER MODAL */}
       {inviteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 dark:bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/45 dark:bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 shadow-[0_24px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7)] space-y-4 relative">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">
-                Invite New Personnel
-              </h3>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-b from-blue-50 to-blue-100/70 dark:from-blue-950/40 dark:to-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-500/20 flex items-center justify-center shadow-xs shrink-0">
+                  <UserPlus className="w-5 h-5" strokeWidth={1.75} />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-white leading-tight">
+                    Invite New Personnel
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Generate an onboarding link
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setInviteModalOpen(false)}
@@ -1714,12 +1728,22 @@ export default function Settings() {
 
       {/* 2. ROLE EDIT MODAL */}
       {roleModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 dark:bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/45 dark:bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 shadow-[0_24px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7)] space-y-4 relative">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">
-                Modify Personnel Role
-              </h3>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-b from-blue-50 to-blue-100/70 dark:from-blue-950/40 dark:to-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-500/20 flex items-center justify-center shadow-xs shrink-0">
+                  <Shield className="w-5 h-5" strokeWidth={1.75} />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-white leading-tight">
+                    Modify Personnel Role
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Update permissions for this team member
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setRoleModalUser(null)}
@@ -1729,9 +1753,21 @@ export default function Settings() {
               </button>
             </div>
 
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Updating role for <strong className="text-slate-800 dark:text-slate-200">{roleModalUser.full_name || roleModalUser.username}</strong> ({roleModalUser.email}).
-            </p>
+            {/* Target Personnel Well */}
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-white/5">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-semibold text-sm flex items-center justify-center shrink-0 uppercase">
+                {(roleModalUser.full_name || roleModalUser.username || 'U').slice(0, 2)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                  {roleModalUser.full_name || roleModalUser.username}
+                </div>
+                <div className="text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
+                  {roleModalUser.email}
+                </div>
+              </div>
+              <UserRoleBadge role={roleModalUser.role} />
+            </div>
 
             <form onSubmit={handleSaveRole} className="space-y-4 pt-1">
               <div className="space-y-1">
@@ -1802,33 +1838,66 @@ export default function Settings() {
 
       {/* 3. DELETE USER MODAL */}
       {deleteModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 dark:bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/45 dark:bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 shadow-[0_24px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7)] space-y-4 relative">
-            <div className="flex items-center gap-3 text-rose-600">
-              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center border border-rose-200/70 dark:border-rose-900/50">
-                <AlertTriangle className="w-6 h-6 shrink-0" strokeWidth={1.75} />
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-b from-rose-50 to-rose-100/70 dark:from-rose-950/50 dark:to-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-500/20 flex items-center justify-center shadow-xs shrink-0">
+                  <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                    Delete Personnel Account
+                  </h3>
+                  <p className="text-xs text-rose-600 dark:text-rose-400 font-medium mt-0.5">
+                    Irreversible Action
+                  </p>
+                </div>
               </div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">
-                Delete Personnel Account
-              </h3>
-            </div>
-
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Are you sure you want to permanently delete the account for <strong className="text-slate-800 dark:text-slate-200">{deleteModalUser.full_name || deleteModalUser.username}</strong> ({deleteModalUser.email})? This action cannot be reversed.
-            </p>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <CleanButton
-                variant="secondary"
+              <button
+                type="button"
                 onClick={() => setDeleteModalUser(null)}
                 disabled={isDeletingUser}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer active:scale-95 disabled:opacity-40"
+              >
+                <X className="w-5 h-5" strokeWidth={1.75} />
+              </button>
+            </div>
+
+            {/* Target Personnel Well */}
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-white/5">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-semibold text-sm flex items-center justify-center shrink-0 uppercase">
+                {(deleteModalUser.full_name || deleteModalUser.username || 'U').slice(0, 2)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                  {deleteModalUser.full_name || deleteModalUser.username}
+                </div>
+                <div className="text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
+                  {deleteModalUser.email}
+                </div>
+              </div>
+              <UserRoleBadge role={deleteModalUser.role} />
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              Are you sure you want to permanently remove this user? All session access and role permissions will be revoked immediately. This action cannot be reversed.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteModalUser(null)}
+                disabled={isDeletingUser}
+                className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 transition-all cursor-pointer disabled:opacity-40 active:scale-[0.98] min-h-[44px] flex items-center justify-center"
               >
                 Cancel
-              </CleanButton>
-              <CleanButton
-                variant="danger"
+              </button>
+              <button
+                type="button"
                 onClick={handleDeleteUser}
                 disabled={isDeletingUser}
+                className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-xs hover:shadow transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98] min-h-[44px] flex items-center justify-center gap-2"
               >
                 {isDeletingUser ? (
                   <>
@@ -1836,9 +1905,12 @@ export default function Settings() {
                     <span>Deleting...</span>
                   </>
                 ) : (
-                  'Delete Account'
+                  <>
+                    <Trash2 className="w-4 h-4" strokeWidth={1.75} />
+                    <span>Delete Account</span>
+                  </>
                 )}
-              </CleanButton>
+              </button>
             </div>
           </div>
         </div>
@@ -1846,16 +1918,21 @@ export default function Settings() {
 
       {/* 4. DELETE MY ACCOUNT MODAL (Self-Deletion 2-Step OTP) */}
       {deleteSelfModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 dark:bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/45 dark:bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 p-6 sm:p-7 shadow-[0_24px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7)] space-y-4 relative">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-rose-600">
-                <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center border border-rose-200/70 dark:border-rose-900/50">
-                  <AlertTriangle className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-b from-rose-50 to-rose-100/70 dark:from-rose-950/50 dark:to-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-500/20 flex items-center justify-center shadow-xs shrink-0">
+                  <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
                 </div>
-                <h3 className="text-base font-semibold text-slate-900 dark:text-white">
-                  Permanently Delete My Account
-                </h3>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                    Permanently Delete My Account
+                  </h3>
+                  <p className="text-xs text-rose-600 dark:text-rose-400 font-medium mt-0.5">
+                    Security Verification Required
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
@@ -1869,14 +1946,14 @@ export default function Settings() {
 
             {/* STEP 1: PASSWORD CONFIRMATION */}
             {deleteSelfStep === 'password' && (
-              <form onSubmit={handlePasswordConfirmAndRequestOtp} className="space-y-4">
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+              <form onSubmit={handlePasswordConfirmAndRequestOtp} className="space-y-4 pt-1">
+                <div className="p-3 rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/40 text-xs text-rose-900 dark:text-rose-300 leading-relaxed">
                   Please confirm your password. An email verification code will be dispatched to your registered address to confirm deletion.
-                </p>
+                </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
-                    Your Password
+                    Your Password <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -1885,12 +1962,12 @@ export default function Settings() {
                       onChange={(e) => setDeleteSelfPassword(e.target.value)}
                       placeholder="Enter account password"
                       required
-                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-white/10"
+                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500/40 transition-all"
                     />
                     <button
                       type="button"
                       onClick={() => setShowDeleteSelfPassword(!showDeleteSelfPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer transition-colors"
                     >
                       {showDeleteSelfPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
                     </button>
@@ -1904,18 +1981,19 @@ export default function Settings() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <CleanButton
-                    variant="secondary"
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    type="button"
                     onClick={closeDeleteMyAccountModal}
                     disabled={isRequestingOtp}
+                    className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 transition-all cursor-pointer min-h-[44px] flex items-center justify-center disabled:opacity-40 active:scale-[0.98]"
                   >
                     Cancel
-                  </CleanButton>
-                  <CleanButton
+                  </button>
+                  <button
                     type="submit"
-                    variant="danger"
                     disabled={isRequestingOtp}
+                    className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-xs hover:shadow transition-all cursor-pointer min-h-[44px] flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-[0.98]"
                   >
                     {isRequestingOtp ? (
                       <>
@@ -1928,15 +2006,15 @@ export default function Settings() {
                         <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
                       </>
                     )}
-                  </CleanButton>
+                  </button>
                 </div>
               </form>
             )}
 
             {/* STEP 2: EMAIL OTP VERIFICATION */}
             {deleteSelfStep === 'otp' && (
-              <div className="space-y-4">
-                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 text-blue-900 dark:text-blue-200 text-xs flex items-start gap-2">
+              <div className="space-y-4 pt-1">
+                <div className="p-3 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/50 text-blue-900 dark:text-blue-200 text-xs flex items-start gap-2.5">
                   <Mail className="w-4 h-4 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" strokeWidth={1.75} />
                   <div>
                     A 6-digit confirmation code was sent to <strong className="font-semibold">{deleteSelfMaskedEmail}</strong>.
@@ -1947,7 +2025,7 @@ export default function Settings() {
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-2 text-center">
                     Enter 6-Digit Code
                   </label>
-                  <div className="flex items-center justify-center gap-2" onPaste={handleOtpPaste}>
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-2 max-w-full overflow-x-auto py-1" onPaste={handleOtpPaste}>
                     {deleteSelfOtp.map((digit, idx) => (
                       <input
                         key={idx}
@@ -1958,7 +2036,7 @@ export default function Settings() {
                         value={digit}
                         onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        className="w-10 h-12 text-center text-lg font-bold font-mono bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        className="w-9 h-11 xs:w-10 xs:h-12 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-bold font-mono bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500/40 transition-all shrink-0"
                       />
                     ))}
                   </div>
@@ -2001,17 +2079,19 @@ export default function Settings() {
                   </button>
 
                   <div className="flex items-center gap-2">
-                    <CleanButton
-                      variant="secondary"
+                    <button
+                      type="button"
                       onClick={closeDeleteMyAccountModal}
                       disabled={isConfirmingDelete}
+                      className="py-2 px-3 rounded-xl text-xs sm:text-sm font-medium bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 transition-all cursor-pointer min-h-[40px] flex items-center justify-center disabled:opacity-40 active:scale-[0.98]"
                     >
                       Cancel
-                    </CleanButton>
-                    <CleanButton
-                      variant="danger"
+                    </button>
+                    <button
+                      type="button"
                       onClick={handleFinalDeleteSelf}
                       disabled={isConfirmingDelete || deleteSelfOtp.join('').length !== 6}
+                      className="py-2 px-4 rounded-xl text-xs sm:text-sm font-medium bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-xs hover:shadow transition-all cursor-pointer min-h-[40px] flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-[0.98]"
                     >
                       {isConfirmingDelete ? (
                         <>
@@ -2021,7 +2101,7 @@ export default function Settings() {
                       ) : (
                         'Confirm Delete'
                       )}
-                    </CleanButton>
+                    </button>
                   </div>
                 </div>
               </div>

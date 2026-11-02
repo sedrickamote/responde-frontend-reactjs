@@ -9,12 +9,15 @@ import {
 import DatePicker from "../components/DatePicker";
 import FilterDropdown from "../components/DropDown";
 import { StaggerContainer, StaggerItem } from "../components/Stagger";
+import { supabase } from "../lib/supabaseClient";
 import { authService } from "../services/authService";
 import { apiRequest } from "../services/apiClient";
 import { useDebounce } from "../hooks/useDebounce";
 import PageLoader from "../components/PageLoader";
 import { TALISAY_BARANGAYS } from "../data/talisay-barangays";
+import { BASE_INCIDENT_TYPES, formatReportType, formatReportUrgency } from "../services/incidentService";
 import { formatTimestampPHT } from "../utils/dateUtils";
+import { isIncidentIntent, isGeneralLogIntent, normalizeIntent } from "../utils/intentUtils";
 
 interface ScrapedPost {
   id: string;
@@ -23,8 +26,9 @@ interface ScrapedPost {
   avatar: string;
   rawText: string;
   barangay: string;
-  type: "Search & Rescue" | "Medical" | "Food & Water" | "Infrastructure";
-  urgency: "High" | "Moderate" | "Low";
+  type: string;
+  urgency: "Critical" | "High" | "Moderate" | "Low";
+  intent?: string;
   status: "New" | "Verified" | "Flagged" | "Resolved";
   timestamp: string;
   createdAt?: string;
@@ -109,82 +113,6 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
       </button>
     </motion.div>
   );
-}
-
-// ── Heuristic: map DB incident_type + text to UI type ──
-function inferType(incidentType: string, text: string): ScrapedPost["type"] {
-  const t = (incidentType || "").toLowerCase();
-  const txt = (text || "").toLowerCase();
-
-  if (t === "casualty" || t === "medical" || txt.includes("sugat") || txt.includes("ospital") || txt.includes("ambulansya") || txt.includes("medic") || txt.includes("nabalian") || txt.includes("nasaktan")) return "Medical";
-  if (t === "evacuation" || txt.includes("evacuate") || txt.includes("stranded") || txt.includes("nakaipit") || txt.includes("natabunan") || txt.includes("rescue")) return "Search & Rescue";
-  if (t === "flood" || t === "landslide" || t === "earthquake" || t === "fire" || txt.includes("gumuhong") || txt.includes("bumagsak") || txt.includes("putol") || txt.includes("poste") || txt.includes("kuryente")) return "Infrastructure";
-  if (txt.includes("food") || txt.includes("tubig") || txt.includes("relief") || txt.includes("gatas") || txt.includes("gamot") || txt.includes("supply")) return "Food & Water";
-
-  return "Medical"; // default
-}
-
-// ── Heuristic: derive urgency from incident_type + text ──
-function inferUrgency(incidentType: string, text: string): ScrapedPost["urgency"] {
-  const t = (incidentType || "").toLowerCase();
-  const txt = (text || "").toLowerCase();
-
-  const highKeywords = ["emergency", "casualty", "fire", "now", "asap", "urgent", "naipit", "natabunan", "patay", "matanda", "bata", "nawawala"];
-  const moderateKeywords = ["flood", "evacuation", "landslide", "earthquake", "baha", "gumuhong", "tumumba", "putol"];
-
-  if (highKeywords.some(k => t.includes(k) || txt.includes(k))) return "High";
-  if (moderateKeywords.some(k => t.includes(k) || txt.includes(k))) return "Moderate";
-  return "Low";
-}
-
-// ── Heuristic: classify whether a scraped text represents a true incident or noise ──
-function inferIsIncident(incidentType: string, text: string, confidence: number): {
-  isIncident: boolean;
-  nlpCategory: "Incident" | "Non-Incident";
-  nlpReason: string;
-} {
-  const txt = (text || "").toLowerCase();
-  const t = (incidentType || "").toLowerCase();
-
-  const noiseKeywords = [
-    "keep safe", "ingat po", "god bless", "salamat po", "maraming salamat", "thank you",
-    "bukas po ba", "anong oras", "saan po pwede", "test comment", "congrats", "pa share",
-    "amen", "magkano", "happy", "gandang araw", "good morning", "ingat kayo"
-  ];
-
-  const emergencyKeywords = [
-    "tulong", "saklolo", "rescue", "baha", "stranded", "naipit", "natabunan", "sugat",
-    "ospital", "ambulansya", "emergency", "sunog", "apoy", "gumuhong", "bumagsak",
-    "poste", "kuryente", "relief", "tubig", "pagkain", "gamot", "lumikas", "evacuate",
-    "evacuation", "landslide", "earthquake", "lindol", "patay", "bata", "matanda",
-    "purok", "sitio", "boundary", "urgent", "asap"
-  ];
-
-  const hasEmergency = emergencyKeywords.some(k => txt.includes(k) || t.includes(k));
-  const hasNoiseOnly = noiseKeywords.some(k => txt.includes(k)) && !hasEmergency;
-
-  if (hasEmergency || confidence >= 60) {
-    return {
-      isIncident: true,
-      nlpCategory: "Incident",
-      nlpReason: "Emergency incident intent detected with actionable location, hazards, or resource request.",
-    };
-  }
-
-  if (hasNoiseOnly || (confidence > 0 && confidence < 35)) {
-    return {
-      isIncident: false,
-      nlpCategory: "Non-Incident",
-      nlpReason: "Filtered by NLP: General commentary, community feedback, or non-emergency inquiry.",
-    };
-  }
-
-  const isInc = hasEmergency;
-  return {
-    isIncident: isInc,
-    nlpCategory: isInc ? "Incident" : "Non-Incident",
-    nlpReason: isInc ? "Classified as potential incident report." : "Casual feedback or inquiry without actionable incident payload.",
-  };
 }
 
 // ── Format Supabase timestamp → Philippine Standard Time "M/D h:mm A" ──
@@ -328,7 +256,6 @@ export default function ScraperFeed() {
       const barangay = row.barangay || row.location || "Unknown";
       const text = row.comment_text || row.commentText || row.text || row.raw_text || row.rawText || "";
       const source = row.source || (tableName.toLowerCase().includes("comment") ? "Facebook Comment" : "Facebook Page");
-      const confidence = typeof row.confidence === "number" ? row.confidence : 0;
       const status = row.status || "New";
 
       const extractedEntities = row.extracted_entities || row.extractedEntities || {
@@ -336,20 +263,24 @@ export default function ScraperFeed() {
         needs: row.needs ? (Array.isArray(row.needs) ? row.needs : [row.needs]) : []
       };
 
-      const nlpInfo = inferIsIncident(row.incident_type || row.type, text, confidence);
-      const isIncident = typeof row.is_incident === "boolean" ? row.is_incident : nlpInfo.isIncident;
-      const nlpCategory = row.nlp_category || nlpInfo.nlpCategory;
-      const nlpReason = row.nlp_reason || nlpInfo.nlpReason;
+      const rawIntent = row.intent ? String(row.intent).trim() : '';
+      const isIncident = isIncidentIntent(rawIntent);
+      const normIntent = normalizeIntent(rawIntent);
+
+      const nlpCategory: "Incident" | "Non-Incident" = isIncident ? "Incident" : "Non-Incident";
+      const nlpReason = isIncident
+        ? (normIntent === "Resource Request"
+            ? "Resource request intent detected requiring dispatch of supplies or assistance."
+            : "Emergency report intent detected from citizen social media post.")
+        : `Non-emergency citizen post (Intent: ${normIntent}).`;
 
       // Prioritize ML classified urgency and confidence stored in Supabase
       const nlpConfidence = typeof row.confidence === "number" && row.confidence > 0
         ? row.confidence
         : (row.urgency_confidence ? Math.round(row.urgency_confidence * 100) : (row.incident_type_confidence ? Math.round(row.incident_type_confidence * 100) : 0));
 
-      const rawUrgency = row.urgency ? String(row.urgency).trim().toLowerCase() : '';
-      const resolvedUrgency: ScrapedPost["urgency"] = (rawUrgency === 'high' || rawUrgency === 'moderate' || rawUrgency === 'low')
-        ? (rawUrgency.charAt(0).toUpperCase() + rawUrgency.slice(1)) as ScrapedPost["urgency"]
-        : inferUrgency(row.incident_type || row.type, text);
+      const rawUrgency = row.urgency ? String(row.urgency).trim() : '';
+      const resolvedUrgency = formatReportUrgency(rawUrgency) as ScrapedPost["urgency"];
 
       return {
         id: String(idVal),
@@ -358,12 +289,13 @@ export default function ScraperFeed() {
         avatar: userName.charAt(0).toUpperCase(),
         rawText: text,
         barangay,
-        type: inferType(row.incident_type || row.type, text),
+        type: formatReportType(row.incident_type || row.type),
         urgency: resolvedUrgency,
+        intent: normIntent,
         status: status as ScrapedPost["status"],
         timestamp: formatTimestamp(row.created_at || row.timestamp),
         createdAt: row.created_at || row.timestamp || "",
-        confidence: nlpConfidence > 0 ? nlpConfidence : (isIncident ? 88 : 15),
+        confidence: nlpConfidence > 0 ? nlpConfidence : (isIncident ? 92 : 20),
         isIncident,
         nlpCategory,
         nlpReason,
@@ -396,7 +328,7 @@ export default function ScraperFeed() {
   const postsCountRef = useRef(posts.length);
   postsCountRef.current = posts.length;
 
-  // -- Fetch from backend API (authenticated, cached, deduplicated) --
+  // -- Fetch directly from Supabase with resilient API fallback --
   const fetchPosts = useCallback(async (isFirst = false, signal?: AbortSignal, forceRefresh = false) => {
     if (isFirst && postsCountRef.current === 0) {
       setLoading(true);
@@ -404,17 +336,28 @@ export default function ScraperFeed() {
     setError(null);
 
     try {
-      const json = await apiRequest<{ data?: any[] }>(
-        '/api/auth/data/fb-comments?limit=100',
-        {
-          signal,
-          forceRefresh,
-          cacheTtlMs: 8000,
-        }
-      );
+      // 1. Fetch directly from Supabase fb_comments table
+      const { data: supaRows, error: supaErr } = await supabase
+        .from('fb_comments')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      const data: any[] = json.data ?? [];
-      processData(data, 'fb_comments');
+      if (!supaErr && Array.isArray(supaRows) && supaRows.length > 0) {
+        processData(supaRows, 'fb_comments');
+      } else {
+        // Fallback to backend API
+        const json = await apiRequest<{ data?: any[] }>(
+          '/api/auth/data/fb-comments?limit=500',
+          {
+            signal,
+            forceRefresh,
+            cacheTtlMs: 8000,
+          }
+        );
+
+        const data: any[] = json.data ?? [];
+        processData(data, 'fb_comments');
+      }
     } catch (err: any) {
       if (err.name === 'AbortError') {
         if (import.meta.env.DEV) {
@@ -482,14 +425,19 @@ export default function ScraperFeed() {
   };
 
   const availableBarangays = useMemo(() => {
-    const fromPosts = posts.map((p) => p.barangay).filter(Boolean);
-    return ["All Barangays", ...Array.from(new Set([...TALISAY_BARANGAYS, ...fromPosts])).sort()];
+    const fromPosts = posts
+      .map((p) => p.barangay)
+      .filter((b): b is string => Boolean(b && !['all barangays', 'unknown', 'none', 'unspecified', 'n/a'].includes(b.toLowerCase().trim())));
+    const sorted = Array.from(new Set([...TALISAY_BARANGAYS, ...fromPosts])).sort();
+    return ["All Barangays", "Unknown", ...sorted];
   }, [posts]);
 
   const availableTypes = useMemo(() => {
-    const base = ["Search & Rescue", "Medical", "Food & Water", "Infrastructure"];
     const fromPosts = posts.map((p) => p.type).filter(Boolean);
-    return ["All Types", ...Array.from(new Set([...base, ...fromPosts])).sort()];
+    const sorted = Array.from(new Set([...BASE_INCIDENT_TYPES, ...fromPosts]))
+      .filter((t): t is string => Boolean(t && t.toLowerCase() !== 'all types' && t.toLowerCase() !== 'unclassified'))
+      .sort();
+    return ["All Types", ...sorted];
   }, [posts]);
 
   const getPostDateString = (p: ScrapedPost): string | null => {
@@ -511,16 +459,37 @@ export default function ScraperFeed() {
     return null;
   };
 
-  const incidentCount = useMemo(() => posts.filter((p) => p.isIncident).length, [posts]);
-  const rawCount = posts.length;
+  const incidentCount = useMemo(() => posts.filter((p) => isIncidentIntent(p.intent)).length, [posts]);
+  const rawCount = useMemo(() => posts.filter((p) => isGeneralLogIntent(p.intent)).length, [posts]);
 
   // Filter logic
   const filteredPosts = useMemo(() => {
     return posts.filter((p) => {
-      // In structured mode, only show verified incident reports
-      if (viewMode === "structured" && !p.isIncident) return false;
-      if (filterBarangay !== "All Barangays" && p.barangay?.toLowerCase() !== filterBarangay.toLowerCase()) return false;
-      if (filterType !== "All Types" && p.type?.toLowerCase() !== filterType.toLowerCase()) return false;
+      if (viewMode === "structured") {
+        if (!isIncidentIntent(p.intent)) return false;
+      } else {
+        if (!isGeneralLogIntent(p.intent)) return false;
+      }
+      if (filterBarangay !== "All Barangays") {
+        const normFilter = filterBarangay.toLowerCase().trim();
+        const postBarangay = (p.barangay || "").toLowerCase().trim();
+        if (normFilter === "unknown" || normFilter === "none") {
+          if (postBarangay && postBarangay !== "unknown" && postBarangay !== "none" && postBarangay !== "unspecified" && postBarangay !== "n/a") {
+            return false;
+          }
+        } else if (postBarangay !== normFilter) {
+          return false;
+        }
+      }
+      if (filterType !== "All Types") {
+        const normFilter = filterType.toLowerCase().trim();
+        const postType = (p.type || "none").toLowerCase().trim();
+        if (normFilter === "none" || normFilter === "unknown") {
+          if (postType !== "none" && postType !== "unclassified" && postType !== "unknown") return false;
+        } else if (postType !== normFilter) {
+          return false;
+        }
+      }
       if (filterUrgency !== "All Urgency" && p.urgency?.toLowerCase() !== filterUrgency.toLowerCase()) return false;
       if (filterStatus !== "All Status" && p.status?.toLowerCase() !== filterStatus.toLowerCase()) return false;
       if (fromDate) {
@@ -589,6 +558,13 @@ export default function ScraperFeed() {
   // ── Semantic Micro-Dot Status System (No Glaring Neon Blocks) ──
   const renderUrgencyBadge = (urgency: string) => {
     switch (urgency) {
+      case "Critical":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30 tabular-nums">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-ping shrink-0" />
+            Critical
+          </span>
+        );
       case "High":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 tabular-nums">
@@ -781,10 +757,11 @@ export default function ScraperFeed() {
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#0071E3] dark:text-sky-400 hover:underline cursor-pointer"
+                  className="inline-flex items-center justify-center w-7 h-7 text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-lg border border-blue-500/20 transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
+                  title="Reset all filters"
+                  aria-label="Reset all filters"
                 >
-                  <RotateCcw className="w-3 h-3" strokeWidth={1.75} />
-                  <span>Reset</span>
+                  <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
                 </button>
               )}
             </div>
@@ -811,7 +788,7 @@ export default function ScraperFeed() {
 
                 <FilterDropdown
                   value={filterUrgency}
-                  options={["All Urgency", "High", "Moderate", "Low"]}
+                  options={["All Urgency", "Low", "Moderate", "High", "Critical"]}
                   onChange={(val) => { setFilterUrgency(val); setSelectedId(""); }}
                 />
 
@@ -839,11 +816,11 @@ export default function ScraperFeed() {
                   <button
                     type="button"
                     onClick={resetFilters}
-                    className="col-span-1 sm:col-span-2 md:col-span-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#0071E3] dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 transition-all duration-150 active:scale-[0.97] cursor-pointer shrink-0 ml-auto sm:ml-0"
+                    className="inline-flex items-center justify-center w-[34px] h-[34px] sm:w-[36px] sm:h-[36px] text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-xl transition-all duration-150 active:scale-[0.95] cursor-pointer shrink-0 ml-auto sm:ml-0 border border-blue-500/20"
                     title="Reset all filters"
+                    aria-label="Reset all filters"
                   >
                     <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
-                    <span>Reset</span>
                   </button>
                 )}
               </div>
@@ -1043,6 +1020,18 @@ export default function ScraperFeed() {
                                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate">
                                     {post.barangay}
                                   </span>
+                                  {post.intent && (
+                                    <>
+                                      <span className="text-slate-300 dark:text-slate-600 text-[10px]">•</span>
+                                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                                        isIncidentIntent(post.intent)
+                                          ? 'text-purple-600 dark:text-purple-400 bg-purple-500/10'
+                                          : 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800'
+                                      }`}>
+                                        {post.intent}
+                                      </span>
+                                    </>
+                                  )}
                                 </div>
                                 <p
                                   className={`text-xs line-clamp-2 mb-2 leading-relaxed transition-colors ${
@@ -1203,6 +1192,18 @@ export default function ScraperFeed() {
                                     </div>
                                     <p className="text-sm font-bold text-slate-900 dark:text-white break-words mt-1">
                                       {selectedPost.type}
+                                    </p>
+                                  </div>
+
+                                  <div className="bg-white/90 dark:bg-[#111827]/90 rounded-2xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
+                                    <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                                      <div className="w-6 h-6 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-500/20">
+                                        <Sparkles className="w-3.5 h-3.5" strokeWidth={1.75} />
+                                      </div>
+                                      <span>Detected Intent</span>
+                                    </div>
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white break-words mt-1">
+                                      {selectedPost.intent || 'Other'}
                                     </p>
                                   </div>
 

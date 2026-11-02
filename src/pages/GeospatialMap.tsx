@@ -37,7 +37,7 @@ import { useReports } from '../context/ReportsContext';
 import PageLoader from '../components/PageLoader';
 import { StaggerContainer, StaggerItem } from '../components/Stagger';
 import type { MapLayerState, SelectedFeature } from '../types/geospatial';
-import { isReportIncomplete, getIncompleteReasons, formatReportCode, type Report } from '../services/incidentService';
+import { isReportIncomplete, getIncompleteReasons, formatReportCode, BASE_INCIDENT_TYPES, type Report } from '../services/incidentService';
 import { getBarangayMeta, normalizeBarangayName, clampPointToBarangay } from '../data/talisay-barangays';
 
 const INITIAL_LAYERS: MapLayerState = {
@@ -84,6 +84,12 @@ const CATEGORY_STYLES: Record<string, { text: string; bg: string; border: string
 
 // Semantic Micro-Dot Urgency Badges (Calm, non-glaring)
 const URGENCY_BADGES: Record<string, { bg: string; text: string; border: string; dot: string }> = {
+  'Critical': {
+    bg: 'bg-purple-50 dark:bg-purple-950/40',
+    text: 'text-purple-700 dark:text-purple-300',
+    border: 'border-purple-200/80 dark:border-purple-900/40',
+    dot: 'bg-purple-500',
+  },
   'High': {
     bg: 'bg-rose-50 dark:bg-rose-950/40',
     text: 'text-rose-700 dark:text-rose-300',
@@ -294,8 +300,8 @@ function BarangayDetailCard({ name, reports, onClose, onViewList }: {
         {/* Urgency 3-Column Bento Grid */}
         <div>
           <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Urgency Breakdown</p>
-          <div className="grid grid-cols-3 gap-2">
-            {(['High', 'Moderate', 'Low'] as const).map((level) => {
+          <div className="grid grid-cols-4 gap-1.5">
+            {(['Low', 'Moderate', 'High', 'Critical'] as const).map((level) => {
               const b = URGENCY_BADGES[level];
               const count = urgencyCounts[level] || 0;
               return (
@@ -1139,19 +1145,11 @@ export default function GeospatialMap() {
   }, []);
 
   const availableIncidentTypes = useMemo(() => {
-    const set = new Set<string>(['Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure']);
-    reports.forEach((r) => {
-      if (
-        r.type &&
-        r.type.trim() &&
-        r.type !== 'All Types' &&
-        r.type.toLowerCase() !== 'unclassified' &&
-        r.type.toLowerCase() !== 'none'
-      ) {
-        set.add(r.type);
-      }
-    });
-    return ['All Types', ...Array.from(set).sort()];
+    const fromReports = reports.map((r) => r.type).filter(Boolean);
+    const sorted = Array.from(new Set([...BASE_INCIDENT_TYPES, ...fromReports]))
+      .filter((t): t is string => Boolean(t && t.toLowerCase() !== 'all types' && t.toLowerCase() !== 'unclassified'))
+      .sort();
+    return ['All Types', ...sorted];
   }, [reports]);
 
   const matchStatus = useCallback((itemStatus?: string) => {
@@ -1249,8 +1247,8 @@ export default function GeospatialMap() {
     });
   }, [completeReports]);
 
-  // Compute barangay max urgency level (High=3, Moderate=2, Low=1) reflecting active filters and pins
-  const URGENCY_WEIGHTS: Record<string, number> = { High: 3, Moderate: 2, Low: 1 };
+  // Compute barangay max urgency level (Critical=4, High=3, Moderate=2, Low=1) reflecting active filters and pins
+  const URGENCY_WEIGHTS: Record<string, number> = { Critical: 4, High: 3, Moderate: 2, Low: 1 };
   const barangayCounts = useMemo(() => {
     const maxUrgency: Record<string, number> = {};
     pinReports.forEach((r) => {
@@ -1264,7 +1262,7 @@ export default function GeospatialMap() {
   // Drawer list: synchronized exactly with the visible pins on the map
   const drawerReports = useMemo(() => {
     return [...pinReports].sort((a, b) => {
-      const u = { High: 3, Moderate: 2, Low: 1 };
+      const u = { Critical: 4, High: 3, Moderate: 2, Low: 1 };
       return (u[b.urgency as keyof typeof u] || 0) - (u[a.urgency as keyof typeof u] || 0);
     });
   }, [pinReports]);
@@ -1307,6 +1305,19 @@ export default function GeospatialMap() {
             }, 500);
           }
         }
+      }
+      setSearchParams({}, { replace: true });
+    }
+
+    // Handle URL ?barangay= param from Global Search
+    const barangayName = searchParams.get('barangay');
+    if (barangayName) {
+      const meta = getBarangayMeta(barangayName);
+      if (meta) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('map-fly-to', { detail: { center: meta.centroid, zoom: 14.5 } }));
+          setSelected({ type: 'barangay', id: meta.id, name: meta.name });
+        }, 400);
       }
       setSearchParams({}, { replace: true });
     }
@@ -1355,19 +1366,6 @@ export default function GeospatialMap() {
                   </p>
                 </div>
               </div>
-
-              {/* Plotted & Unmapped live counters */}
-              <div className="flex items-center gap-2 text-xs font-semibold shrink-0">
-                <span className="px-3 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/60 dark:border-white/5 tabular-nums text-slate-700 dark:text-slate-300">
-                  <strong className="text-slate-900 dark:text-white font-bold">{pinReports.length}</strong> Plotted
-                </span>
-                {incompleteReports.length > 0 && (
-                  <span className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 tabular-nums flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                    <strong>{incompleteReports.length}</strong> Unmapped
-                  </span>
-                )}
-              </div>
             </div>
 
             {/* ── Filters & Layer Controls ── */}
@@ -1394,10 +1392,11 @@ export default function GeospatialMap() {
                   <button
                     type="button"
                     onClick={resetFilters}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#0071E3] dark:text-sky-400 hover:underline cursor-pointer"
+                    className="inline-flex items-center justify-center w-7 h-7 text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-lg border border-blue-500/20 transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
+                    title="Reset all filters"
+                    aria-label="Reset all filters"
                   >
-                    <RotateCcw className="w-3 h-3" strokeWidth={1.75} />
-                    <span>Reset</span>
+                    <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
                   </button>
                 )}
               </div>
@@ -1421,7 +1420,7 @@ export default function GeospatialMap() {
                 <div className="flex-1 sm:flex-initial min-w-[120px]">
                   <FilterDropdown
                     value={filterUrgency}
-                    options={['All Urgency', 'High', 'Moderate', 'Low']}
+                    options={['All Urgency', 'Low', 'Moderate', 'High', 'Critical']}
                     onChange={setFilterUrgency}
                   />
                 </div>
@@ -1444,11 +1443,11 @@ export default function GeospatialMap() {
                       transition={{ duration: 0.15 }}
                       type="button"
                       onClick={resetFilters}
-                      className="hidden md:inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-xl transition-all active:scale-[0.97] cursor-pointer shrink-0 border border-blue-500/20"
-                      title="Reset filters"
+                      className="hidden md:inline-flex items-center justify-center w-[34px] h-[34px] sm:w-[36px] sm:h-[36px] text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-xl transition-all duration-150 active:scale-[0.95] cursor-pointer shrink-0 border border-blue-500/20"
+                      title="Reset all filters"
+                      aria-label="Reset all filters"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Reset</span>
+                      <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
                     </motion.button>
                   )}
                 </AnimatePresence>

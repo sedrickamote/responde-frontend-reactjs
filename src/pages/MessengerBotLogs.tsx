@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useLayoutEffect, useCallback } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Filter, AlertCircle, X, CheckCircle2, RefreshCw, MessageSquare,
@@ -11,6 +11,8 @@ import PageLoader from "../components/PageLoader";
 import { StaggerContainer, StaggerItem } from "../components/Stagger";
 import { useBotConversations, type BotConversation as Conversation } from "../context/BotConversationsContext";
 import { TALISAY_BARANGAYS } from "../data/talisay-barangays";
+import { BASE_INCIDENT_TYPES, formatReportUrgency, formatReportType } from "../services/incidentService";
+import { isIncidentIntent, isGeneralLogIntent } from "../utils/intentUtils";
 import { extractDisplayTime, formatPhilippineTimeOnly } from "../utils/dateUtils";
 import { useDebounce } from "../hooks/useDebounce";
 
@@ -20,7 +22,7 @@ export interface ConvoNLPAnalysis {
   confidence: number;
   nlpCategory: "Incident" | "Inquiry / Chatter";
   incidentType: string;
-  urgency: "High" | "Moderate" | "Low";
+  urgency: "Critical" | "High" | "Moderate" | "Low";
   nlpReason: string;
   actionableNeeds: string[];
   extractedLocation: string;
@@ -38,8 +40,6 @@ export function analyzeConvoNLP(convo: Conversation): ConvoNLPAnalysis {
     .join(" ")
     .toLowerCase();
 
-  const typeLower = (convo.type || "").toLowerCase();
-
   const highKeywords = [
     "saklolo", "rescue", "baha", "nasira", "bubong", "ambulance", "sugat",
     "emergency", "pagguho", "landslide", "tulong", "naipit", "naanod", "nabalian", "sunog", "apoy"
@@ -48,36 +48,41 @@ export function analyzeConvoNLP(convo: Conversation): ConvoNLPAnalysis {
     "tubig", "supply", "puno", "kalsada", "daan", "poste", "interruption",
     "first aid", "gamot", "food", "pagkain", "evacuate", "lumikas"
   ];
-  const noiseKeywords = [
-    "may baha po ba", "may kuryente po ba", "saan po ang", "ano po hotline",
-    "bukas po ba", "good morning", "magandang", "hello", "hi po", "salamat", "thank you", "test", "ingat"
-  ];
-
   const hasHigh = highKeywords.some((k) => allUserText.includes(k));
   const hasModerate = moderateKeywords.some((k) => allUserText.includes(k));
-  const isExplicitNoise = noiseKeywords.some((k) => allUserText.includes(k)) && !hasHigh;
 
-  let incidentType = convo.type || "General";
-  if (allUserText.includes("ambulance") || allUserText.includes("sugat") || allUserText.includes("first aid") || typeLower.includes("medical")) {
-    incidentType = "Medical Emergency";
-  } else if (allUserText.includes("rescue") || allUserText.includes("naipit") || allUserText.includes("naanod") || typeLower.includes("search")) {
-    incidentType = "Search & Rescue";
-  } else if (allUserText.includes("bubong") || allUserText.includes("puno") || allUserText.includes("poste") || typeLower.includes("infrastructure")) {
-    incidentType = "Infrastructure / Hazard";
-  } else if (allUserText.includes("landslide") || allUserText.includes("pagguho")) {
-    incidentType = "Landslide / Geohazard";
-  } else if (allUserText.includes("tubig") || allUserText.includes("food") || allUserText.includes("relief") || typeLower.includes("food")) {
-    incidentType = "Food & Water Relief";
+  const isIncident = isIncidentIntent(convo.intent);
+  const formattedType = formatReportType(convo.type);
+  const hasValidType = formattedType !== "None";
+
+  // Prioritize actual Supabase incident type
+  let incidentType = hasValidType ? formattedType : "None";
+
+  // If incident intent but type is missing or None in Supabase, infer from user text or fallback to General
+  if (incidentType === "None" && isIncident) {
+    if (allUserText.includes("sunog") || allUserText.includes("apoy") || allUserText.includes("fire")) {
+      incidentType = "Fire";
+    } else if (allUserText.includes("baha") || allUserText.includes("flood") || allUserText.includes("lubog")) {
+      incidentType = "Flood";
+    } else if (allUserText.includes("lindol") || allUserText.includes("earthquake") || allUserText.includes("seismic")) {
+      incidentType = "Earthquake";
+    } else if (allUserText.includes("landslide") || allUserText.includes("pagguho") || allUserText.includes("guho")) {
+      incidentType = "Landslide";
+    } else if (allUserText.includes("bagyo") || allUserText.includes("typhoon")) {
+      incidentType = "Typhoon";
+    } else if (allUserText.includes("bulkan") || allUserText.includes("volcano") || allUserText.includes("putok")) {
+      incidentType = "Volcanic Eruption";
+    } else {
+      incidentType = "General";
+    }
   }
 
   const actionableNeeds: string[] = [];
-  if (allUserText.includes("ambulance") || allUserText.includes("sugat")) actionableNeeds.push("Ambulance & Paramedics");
-  if (allUserText.includes("first aid")) actionableNeeds.push("First Aid Supplies");
-  if (allUserText.includes("rescue") || allUserText.includes("boat")) actionableNeeds.push("Rescue Boat Unit");
-  if (allUserText.includes("bubong")) actionableNeeds.push("Shelter Repair Kit");
-  if (allUserText.includes("puno") || allUserText.includes("daan")) actionableNeeds.push("Road Clearing Crew");
-  if (allUserText.includes("tubig")) actionableNeeds.push("Potable Drinking Water");
-  if (allUserText.includes("pagguho") || allUserText.includes("landslide")) actionableNeeds.push("Evacuation Assistance");
+  if (allUserText.includes("ambulance") || allUserText.includes("sugat") || allUserText.includes("first aid")) actionableNeeds.push("Medical Support & First Aid");
+  if (allUserText.includes("rescue") || allUserText.includes("boat") || allUserText.includes("naipit")) actionableNeeds.push("Search & Rescue Unit");
+  if (allUserText.includes("sunog") || allUserText.includes("apoy") || incidentType === "Fire") actionableNeeds.push("Fire Suppression Unit");
+  if (allUserText.includes("bubong") || allUserText.includes("puno") || allUserText.includes("poste")) actionableNeeds.push("Road Clearing Crew");
+  if (allUserText.includes("tubig") || allUserText.includes("food") || allUserText.includes("relief")) actionableNeeds.push("Relief Supplies & Water");
   if (actionableNeeds.length === 0 && (hasHigh || hasModerate)) {
     actionableNeeds.push("On-Site Verification");
   }
@@ -92,23 +97,24 @@ export function analyzeConvoNLP(convo: Conversation): ConvoNLPAnalysis {
         : false)
   );
 
-  const isIncident = (hasHigh || hasModerate || typeLower === "emergency" || typeLower === "medical" || typeLower === "search & rescue") && !isExplicitNoise;
-  const urgency: "High" | "Moderate" | "Low" = hasHigh ? "High" : hasModerate ? "Moderate" : "Low";
-  const confidence = isIncident ? (hasHigh ? 96 : 89) : 18;
+  const urgency: "Critical" | "High" | "Moderate" | "Low" = convo.urgency
+    ? (formatReportUrgency(convo.urgency) as "Critical" | "High" | "Moderate" | "Low")
+    : (hasHigh ? "High" : hasModerate ? "Moderate" : "Low");
+  const confidence = isIncident ? 92 : 20;
 
   let nlpReason = "";
   if (isIncident) {
-    nlpReason = hasHigh
-      ? "Distress intent detected: critical emergency event requiring immediate dispatch of rescue or medical responders."
-      : "Community hazard or relief request detected requiring municipal response.";
+    nlpReason = convo.intent === 'Resource Request'
+      ? "Resource request intent detected requiring dispatch of supplies or assistance."
+      : "Emergency report intent detected requiring immediate dispatch of rescue or medical responders.";
   } else {
-    nlpReason = "Routine informational inquiry / FAQ chat exchange without actionable emergency incident.";
+    nlpReason = `Non-emergency chat exchange (Intent: ${convo.intent || 'Casual/Inquiry'}).`;
   }
 
   return {
     isIncident,
     confidence,
-    nlpCategory: isIncident ? "Incident" : "Inquiry / Chatter",
+    nlpCategory: isIncident ? "Incident" : (convo.intent as any || "Inquiry / Chatter"),
     incidentType,
     urgency,
     nlpReason,
@@ -174,6 +180,76 @@ function formatDisplayTime(timeStr: string): string {
   return extractDisplayTime(timeStr);
 }
 
+function formatDisplayDate(convo: Conversation): string {
+  if (convo.createdAt) {
+    try {
+      const d = new Date(convo.createdAt);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', {
+          timeZone: 'Asia/Manila',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+      }
+    } catch {}
+  }
+  if (convo.messages && convo.messages.length > 0) {
+    for (let i = convo.messages.length - 1; i >= 0; i--) {
+      const ts = convo.messages[i].timestamp;
+      if (ts) {
+        try {
+          const d = new Date(ts);
+          if (!isNaN(d.getTime())) {
+            return d.toLocaleDateString('en-US', {
+              timeZone: 'Asia/Manila',
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            });
+          }
+        } catch {}
+      }
+    }
+  }
+  if (convo.time) {
+    const trimmed = convo.time.trim();
+    const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      const d = new Date(trimmed);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', {
+          timeZone: 'Asia/Manila',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+      }
+    }
+    const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+    if (slashMatch) {
+      const mm = parseInt(slashMatch[1], 10);
+      const dd = parseInt(slashMatch[2], 10);
+      let yyyy = slashMatch[3] ? parseInt(slashMatch[3], 10) : new Date().getFullYear();
+      if (yyyy < 100) yyyy += 2000;
+      const d = new Date(yyyy, mm - 1, dd);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+      }
+    }
+  }
+  return new Date().toLocaleDateString('en-US', {
+    timeZone: 'Asia/Manila',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 // -- Toast Type --
 interface Toast {
   id: number;
@@ -185,14 +261,18 @@ interface Toast {
 const APPLE_SPRING = { type: "spring", stiffness: 400, damping: 32 } as const;
 
 const contentVariants: Variants = {
-  hidden: { opacity: 0 },
+  hidden: { opacity: 0, x: 10, scale: 0.99 },
   visible: {
     opacity: 1,
-    transition: { duration: 0.15, ease: "easeOut" },
+    x: 0,
+    scale: 1,
+    transition: APPLE_SPRING,
   },
   exit: {
     opacity: 0,
-    transition: { duration: 0.1, ease: "easeIn" },
+    x: -8,
+    scale: 0.99,
+    transition: { duration: 0.15, ease: "easeOut" },
   },
 };
 
@@ -290,7 +370,51 @@ export default function MessengerBotLogs() {
   useEffect(() => {
     setCurrentPage(1);
   }, [debouncedBarangay, debouncedType, debouncedUrgency, debouncedStatus, debouncedFromDate, debouncedToDate]);
-  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollChatToBottom = useCallback((node?: HTMLDivElement | null) => {
+    const el = node || chatScrollRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, []);
+
+  // Callback ref guarantees that ANY conversation DOM element that mounts immediately scrolls to bottom
+  const setChatScrollRef = useCallback((node: HTMLDivElement | null) => {
+    chatScrollRef.current = node;
+    if (node) {
+      // 1. Instant layout scroll
+      node.scrollTop = node.scrollHeight;
+
+      // 2. Multi-frame RAF to beat any font/DOM paints
+      requestAnimationFrame(() => {
+        if (node) node.scrollTop = node.scrollHeight;
+      });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (node) node.scrollTop = node.scrollHeight;
+        });
+      });
+
+      // 3. Staggered timeouts to ensure after Framer Motion entrance animation it stays pinned to bottom
+      const t1 = setTimeout(() => {
+        if (node) node.scrollTop = node.scrollHeight;
+      }, 50);
+      const t2 = setTimeout(() => {
+        if (node) node.scrollTop = node.scrollHeight;
+      }, 150);
+      const t3 = setTimeout(() => {
+        if (node) node.scrollTop = node.scrollHeight;
+      }, 300);
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
+    }
+  }, []);
 
   // Track seen conversations (persisted in localStorage)
   const [seenConvoIds, setSeenConvoIds] = useState<Set<string>>(() => {
@@ -334,12 +458,16 @@ export default function MessengerBotLogs() {
     });
   }, [conversations]);
 
-  const incidentCount = useMemo(() => analyzedConversations.filter(c => c.nlp.isIncident).length, [analyzedConversations]);
-  const rawCount = analyzedConversations.length;
+  const incidentCount = useMemo(() => analyzedConversations.filter(c => isIncidentIntent(c.intent)).length, [analyzedConversations]);
+  const rawCount = useMemo(() => analyzedConversations.filter(c => isGeneralLogIntent(c.intent)).length, [analyzedConversations]);
 
   const unseenCount = useMemo(() => {
     return analyzedConversations.filter((c) => {
-      if (viewMode === "structured" && !c.nlp.isIncident) return false;
+      if (viewMode === "structured") {
+        if (!isIncidentIntent(c.intent)) return false;
+      } else {
+        if (!isGeneralLogIntent(c.intent)) return false;
+      }
       return !seenConvoIds.has(c.id);
     }).length;
   }, [analyzedConversations, viewMode, seenConvoIds]);
@@ -348,6 +476,8 @@ export default function MessengerBotLogs() {
     setSelectedId(id);
     markConvoSeen(id);
     setMobileView('chat');
+    setTimeout(() => scrollChatToBottom(), 10);
+    setTimeout(() => scrollChatToBottom(), 80);
   };
 
   // Keep first conversation selected once loaded
@@ -393,13 +523,21 @@ export default function MessengerBotLogs() {
   const hasActiveFilters = activeFilterCount > 0;
 
   const availableBarangays = useMemo(() => {
-    const fromConversations = conversations.map((c) => c.barangay).filter(Boolean);
-    return Array.from(new Set([...TALISAY_BARANGAYS, ...fromConversations])).sort();
+    const fromConversations = conversations
+      .map((c) => c.barangay)
+      .filter((b): b is string => Boolean(b && !['all barangays', 'unknown', 'none', 'unspecified', 'n/a'].includes(b.toLowerCase().trim())));
+    const sorted = Array.from(new Set([...TALISAY_BARANGAYS, ...fromConversations])).sort();
+    return ["Unknown", ...sorted];
   }, [conversations]);
 
   const availableTypes = useMemo(() => {
-    const list = Array.from(new Set(conversations.map((c) => c.type).filter(Boolean))).sort();
-    return list.length > 0 ? list : ["Medical", "Search & Rescue", "Food & Water", "Infrastructure"];
+    const fromConversations = conversations
+      .map((c) => c.type)
+      .filter(Boolean);
+    const sorted = Array.from(new Set([...BASE_INCIDENT_TYPES, ...fromConversations]))
+      .filter((t): t is string => Boolean(t && t.toLowerCase() !== 'all types' && t.toLowerCase() !== 'unclassified'))
+      .sort();
+    return sorted;
   }, [conversations]);
 
   const resetFilters = () => {
@@ -449,12 +587,30 @@ export default function MessengerBotLogs() {
 
   const filteredConversations = useMemo(() => {
     return analyzedConversations.filter((c) => {
-      if (viewMode === "structured" && !c.nlp.isIncident) return false;
-      if (debouncedBarangay !== "All Barangays" && c.barangay?.toLowerCase() !== debouncedBarangay.toLowerCase()) {
-        return false;
+      if (viewMode === "structured") {
+        if (!isIncidentIntent(c.intent)) return false;
+      } else {
+        if (!isGeneralLogIntent(c.intent)) return false;
       }
-      if (debouncedType !== "All Types" && c.type?.toLowerCase() !== debouncedType.toLowerCase()) {
-        return false;
+      if (debouncedBarangay !== "All Barangays") {
+        const normFilter = debouncedBarangay.toLowerCase().trim();
+        const convoBarangay = (c.barangay || "").toLowerCase().trim();
+        if (normFilter === "unknown" || normFilter === "none") {
+          if (convoBarangay && convoBarangay !== "unknown" && convoBarangay !== "none" && convoBarangay !== "unspecified" && convoBarangay !== "n/a") {
+            return false;
+          }
+        } else if (convoBarangay !== normFilter) {
+          return false;
+        }
+      }
+      if (debouncedType !== "All Types") {
+        const normFilter = debouncedType.toLowerCase().trim();
+        const convoType = (c.type || c.nlp?.incidentType || "none").toLowerCase().trim();
+        if (normFilter === "none" || normFilter === "unknown") {
+          if (convoType !== "none" && convoType !== "unclassified" && convoType !== "unknown") return false;
+        } else if (convoType !== normFilter && (c.type || "").toLowerCase().trim() !== normFilter && (c.nlp?.incidentType || "").toLowerCase().trim() !== normFilter) {
+          return false;
+        }
       }
       if (debouncedUrgency !== "All Urgency" && c.nlp?.urgency?.toLowerCase() !== debouncedUrgency.toLowerCase()) {
         return false;
@@ -481,6 +637,16 @@ export default function MessengerBotLogs() {
     return filteredConversations.slice(start, start + PAGE_SIZE);
   }, [filteredConversations, currentPage]);
 
+  useEffect(() => {
+    if (filteredConversations.length > 0) {
+      const stillVisible = filteredConversations.some(c => c.id === selectedId);
+      if (!stillVisible) {
+        setSelectedId(filteredConversations[0].id);
+        markConvoSeen(filteredConversations[0].id);
+      }
+    }
+  }, [viewMode, filteredConversations, selectedId]);
+
   const selectedConversation =
     filteredConversations.find((c) => c.id === selectedId) || filteredConversations[0] || null;
 
@@ -497,12 +663,21 @@ export default function MessengerBotLogs() {
     }
   }, [filteredConversations, selectedId]);
 
-  // Auto-scroll chat to bottom strictly within the message panel (never scroll parent containers)
-  useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-    }
-  }, [selectedConversation?.id, selectedConversation?.messages?.length]);
+  // Auto-scroll chat view to start at the bottom (latest message) and allow scrolling up to older history
+  useLayoutEffect(() => {
+    scrollChatToBottom();
+    const raf1 = requestAnimationFrame(() => scrollChatToBottom());
+    const raf2 = requestAnimationFrame(() => requestAnimationFrame(() => scrollChatToBottom()));
+    const t1 = setTimeout(() => scrollChatToBottom(), 50);
+    const t2 = setTimeout(() => scrollChatToBottom(), 150);
+
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [selectedConversation?.id, selectedConversation?.messages?.length, mobileView, scrollChatToBottom]);
 
   const selectedIndex = selectedConversation
     ? filteredConversations.findIndex((c) => c.id === selectedConversation.id)
@@ -629,10 +804,11 @@ export default function MessengerBotLogs() {
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#0071E3] dark:text-sky-400 hover:underline cursor-pointer"
+                  className="inline-flex items-center justify-center w-7 h-7 text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-lg border border-blue-500/20 transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
+                  title="Reset all filters"
+                  aria-label="Reset all filters"
                 >
-                  <RotateCcw className="w-3 h-3" strokeWidth={1.75} />
-                  <span>Reset</span>
+                  <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
                 </button>
               )}
             </div>
@@ -661,7 +837,7 @@ export default function MessengerBotLogs() {
                 <div className="col-span-1 md:col-span-auto">
                   <FilterDropdown
                     value={filterUrgency}
-                    options={["All Urgency", "High", "Moderate", "Low"]}
+                    options={["All Urgency", "Low", "Moderate", "High", "Critical"]}
                     onChange={(val) => { setFilterUrgency(val); setSelectedId(""); }}
                   />
                 </div>
@@ -691,11 +867,11 @@ export default function MessengerBotLogs() {
                   <button
                     type="button"
                     onClick={resetFilters}
-                    className="col-span-2 md:col-span-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#0071E3] dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 transition-all duration-150 active:scale-[0.97] cursor-pointer shrink-0 ml-auto sm:ml-0"
+                    className="inline-flex items-center justify-center w-[34px] h-[34px] sm:w-[36px] sm:h-[36px] text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-xl transition-all duration-150 active:scale-[0.95] cursor-pointer shrink-0 ml-auto sm:ml-0 border border-blue-500/20"
                     title="Reset all filters"
+                    aria-label="Reset all filters"
                   >
                     <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
-                    <span>Reset</span>
                   </button>
                 )}
               </div>
@@ -904,7 +1080,7 @@ export default function MessengerBotLogs() {
                               </p>
                               <div className="mt-1 flex items-center gap-1 sm:gap-1.5 flex-wrap">
                                 <span className="inline-flex items-center text-[9px] sm:text-[10px] font-medium bg-slate-100/90 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400 rounded-md px-1.5 sm:px-2 py-0.5 border border-slate-200/50 dark:border-white/[0.06] truncate max-w-[130px] sm:max-w-none">
-                                  {convo.type} · {convo.barangay}
+                                  {convo.nlp.incidentType !== "None" ? convo.nlp.incidentType : (convo.intent || "Log")} · {convo.barangay}
                                 </span>
 
                                 <span
@@ -926,32 +1102,37 @@ export default function MessengerBotLogs() {
                               </div>
                             </div>
 
-                            {/* Timestamp & Right Chevron with Incomplete Dot */}
+                            {/* Timestamp, Collected Date & Right Chevron with Incomplete Dot */}
                             <div className="flex flex-col items-end justify-between self-stretch shrink-0 py-0.5 pl-1">
-                              <div className="flex items-center gap-1">
-                                <span
-                                  className={`text-[10px] sm:text-[11px] tabular-nums transition-colors duration-200 ${
-                                    !isSeen
-                                      ? "font-semibold text-blue-600 dark:text-blue-400"
-                                      : "font-normal text-slate-400 dark:text-slate-500"
-                                  }`}
-                                >
-                                  {formatDisplayTime(convo.time)}
+                              <div className="flex flex-col items-end">
+                                <div className="flex items-center gap-1">
+                                  <span
+                                    className={`text-[10px] sm:text-[11px] tabular-nums transition-colors duration-200 ${
+                                      !isSeen
+                                        ? "font-semibold text-blue-600 dark:text-blue-400"
+                                        : "font-normal text-slate-400 dark:text-slate-500"
+                                    }`}
+                                  >
+                                    {formatDisplayTime(convo.time)}
+                                  </span>
+                                  <AnimatePresence>
+                                    {isIncomplete && (
+                                      <motion.span
+                                        initial={{ scale: 0, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        exit={{ scale: 0, opacity: 0 }}
+                                        transition={APPLE_SPRING}
+                                        className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.45)] shrink-0"
+                                        title="Incomplete conversation"
+                                      />
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                                <span className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 font-medium tabular-nums mt-0.5 whitespace-nowrap">
+                                  {formatDisplayDate(convo)}
                                 </span>
-                                <AnimatePresence>
-                                  {isIncomplete && (
-                                    <motion.span
-                                      initial={{ scale: 0, opacity: 0 }}
-                                      animate={{ scale: 1, opacity: 1 }}
-                                      exit={{ scale: 0, opacity: 0 }}
-                                      transition={APPLE_SPRING}
-                                      className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.45)] shrink-0"
-                                      title="Incomplete conversation"
-                                    />
-                                  )}
-                                </AnimatePresence>
                               </div>
-                              <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all duration-150" />
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all duration-150 mt-auto" />
                             </div>
                           </button>
                         </div>
@@ -1010,7 +1191,7 @@ export default function MessengerBotLogs() {
                     initial="hidden"
                     animate="visible"
                     exit="exit"
-                    className="flex flex-col h-full min-h-0"
+                    className="flex flex-col h-full"
                   >
                     {/* Header */}
                     <div className="px-3.5 sm:px-6 py-3 sm:py-3.5 border-b border-slate-200/60 dark:border-white/5 flex items-center justify-between shrink-0 bg-slate-50/40 dark:bg-white/[0.02] gap-2">
@@ -1038,9 +1219,11 @@ export default function MessengerBotLogs() {
                           <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 sm:gap-1.5 mt-0.5 truncate">
                             <span className="truncate">{selectedConversation.barangay}</span>
                             <span className="text-slate-300 dark:text-slate-600 shrink-0">•</span>
-                            <span className="truncate">{selectedConversation.nlp.incidentType}</span>
-                            <span className="hidden md:inline text-slate-300 dark:text-slate-600 shrink-0">•</span>
-                            <span className="hidden md:inline font-mono text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 shrink-0">PSID: {selectedConversation.psid}</span>
+                            <span className="truncate">
+                              {selectedConversation.nlp.incidentType !== "None"
+                                ? selectedConversation.nlp.incidentType
+                                : (selectedConversation.intent || "Log")}
+                            </span>
                           </p>
                         </div>
                       </div>
@@ -1101,13 +1284,10 @@ export default function MessengerBotLogs() {
                       </div>
                     </div>
 
-                    {/* Messages — Apple Messages Thread with Edge Fade */}
+                    {/* Messages — Apple Messages Thread */}
                     <div
-                      className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-6 pb-12 bg-slate-50/40 dark:bg-[#0B0F17]/40 space-y-3 sm:space-y-4 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800"
-                      style={{
-                        maskImage: 'linear-gradient(to bottom, black calc(100% - 48px), transparent 100%)',
-                        WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 48px), transparent 100%)',
-                      }}
+                      ref={setChatScrollRef}
+                      className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-6 pb-6 bg-slate-50/40 dark:bg-[#0B0F17]/40 space-y-3 sm:space-y-4 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800"
                     >
                       <div className="space-y-3 sm:space-y-4">
                         {(selectedConversation.messages ?? []).map((msg, idx) =>
@@ -1167,6 +1347,7 @@ export default function MessengerBotLogs() {
                             </div>
                           )
                         )}
+                        <div ref={messagesEndRef} className="h-px shrink-0" />
                       </div>
                     </div>
                   </motion.div>

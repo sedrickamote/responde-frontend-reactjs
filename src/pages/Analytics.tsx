@@ -23,6 +23,12 @@ import {
   RotateCcw,
   Layers,
   PieChart as PieChartIcon,
+  Activity,
+  Flame,
+  Waves,
+  ShieldAlert,
+  Mountain,
+  HelpCircle,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -41,6 +47,8 @@ import {
 import DatePicker from '../components/DatePicker';
 import FilterDropdown from '../components/DropDown';
 import { useReports } from '../context/ReportsContext';
+import { BASE_INCIDENT_TYPES } from '../services/incidentService';
+import { TALISAY_BARANGAYS, normalizeBarangayName } from '../data/talisay-barangays';
 import PageLoader from '../components/PageLoader';
 import { containerVariants, itemVariants } from '../components/Stagger';
 import { BarangayBarChart, type BarangayBarChartProps } from '../components/BarangayBarChart';
@@ -67,17 +75,43 @@ const TYPE_CONFIG: Record<
   string,
   { icon: LucideIcon; iconClass: string; color: string; bg: string }
 > = {
-  'Search & Rescue': { icon: Siren, iconClass: 'text-amber-500', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-  Medical: { icon: HeartPulse, iconClass: 'text-rose-500', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
-  'Food & Water': { icon: Droplets, iconClass: 'text-emerald-500', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
-  Infrastructure: { icon: HardHat, iconClass: 'text-indigo-500', color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
+  Earthquake: { icon: Activity, iconClass: 'text-amber-500', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+  Fire: { icon: Flame, iconClass: 'text-rose-500', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
+  Flood: { icon: Waves, iconClass: 'text-cyan-500', color: '#0284c7', bg: 'rgba(2,132,199,0.1)' },
+  General: { icon: ShieldAlert, iconClass: 'text-indigo-500', color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
+  Landslide: { icon: Mountain, iconClass: 'text-yellow-600 dark:text-yellow-500', color: '#ca8a04', bg: 'rgba(202,138,4,0.1)' },
+  Typhoon: { icon: Waves, iconClass: 'text-teal-500', color: '#0d9488', bg: 'rgba(13,148,136,0.1)' },
+  'Volcanic Eruption': { icon: Flame, iconClass: 'text-orange-600', color: '#ea580c', bg: 'rgba(234,88,12,0.1)' },
+  None: { icon: HelpCircle, iconClass: 'text-slate-400', color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
+  'Search & Rescue': { icon: Siren, iconClass: 'text-orange-500', color: '#f97316', bg: 'rgba(249,115,22,0.1)' },
+  Medical: { icon: HeartPulse, iconClass: 'text-emerald-500', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+  'Food & Water': { icon: Droplets, iconClass: 'text-sky-500', color: '#0071e3', bg: 'rgba(0,113,227,0.1)' },
+  Infrastructure: { icon: HardHat, iconClass: 'text-purple-500', color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
 };
 
-const URGENCY_WEIGHT: Record<string, number> = { High: 3, Moderate: 2, Low: 1 };
+const URGENCY_WEIGHT: Record<string, number> = { Critical: 4, High: 3, Moderate: 2, Low: 1 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 export function normalizeIncidentType(type?: string | null): string {
   const norm = (type || '').trim().toLowerCase();
+  if (!norm || norm === 'none' || norm === 'unclassified' || norm === 'unknown' || norm === 'n/a') {
+    return 'None';
+  }
+  if (norm.includes('earthquake') || norm.includes('lindol') || norm.includes('seismic')) {
+    return 'Earthquake';
+  }
+  if (norm.includes('fire') || norm.includes('sunog')) {
+    return 'Fire';
+  }
+  if (norm.includes('flood') || norm.includes('baha') || norm.includes('submerged') || norm.includes('inundat')) {
+    return 'Flood';
+  }
+  if (norm.includes('landslide') || norm.includes('guho') || norm.includes('rockfall') || norm.includes('mudslide')) {
+    return 'Landslide';
+  }
+  if (norm.includes('general')) {
+    return 'General';
+  }
   if (norm.includes('search') || norm.includes('rescue') || norm.includes('evacuat') || norm.includes('stranded')) {
     return 'Search & Rescue';
   }
@@ -87,10 +121,13 @@ export function normalizeIncidentType(type?: string | null): string {
   if (norm.includes('food') || norm.includes('water') || norm.includes('tubig') || norm.includes('relief')) {
     return 'Food & Water';
   }
-  if (norm.includes('infra') || norm.includes('poste') || norm.includes('kuryente') || norm.includes('fire') || norm.includes('flood') || norm.includes('landslide') || norm.includes('earthquake')) {
+  if (norm.includes('infra') || norm.includes('poste') || norm.includes('kuryente')) {
     return 'Infrastructure';
   }
-  return 'Infrastructure';
+  const matched = (BASE_INCIDENT_TYPES as readonly string[]).find(b => b.toLowerCase() === norm);
+  if (matched) return matched;
+
+  return type?.trim() || 'General';
 }
 
 function parseReportTime(value: string) {
@@ -256,19 +293,37 @@ export default function Analytics() {
   const [typeViewMode, setTypeViewMode] = useState<'donut' | 'bar'>('donut');
 
   const allBarangays = useMemo(() => {
-    const unique = Array.from(new Set(data.map(r => r.barangay).filter(Boolean))).sort();
-    return ['All Barangays', ...unique];
+    const extra = data
+      .map(r => normalizeBarangayName(r.barangay) || r.barangay)
+      .filter((b): b is string => Boolean(b && typeof b === 'string' && !['all barangays', 'none', 'unknown', 'unspecified', 'n/a', 'null'].includes(b.toLowerCase().trim()) && !(TALISAY_BARANGAYS as readonly string[]).includes(b)));
+    return ['All Barangays', ...TALISAY_BARANGAYS, ...Array.from(new Set(extra)).sort()];
   }, [data]);
 
   const allTypes = useMemo(() => {
-    return ['All Types', 'Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure'];
-  }, []);
+    const fromReports = data.map(r => normalizeIncidentType(r.type)).filter(Boolean);
+    const sorted = Array.from(new Set([...BASE_INCIDENT_TYPES, ...fromReports]))
+      .filter((t): t is string => Boolean(t && t.toLowerCase() !== 'all types' && t.toLowerCase() !== 'unclassified' && t.toLowerCase() !== 'none'))
+      .sort();
+    return ['All Types', ...sorted];
+  }, [data]);
 
   const allSources = useMemo(() => ['All Sources', 'Bot', 'Scraper'], []);
 
   // Effective filters (header dropdowns override chart clicks)
   const effectiveBarangay = barangayFilter !== 'All Barangays' ? barangayFilter : activeBarangay;
   const effectiveType = typeFilter !== 'All Types' ? typeFilter : activeType;
+
+  const isBarangayMatch = (reportBarangay?: string, target?: string | null): boolean => {
+    if (!target || target === 'All Barangays') return true;
+    const normTarget = target.toLowerCase().trim();
+    const repBarangay = (reportBarangay || '').toLowerCase().trim();
+    if (normTarget === 'none' || normTarget === 'unknown') {
+      return !repBarangay || repBarangay === 'none' || repBarangay === 'unknown' || repBarangay === 'unspecified' || repBarangay === 'n/a';
+    }
+    const norm1 = normalizeBarangayName(reportBarangay).toLowerCase();
+    const norm2 = normalizeBarangayName(target).toLowerCase();
+    return repBarangay === normTarget || (Boolean(norm1) && norm1 === norm2);
+  };
 
   const getAnalyticsReportDate = (r: AnalyticsReport): string | null => {
     if (r.createdAt) {
@@ -290,7 +345,7 @@ export default function Analytics() {
   // ── Filtered data (used across KPI cards, volume chart, high-risk table, recommendations) ──
   const filtered = useMemo(() => {
     return data.filter(r => {
-      if (effectiveBarangay && r.barangay?.toLowerCase() !== effectiveBarangay.toLowerCase()) return false;
+      if (effectiveBarangay && !isBarangayMatch(r.barangay, effectiveBarangay)) return false;
       if (effectiveType && effectiveType !== 'All Types') {
         if (normalizeIncidentType(r.type) !== normalizeIncidentType(effectiveType)) return false;
       }
@@ -329,7 +384,7 @@ export default function Analytics() {
   // Reports for Incident Type Breakdown: filtered by date, source, and barangay, but not self-filtered by effectiveType
   const reportsForTypeChart = useMemo(() => {
     return data.filter(r => {
-      if (effectiveBarangay && r.barangay?.toLowerCase() !== effectiveBarangay.toLowerCase()) return false;
+      if (effectiveBarangay && !isBarangayMatch(r.barangay, effectiveBarangay)) return false;
       if (sourceFilter !== 'All Sources' && !r.source?.toLowerCase().includes(sourceFilter.toLowerCase())) return false;
       if (fromDate) {
         const dStr = getAnalyticsReportDate(r);
@@ -366,24 +421,39 @@ export default function Analytics() {
   }, [filtered]);
 
   // ── Donut & Bar chart data for Incident Types ──
+  const DISPLAY_INCIDENT_TYPES = useMemo(() => {
+    return ['Earthquake', 'Fire', 'Flood', 'General', 'Landslide', 'Typhoon', 'Volcanic Eruption'];
+  }, []);
+
   const typeChartData = useMemo(() => {
-    const counts: Record<string, number> = {
-      'Search & Rescue': 0,
-      'Medical': 0,
-      'Food & Water': 0,
-      'Infrastructure': 0,
-    };
+    const counts: Record<string, number> = {};
+    DISPLAY_INCIDENT_TYPES.forEach(t => {
+      counts[t] = 0;
+    });
+
     reportsForTypeChart.forEach(r => {
       const canonical = normalizeIncidentType(r.type);
       counts[canonical] = (counts[canonical] || 0) + 1;
     });
-    return ['Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure']
-      .map(type => ({
+
+    // Include base types + any other types (such as None or legacy) if they have > 0 reports
+    const extraTypes = Object.keys(counts).filter(t => !DISPLAY_INCIDENT_TYPES.includes(t) && counts[t] > 0);
+    const typesToShow = [...DISPLAY_INCIDENT_TYPES, ...extraTypes];
+
+    return typesToShow.map(type => {
+      const cfg = TYPE_CONFIG[type] || {
+        icon: ShieldAlert,
+        iconClass: 'text-slate-500',
+        color: '#64748b',
+        bg: 'rgba(100,116,139,0.1)',
+      };
+      return {
         name: type,
         value: counts[type] || 0,
-        color: TYPE_CONFIG[type]?.color ?? '#64748b',
-      }));
-  }, [reportsForTypeChart]);
+        color: cfg.color,
+      };
+    });
+  }, [reportsForTypeChart, DISPLAY_INCIDENT_TYPES]);
 
   // ── Volume line chart ────────────────────────────────────────────────────
   const volumeChartData = useMemo(() => {
@@ -436,10 +506,14 @@ export default function Analytics() {
   }, [data]);
 
   const recommendations = useMemo(() => riskData.slice(0, 3).map(item => {
-    const resource = item.dominantType === 'Medical' ? 'medical response teams and ambulance support'
+    const resource = item.dominantType === 'Fire' ? 'BFP firefighting units and water supply tankers'
+      : item.dominantType === 'Flood' ? 'rescue boats, life vests, and flood evacuation teams'
+      : item.dominantType === 'Earthquake' ? 'structural assessment engineers and search & rescue units'
+      : item.dominantType === 'Landslide' ? 'heavy earthmoving equipment and slope-clearing teams'
+      : item.dominantType === 'Medical' ? 'medical response teams and ambulance support'
       : item.dominantType === 'Search & Rescue' ? 'search and rescue units with extraction equipment'
-        : item.dominantType === 'Food & Water' ? 'relief food packs and potable water containers'
-          : 'road-clearing crews and structural assessment engineers';
+      : item.dominantType === 'Food & Water' ? 'relief food packs and potable water containers'
+      : 'emergency dispatch personnel and local barangay disaster response teams';
     return {
       ...item,
       text: `Pre-position ${resource} in ${item.barangay} based on ${item.incidents} recorded incident${item.incidents === 1 ? '' : 's'} and elevated urgency pattern.`,
@@ -587,11 +661,11 @@ export default function Analytics() {
                     <button
                       type="button"
                       onClick={resetFilters}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700/80 rounded-xl transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 ml-auto sm:ml-0 border border-slate-200/60 dark:border-slate-700/60"
+                      className="inline-flex items-center justify-center w-[34px] h-[34px] sm:w-[36px] sm:h-[36px] text-[#0071E3] hover:text-blue-700 dark:text-sky-400 bg-blue-500/10 hover:bg-blue-500/15 rounded-xl transition-all duration-150 active:scale-[0.95] cursor-pointer shrink-0 ml-auto sm:ml-0 border border-blue-500/20"
                       title="Reset all filters"
+                      aria-label="Reset all filters"
                     >
                       <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.75} />
-                      <span>Reset</span>
                     </button>
                   )}
                 </div>
@@ -775,7 +849,13 @@ export default function Analytics() {
                               angle={-15}
                               textAnchor="end"
                               tickFormatter={(val) =>
-                                val === 'Search & Rescue'
+                                val === 'Earthquake'
+                                  ? 'Quake'
+                                  : val === 'Landslide'
+                                  ? 'Slide'
+                                  : val === 'Volcanic Eruption'
+                                  ? 'Volcano'
+                                  : val === 'Search & Rescue'
                                   ? 'S&R'
                                   : val === 'Food & Water'
                                   ? 'F&W'
@@ -854,11 +934,17 @@ export default function Analytics() {
                   </div>
 
                   {/* Legend with interactive buttons */}
-                  <div className="sm:col-span-7 space-y-2">
-                    {['Search & Rescue', 'Medical', 'Food & Water', 'Infrastructure'].map(type => {
-                      const c = TYPE_CONFIG[type];
+                  <div className="sm:col-span-7 space-y-1.5 sm:space-y-2">
+                    {typeChartData.map(entry => {
+                      const type = entry.name;
+                      const c = TYPE_CONFIG[type] || {
+                        icon: ShieldAlert,
+                        iconClass: 'text-slate-500',
+                        color: '#64748b',
+                        bg: 'rgba(100,116,139,0.1)',
+                      };
                       const Icon = c.icon;
-                      const count = typeChartData.find(d => d.name === type)?.value ?? 0;
+                      const count = entry.value;
                       const totalTypeReports = reportsForTypeChart.length;
                       const pct = totalTypeReports > 0 ? Math.round((count / totalTypeReports) * 100) : 0;
                       const isActive = activeType === type;
@@ -870,19 +956,19 @@ export default function Analytics() {
                             setActiveType(prev => (prev === type ? null : type));
                             setTypeFilter('All Types');
                           }}
-                          className={`w-full flex items-center justify-between p-3 rounded-xl transition-all duration-150 text-left active:scale-[0.98] border cursor-pointer ${
+                          className={`w-full flex items-center justify-between p-2.5 sm:p-3 rounded-xl transition-all duration-150 text-left active:scale-[0.98] border cursor-pointer ${
                             isActive
                               ? 'bg-slate-100/90 dark:bg-slate-800/90 border-slate-300 dark:border-slate-600 ring-2'
                               : 'bg-white/60 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-800/80'
                           }`}
                           style={isActive ? ({ '--tw-ring-color': c.color } as React.CSSProperties) : {}}
                         >
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                             <div
-                              className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border"
+                              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 border"
                               style={{ background: c.bg, borderColor: `${c.color}25` }}
                             >
-                              <Icon className={`w-4 h-4 ${c.iconClass}`} strokeWidth={1.75} />
+                              <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${c.iconClass}`} strokeWidth={1.75} />
                             </div>
                             <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
                               {type}
